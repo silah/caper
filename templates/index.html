@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Selenium Test Builder</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="container">
+            <h1 class="logo">🧪 Selenium Test Builder</h1>
+            <ul class="nav-links">
+                <li><a href="/" class="active">Home</a></li>
+                <li><a href="/create">Create Test</a></li>
+                <li><a href="/tests">View Tests</a></li>
+                <li><a href="/executions">Executions</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="hero">
+            <h2>Welcome to Selenium Test Builder</h2>
+            <p>Build, store, and execute synthetic browser tests with ease</p>
+            
+            <div class="features">
+                <div class="feature-card">
+                    <div class="feature-icon">🔧</div>
+                    <h3>Build Tests</h3>
+                    <p>Create synthetic tests with common browser interactions and custom JavaScript</p>
+                    <a href="/create" class="btn btn-primary">Create New Test</a>
+                </div>
+                
+                <div class="feature-card">
+                    <div class="feature-icon">📝</div>
+                    <h3>Manage Tests</h3>
+                    <p>View all your saved tests and their execution history</p>
+                    <a href="/tests" class="btn btn-secondary">View All Tests</a>
+                </div>
+                
+                <div class="feature-card">
+                    <div class="feature-icon">▶️</div>
+                    <h3>Execute Tests</h3>
+                    <p>Run your tests in headless Chrome and view detailed results</p>
+                    <a href="/tests" class="btn btn-secondary">Run Tests</a>
+                </div>
+            </div>
+        </div>
+
+        <div class="info-section">
+            <h3>Supported Actions</h3>
+            <ul class="action-list">
+                <li><strong>Navigate:</strong> Open a URL in the browser</li>
+                <li><strong>Click:</strong> Click on an element (by CSS selector, XPath, ID, etc.)</li>
+                <li><strong>Type:</strong> Enter text into input fields</li>
+                <li><strong>Wait:</strong> Pause execution for a specified duration</li>
+                <li><strong>Execute JavaScript:</strong> Run custom JavaScript code</li>
+                <li><strong>Screenshot:</strong> Capture a screenshot of the page</li>
+                <li><strong>Assert Title:</strong> Verify the page title</li>
+                <li><strong>Assert Text:</strong> Verify element text content</li>
+                <li><strong>Scroll To:</strong> Scroll to a specific element</li>
+            </ul>
+        </div>
+    </div>
+</body>
+</html>

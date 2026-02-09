@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Executions - Selenium Test Builder</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="container">
+            <h1 class="logo">🧪 Selenium Test Builder</h1>
+            <ul class="nav-links">
+                <li><a href="/">Home</a></li>
+                <li><a href="/create">Create Test</a></li>
+                <li><a href="/tests">View Tests</a></li>
+                <li><a href="/executions" class="active">Executions</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <div class="container">
+        <h2>Test Execution History</h2>
+        
+        {% if executions %}
+        <div class="executions-list">
+            {% for execution in executions %}
+            <div class="execution-card" 
+                 data-execution-id="{{ execution.id }}"
+                 data-test-name="{{ execution.test_name }}"
+                 data-executed-at="{{ execution.executed_at }}"
+                 data-status="{{ execution.status }}"
+                 data-step-results="{{ execution.step_results or '[]' }}"
+                 data-output="{{ execution.output or '' }}"
+                 data-error="{{ execution.error or '' }}">
+                <div class="execution-header">
+                    <h3>{{ execution.test_name }} <span style="color: #666; font-size: 0.9em;">#{{ execution.id }}</span></h3>
+                    <span class="status-badge status-{{ execution.status }}">{{ execution.status }}</span>
+                </div>
+                <div class="execution-meta">
+                    <span class="meta-label">Execution ID:</span>
+                    <span class="meta-value">{{ execution.id }}</span>
+                    <span class="meta-label" style="margin-left: 20px;">Executed:</span>
+                    <span class="meta-value">{{ execution.executed_at }}</span>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <p>No test executions yet.</p>
+            <a href="/tests" class="btn btn-primary">Run a Test</a>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Modal -->
+    <div id="executionModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modalTitle"></h2>
+                <span class="modal-close" onclick="closeModal()">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div class="modal-meta">
+                    <span><strong>Executed:</strong> <span id="modalTime"></span></span>
+                    <span><strong>Status:</strong> <span id="modalStatus"></span></span>
+                </div>
+                
+                <h3>Step Results</h3>
+                <div id="stepResultsContainer"></div>
+                
+                <div id="outputSection" style="display: none;">
+                    <h3>Full Output</h3>
+                    <pre id="modalOutput" class="output"></pre>
+                </div>
+                
+                <div id="errorSection" style="display: none;">
+                    <h3>Error Details</h3>
+                    <pre id="modalError" class="error-output"></pre>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Add click event listeners when DOM is loaded
+        document.addEventListener('DOMContentLoaded', function() {
+            const executionCards = document.querySelectorAll('.execution-card');
+            executionCards.forEach(card => {
+                card.addEventListener('click', function() {
+                    const id = this.dataset.executionId;
+                    const testName = this.dataset.testName;
+                    const executedAt = this.dataset.executedAt;
+                    const status = this.dataset.status;
+                    const stepResults = this.dataset.stepResults;
+                    const output = this.dataset.output;
+                    const error = this.dataset.error;
+                    
+                    showExecutionDetails(id, testName, executedAt, status, stepResults, output, error);
+                });
+            });
+        });
+        
+        function showExecutionDetails(id, testName, executedAt, status, stepResults, output, error) {
+            document.getElementById('modalTitle').textContent = testName;
+            document.getElementById('modalTime').textContent = executedAt;
+            
+            const statusBadge = document.createElement('span');
+            statusBadge.className = 'status-badge status-' + status;
+            statusBadge.textContent = status;
+            const modalStatus = document.getElementById('modalStatus');
+            modalStatus.innerHTML = '';
+            modalStatus.appendChild(statusBadge);
+            
+            // Parse and display step results
+            const stepResultsContainer = document.getElementById('stepResultsContainer');
+            stepResultsContainer.innerHTML = '';
+            
+            let steps = [];
+            if (stepResults && typeof stepResults === 'string' && stepResults.trim()) {
+                try {
+                    steps = JSON.parse(stepResults);
+                    console.log('Parsed step results:', steps);
+                } catch (e) {
+                    console.error('Error parsing step results:', e, stepResults);
+                }
+            } else if (Array.isArray(stepResults)) {
+                steps = stepResults;
+            }
+            
+            if (steps.length > 0) {
+                const stepsList = document.createElement('div');
+                stepsList.className = 'steps-results-list';
+                
+                steps.forEach(step => {
+                    console.log('Processing step:', step);
+                    const stepDiv = document.createElement('div');
+                    stepDiv.className = 'step-result step-result-' + step.status;
+                    
+                    let stepHtml = '<div class="step-result-header">' +
+                        '<span class="step-number">Step ' + step.step + '</span>' +
+                        '<span class="step-action">' + step.action.toUpperCase() + '</span>' +
+                        '<span class="status-badge status-' + step.status + '">' + step.status + '</span>' +
+                        '</div>' +
+                        '<div class="step-result-message">' + escapeHtml(step.message) + '</div>';
+                    
+                    // Add screenshot if available
+                    if (step.screenshot) {
+                        console.log('Adding screenshot:', step.screenshot);
+                        stepHtml += '<div class="screenshot-container">' +
+                            '<img src="/static/screenshots/' + step.screenshot + '" alt="Screenshot" class="step-screenshot" onclick="window.open(this.src, \'_blank\')">' +
+                            '</div>';
+                    }
+                    
+                    stepDiv.innerHTML = stepHtml;
+                    stepsList.appendChild(stepDiv);
+                });
+                
+                stepResultsContainer.appendChild(stepsList);
+            } else {
+                stepResultsContainer.innerHTML = '<p class="no-steps">No step-by-step results available.</p>';
+            }
+            
+            // Show output if available
+            if (output && output.trim()) {
+                document.getElementById('outputSection').style.display = 'block';
+                document.getElementById('modalOutput').textContent = output;
+            } else {
+                document.getElementById('outputSection').style.display = 'none';
+            }
+            
+            // Show error if available
+            if (error && error.trim()) {
+                document.getElementById('errorSection').style.display = 'block';
+                document.getElementById('modalError').textContent = error;
+            } else {
+                document.getElementById('errorSection').style.display = 'none';
+            }
+            
+            document.getElementById('executionModal').style.display = 'block';
+        }
+        
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
+        function closeModal() {
+            document.getElementById('executionModal').style.display = 'none';
+        }
+        
+        // Close modal when clicking outside
+        window.onclick = function(event) {
+            const modal = document.getElementById('executionModal');
+            if (event.target == modal) {
+                closeModal();
+            }
+        }
+    </script>
+</body>
+</html>

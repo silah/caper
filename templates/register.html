@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Register - Selenium Test Builder</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <style>
+        .auth-container {
+            max-width: 500px;
+            margin: 50px auto;
+            padding: 30px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .auth-container h2 {
+            margin-bottom: 20px;
+            text-align: center;
+            color: #333;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            color: #555;
+            font-weight: 500;
+        }
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        .form-group input:focus, .form-group select:focus {
+            outline: none;
+            border-color: #4CAF50;
+        }
+        .btn-submit {
+            width: 100%;
+            padding: 12px;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        .btn-submit:hover {
+            background: #45a049;
+        }
+        .auth-links {
+            margin-top: 20px;
+            text-align: center;
+        }
+        .auth-links a {
+            color: #4CAF50;
+            text-decoration: none;
+        }
+        .auth-links a:hover {
+            text-decoration: underline;
+        }
+        .flash-message {
+            padding: 10px;
+            margin-bottom: 20px;
+            border-radius: 4px;
+            text-align: center;
+        }
+        .flash-message.error {
+            background: #ffebee;
+            color: #c62828;
+            border: 1px solid #ef9a9a;
+        }
+        .flash-message.success {
+            background: #e8f5e9;
+            color: #2e7d32;
+            border: 1px solid #a5d6a7;
+        }
+        .team-section {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f5f5f5;
+            border-radius: 4px;
+        }
+        .team-option {
+            margin-bottom: 15px;
+        }
+        .team-option input[type="radio"] {
+            width: auto;
+            margin-right: 5px;
+        }
+        .team-fields {
+            display: none;
+            margin-top: 10px;
+            padding: 10px;
+            background: white;
+            border-radius: 4px;
+        }
+        .team-fields.active {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div class="auth-container">
+        <h2>🧪 Selenium Test Builder</h2>
+        <h3 style="text-align: center; color: #666; font-weight: normal; margin-bottom: 30px;">Register</h3>
+        
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="flash-message {{ category }}">{{ message }}</div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+        
+        <form method="POST" action="{{ url_for('register') }}">
+            <div class="form-group">
+                <label for="username">Username</label>
+                <input type="text" id="username" name="username" required autofocus>
+            </div>
+            
+            <div class="form-group">
+                <label for="email">Email</label>
+                <input type="email" id="email" name="email" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="password">Password</label>
+                <input type="password" id="password" name="password" required>
+            </div>
+            
+            <div class="team-section">
+                <label style="margin-bottom: 10px; display: block;">Team Setup</label>
+                
+                <div class="team-option">
+                    <label>
+                        <input type="radio" name="action" value="create" id="action_create" required>
+                        Create a new team
+                    </label>
+                    <div id="create_fields" class="team-fields">
+                        <div class="form-group">
+                            <label for="team_name">Team Name</label>
+                            <input type="text" id="team_name" name="team_name">
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="team-option">
+                    <label>
+                        <input type="radio" name="action" value="join" id="action_join">
+                        Join an existing team
+                    </label>
+                    <div id="join_fields" class="team-fields">
+                        <div class="form-group">
+                            <label for="registration_code">Registration Code</label>
+                            <input type="text" id="registration_code" name="registration_code" placeholder="Enter team registration code">
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <button type="submit" class="btn-submit">Register</button>
+        </form>
+        
+        <div class="auth-links">
+            Already have an account? <a href="{{ url_for('login') }}">Login here</a>
+        </div>
+    </div>
+    
+    <script>
+        // Show/hide team fields based on radio selection
+        document.querySelectorAll('input[name="action"]').forEach(radio => {
+            radio.addEventListener('change', function() {
+                document.querySelectorAll('.team-fields').forEach(field => {
+                    field.classList.remove('active');
+                });
+                
+                if (this.value === 'create') {
+                    document.getElementById('create_fields').classList.add('active');
+                    document.getElementById('team_name').required = true;
+                    document.getElementById('registration_code').required = false;
+                } else if (this.value === 'join') {
+                    document.getElementById('join_fields').classList.add('active');
+                    document.getElementById('registration_code').required = true;
+                    document.getElementById('team_name').required = false;
+                }
+            });
+        });
+        
+        // Trigger change on page load if a radio is already selected
+        const selectedRadio = document.querySelector('input[name="action"]:checked');
+        if (selectedRadio) {
+            selectedRadio.dispatchEvent(new Event('change'));
+        }
+    </script>
+</body>
+</html>
