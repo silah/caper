@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ test.name }} - Selenium Test Builder</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="container">
+            <h1 class="logo">🧪 Selenium Test Builder</h1>
+            <ul class="nav-links">
+                <li><a href="/">Home</a></li>
+                <li><a href="/create">Create Test</a></li>
+                <li><a href="/tests">View Tests</a></li>
+                <li><a href="/executions">Executions</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="test-detail">
+            <div class="test-header">
+                <h2>{{ test.name }}</h2>
+                <div>
+                    <a href="/edit/{{ test.id }}" class="btn btn-primary">Edit Test</a>
+                    <button class="btn btn-success" onclick="executeTest()">Run Test</button>
+                </div>
+            </div>
+            
+            <p class="test-description">{{ test.description or 'No description' }}</p>
+            
+            <div class="test-meta">
+                <div class="meta-item">
+                    <strong>Created:</strong> {{ test.created_at }}
+                </div>
+                <div class="meta-item">
+                    <strong>Total Executions:</strong> {{ test.execution_count }}
+                </div>
+                {% if test.last_executed %}
+                <div class="meta-item">
+                    <strong>Last Executed:</strong> {{ test.last_executed }}
+                </div>
+                {% endif %}
+            </div>
+
+            <div class="section">
+                <h3>Test Steps</h3>
+                <ol class="steps-list">
+                    {% for step in test.steps %}
+                    <li class="step-item">
+                        <strong>{{ step.action|upper }}</strong>
+                        {% if step.action == 'navigate' %}
+                            - Navigate to: <code>{{ step.value }}</code>
+                        {% elif step.action == 'click' %}
+                            - Click element: <code>{{ step.selector }}</code> ({{ step.selectorType }})
+                        {% elif step.action == 'type' %}
+                            - Type "{{ step.value }}" into: <code>{{ step.selector }}</code> ({{ step.selectorType }})
+                        {% elif step.action == 'wait' %}
+                            - Wait {{ step.value }} seconds
+                        {% elif step.action == 'execute_js' %}
+                            - Execute: <code>{{ step.value }}</code>
+                        {% elif step.action == 'screenshot' %}
+                            - Take screenshot
+                        {% elif step.action == 'assert_title' %}
+                            - Assert title contains: "{{ step.value }}"
+                        {% elif step.action == 'assert_text' %}
+                            - Assert element <code>{{ step.selector }}</code> contains: "{{ step.value }}"
+                        {% elif step.action == 'scroll_to' %}
+                            - Scroll to element: <code>{{ step.selector }}</code> ({{ step.selectorType }})
+                        {% endif %}
+                    </li>
+                    {% endfor %}
+                </ol>
+            </div>
+
+            <div class="section">
+                <h3>Generated Script</h3>
+                <pre class="code-block">{{ test.script }}</pre>
+            </div>
+
+            <div class="section">
+                <h3>Execution History</h3>
+                {% if executions %}
+                <table class="executions-table">
+                    <thead>
+                        <tr>
+                            <th>Time</th>
+                            <th>Status</th>
+                            <th>Output</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for execution in executions %}
+                        <tr>
+                            <td>{{ execution.executed_at }}</td>
+                            <td>
+                                <span class="status-badge status-{{ execution.status }}">
+                                    {{ execution.status }}
+                                </span>
+                            </td>
+                            <td>
+                                {% if execution.error %}
+                                <details>
+                                    <summary>Error (click to expand)</summary>
+                                    <pre class="error-output">{{ execution.error }}</pre>
+                                </details>
+                                {% else %}
+                                <pre class="output">{{ execution.output }}</pre>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                <p>No execution history yet.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function executeTest() {
+            if (!confirm('Are you sure you want to run this test?')) {
+                return;
+            }
+            
+            const btn = event.target;
+            btn.disabled = true;
+            btn.textContent = 'Running...';
+            
+            fetch('/api/tests/{{ test.id }}/execute', {
+                method: 'POST'
+            })
+            .then(response => response.json())
+            .then(data => {
+                btn.disabled = false;
+                btn.textContent = 'Run Test';
+                
+                if (data.status === 'success') {
+                    alert('Test executed successfully!');
+                    window.location.reload();
+                } else {
+                    alert(`Test failed: ${data.error || 'Unknown error'}`);
+                    window.location.reload();
+                }
+            })
+            .catch(error => {
+                btn.disabled = false;
+                btn.textContent = 'Run Test';
+                alert('Error executing test: ' + error);
+            });
+        }
+    </script>
+</body>
+</html>

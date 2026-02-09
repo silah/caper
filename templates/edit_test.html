@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Edit Test - Selenium Test Builder</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="container">
+            <h1 class="logo">🧪 Selenium Test Builder</h1>
+            <ul class="nav-links">
+                <li><a href="/">Home</a></li>
+                <li><a href="/create">Create Test</a></li>
+                <li><a href="/tests">View Tests</a></li>
+                <li><a href="/executions">Executions</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="test-builder">
+            <h2>Edit Test</h2>
+            
+            <div class="test-info">
+                <div class="form-group">
+                    <label for="testName">Test Name *</label>
+                    <input type="text" id="testName" placeholder="e.g., Login Test" value="{{ test.name }}" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="testDescription">Description</label>
+                    <textarea id="testDescription" placeholder="Describe what this test does..." rows="3">{{ test.description }}</textarea>
+                </div>
+            </div>
+
+            <div class="steps-section">
+                <h3>Test Steps</h3>
+                <div id="stepsList"></div>
+                
+                <div class="add-step-section">
+                    <h4>Add Step</h4>
+                    
+                    <div class="form-group">
+                        <label for="actionType">Action Type *</label>
+                        <select id="actionType">
+                            <option value="navigate">Navigate to URL</option>
+                            <option value="click">Click Element</option>
+                            <option value="type">Type Text</option>
+                            <option value="wait">Wait</option>
+                            <option value="execute_js">Execute JavaScript</option>
+                            <option value="screenshot">Take Screenshot</option>
+                            <option value="assert_title">Assert Title</option>
+                            <option value="assert_text">Assert Element Text</option>
+                            <option value="scroll_to">Scroll To Element</option>
+                        </select>
+                    </div>
+                    
+                    <div id="stepConfig"></div>
+                    
+                    <button class="btn btn-primary" onclick="addStep()">Add Step</button>
+                </div>
+            </div>
+
+            <div class="actions">
+                <button class="btn btn-success btn-lg" onclick="updateTest()">Update Test</button>
+                <a href="/test/{{ test.id }}" class="btn btn-secondary">Cancel</a>
+            </div>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+    <script>
+        // Load existing test data
+        const testId = {{ test.id }};
+        const existingSteps = {{ test.steps | tojson }};
+        
+        // Initialize with existing steps
+        testSteps = existingSteps;
+        renderSteps();
+    </script>
+</body>
+</html>
