@@ -276,6 +276,7 @@ function removeStep(index) {
 function saveTest() {
     const name = document.getElementById('testName').value.trim();
     const description = document.getElementById('testDescription').value.trim();
+    const browser = document.getElementById('browserSelect') ? document.getElementById('browserSelect').value : 'firefox';
     
     if (!name) {
         alert('Please enter a test name');
@@ -290,6 +291,7 @@ function saveTest() {
     const data = {
         name: name,
         description: description,
+        browser: browser,
         steps: testSteps
     };
     

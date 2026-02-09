@@ -2,10 +2,111 @@
 Generate Selenium scripts from test steps
 """
 
-def generate_selenium_script(steps):
+def get_browser_config(browser='firefox'):
+    """Generate browser-specific imports and setup code"""
+    configs = {
+        'firefox': {
+            'imports': [
+                "from selenium.webdriver.firefox.options import Options",
+                "from selenium.webdriver.firefox.service import Service",
+                "from webdriver_manager.firefox import GeckoDriverManager",
+            ],
+            'setup': [
+                "    # Setup headless Firefox",
+                "    firefox_options = Options()",
+                "    firefox_options.add_argument('--headless')",
+                "    firefox_options.add_argument('--no-sandbox')",
+                "    firefox_options.add_argument('--disable-dev-shm-usage')",
+                "    service = Service(GeckoDriverManager().install())",
+                "    driver = webdriver.Firefox(service=service, options=firefox_options)",
+            ]
+        },
+        'chrome': {
+            'imports': [
+                "from selenium.webdriver.chrome.options import Options",
+                "from selenium.webdriver.chrome.service import Service",
+                "from webdriver_manager.chrome import ChromeDriverManager",
+            ],
+            'setup': [
+                "    # Setup headless Chrome",
+                "    chrome_options = Options()",
+                "    chrome_options.add_argument('--headless=new')",
+                "    chrome_options.add_argument('--no-sandbox')",
+                "    chrome_options.add_argument('--disable-dev-shm-usage')",
+                "    chrome_options.add_argument('--disable-gpu')",
+                "    service = Service(ChromeDriverManager().install())",
+                "    driver = webdriver.Chrome(service=service, options=chrome_options)",
+            ]
+        },
+        'edge': {
+            'imports': [
+                "from selenium.webdriver.edge.options import Options",
+                "from selenium.webdriver.edge.service import Service",
+                "from webdriver_manager.microsoft import EdgeChromiumDriverManager",
+            ],
+            'setup': [
+                "    # Setup headless Edge",
+                "    edge_options = Options()",
+                "    edge_options.add_argument('--headless=new')",
+                "    edge_options.add_argument('--no-sandbox')",
+                "    edge_options.add_argument('--disable-dev-shm-usage')",
+                "    edge_options.add_argument('--disable-gpu')",
+                "    service = Service(EdgeChromiumDriverManager().install())",
+                "    driver = webdriver.Edge(service=service, options=edge_options)",
+            ]
+        },
+        'chrome_mobile': {
+            'imports': [
+                "from selenium.webdriver.chrome.options import Options",
+                "from selenium.webdriver.chrome.service import Service",
+                "from webdriver_manager.chrome import ChromeDriverManager",
+            ],
+            'setup': [
+                "    # Setup Chrome with mobile emulation (Android)",
+                "    chrome_options = Options()",
+                "    chrome_options.add_argument('--headless=new')",
+                "    chrome_options.add_argument('--no-sandbox')",
+                "    chrome_options.add_argument('--disable-dev-shm-usage')",
+                "    mobile_emulation = {",
+                "        'deviceMetrics': {'width': 375, 'height': 812, 'pixelRatio': 3.0},",
+                "        'userAgent': 'Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36'",
+                "    }",
+                "    chrome_options.add_experimental_option('mobileEmulation', mobile_emulation)",
+                "    service = Service(ChromeDriverManager().install())",
+                "    driver = webdriver.Chrome(service=service, options=chrome_options)",
+            ]
+        },
+        'firefox_mobile': {
+            'imports': [
+                "from selenium.webdriver.firefox.options import Options",
+                "from selenium.webdriver.firefox.service import Service",
+                "from webdriver_manager.firefox import GeckoDriverManager",
+            ],
+            'setup': [
+                "    # Setup Firefox with mobile emulation (Android)",
+                "    firefox_options = Options()",
+                "    firefox_options.add_argument('--headless')",
+                "    firefox_options.add_argument('--no-sandbox')",
+                "    firefox_options.add_argument('--disable-dev-shm-usage')",
+                "    # Mobile user agent",
+                "    firefox_options.set_preference('general.useragent.override', 'Mozilla/5.0 (Android 13; Mobile; rv:120.0) Gecko/120.0 Firefox/120.0')",
+                "    # Mobile viewport",
+                "    firefox_options.set_preference('layout.css.devPixelsPerPx', '3.0')",
+                "    service = Service(GeckoDriverManager().install())",
+                "    driver = webdriver.Firefox(service=service, options=firefox_options)",
+                "    driver.set_window_size(375, 812)",
+            ]
+        }
+    }
+    
+    return configs.get(browser, configs['firefox'])
+
+def generate_selenium_script(steps, browser='firefox'):
     """
     Generate a Selenium Python script from a list of test steps
     """
+    
+    browser_config = get_browser_config(browser)
     
     script_lines = [
         "from selenium import webdriver",
@@ -13,24 +114,26 @@ def generate_selenium_script(steps):
         "from selenium.webdriver.common.keys import Keys",
         "from selenium.webdriver.support.ui import WebDriverWait",
         "from selenium.webdriver.support import expected_conditions as EC",
-        "from selenium.webdriver.firefox.options import Options",
-        "from selenium.webdriver.firefox.service import Service",
-        "from webdriver_manager.firefox import GeckoDriverManager",
+    ]
+    
+    # Add browser-specific imports
+    script_lines.extend(browser_config['imports'])
+    
+    script_lines.extend([
         "import time",
         "import json",
         "",
         "def run_test():",
-        "    # Setup headless Firefox",
-        "    firefox_options = Options()",
-        "    firefox_options.add_argument('--headless')",
-        "    ",
-        "    # Use webdriver-manager to automatically download and manage geckodriver",
-        "    service = Service(GeckoDriverManager().install())",
-        "    driver = webdriver.Firefox(service=service, options=firefox_options)",
+    ])
+    
+    # Add browser-specific setup
+    script_lines.extend(browser_config['setup'])
+    
+    script_lines.extend([
         "    step_results = []",
         "    ",
         "    try:",
-    ]
+    ])
     
     for i, step in enumerate(steps, 1):
         action = step.get('action')

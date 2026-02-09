@@ -33,6 +33,17 @@
                     <label for="testDescription">Description</label>
                     <textarea id="testDescription" placeholder="Describe what this test does..." rows="3">{{ test.description }}</textarea>
                 </div>
+                
+                <div class="form-group">
+                    <label for="browserSelect">Browser *</label>
+                    <select id="browserSelect">
+                        <option value="firefox" {% if test.browser == 'firefox' or not test.browser %}selected{% endif %}>🦊 Firefox (Desktop)</option>
+                        <option value="chrome" {% if test.browser == 'chrome' %}selected{% endif %}>🌐 Chrome (Desktop)</option>
+                        <option value="edge" {% if test.browser == 'edge' %}selected{% endif %}>🌊 Edge (Desktop)</option>
+                        <option value="chrome_mobile" {% if test.browser == 'chrome_mobile' %}selected{% endif %}>📱 Chrome Mobile (Android Emulation)</option>
+                        <option value="firefox_mobile" {% if test.browser == 'firefox_mobile' %}selected{% endif %}>📱 Firefox Mobile (Android Emulation)</option>
+                    </select>
+                </div>
             </div>
 
             <div class="steps-section">

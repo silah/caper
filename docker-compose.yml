@@ -1,0 +1,17 @@
+services:
+  app:
+    build: .
+    container_name: caper-selenium-test-builder
+    ports:
+      - "5000:5000"
+    volumes:
+      # Persist database
+      - ./tests.db:/app/tests.db
+      # Persist screenshots
+      - ./static/screenshots:/app/static/screenshots
+    environment:
+      - FLASK_ENV=production
+      - SECRET_KEY=${SECRET_KEY:-change-this-in-production-to-a-random-secret}
+    restart: unless-stopped
+    # Increase shared memory for browsers
+    shm_size: '2gb'

@@ -26,10 +26,28 @@
         <div class="tests-grid">
             {% for test in tests %}
             <div class="test-card">
-                <h3>{{ test.name }}</h3>
+                <h3>{{ test.name }} 
+                    {% if test.browser == 'chrome' %}🌐
+                    {% elif test.browser == 'edge' %}🌊
+                    {% elif test.browser == 'chrome_mobile' %}📱
+                    {% elif test.browser == 'firefox_mobile' %}📱
+                    {% else %}🦊
+                    {% endif %}
+                </h3>
                 <p class="test-description">{{ test.description or 'No description' }}</p>
                 
                 <div class="test-stats">
+                    <div class="stat">
+                        <span class="stat-label">Browser:</span>
+                        <span class="stat-value">
+                            {% if test.browser == 'chrome' %}Chrome
+                            {% elif test.browser == 'edge' %}Edge
+                            {% elif test.browser == 'chrome_mobile' %}Chrome Mobile
+                            {% elif test.browser == 'firefox_mobile' %}Firefox Mobile
+                            {% else %}Firefox
+                            {% endif %}
+                        </span>
+                    </div>
                     <div class="stat">
                         <span class="stat-label">Created:</span>
                         <span class="stat-value">{{ test.created_at }}</span>

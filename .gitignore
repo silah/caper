@@ -1,3 +1,10 @@
+# Project-specific
+tests.db
+*.db
+static/screenshots/*.png
+static/screenshots/*.jpg
+!static/screenshots/.gitkeep
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]

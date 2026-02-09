@@ -154,15 +154,16 @@ def create_test():
     name = data.get('name')
     description = data.get('description', '')
     steps = data.get('steps', [])
+    browser = data.get('browser', 'firefox')
     
     if not name or not steps:
         return jsonify({'error': 'Name and steps are required'}), 400
     
     # Generate Selenium script
-    script = generate_selenium_script(steps)
+    script = generate_selenium_script(steps, browser)
     
     # Save to database
-    test_id = db.create_test(name, description, steps, script, team['id'])
+    test_id = db.create_test(name, description, steps, script, team['id'], browser)
     
     return jsonify({
         'success': True,
@@ -337,15 +338,16 @@ def update_test(test_id):
     name = data.get('name')
     description = data.get('description', '')
     steps = data.get('steps', [])
+    browser = data.get('browser', 'firefox')
     
     if not name or not steps:
         return jsonify({'error': 'Name and steps are required'}), 400
     
     # Generate Selenium script
-    script = generate_selenium_script(steps)
+    script = generate_selenium_script(steps, browser)
     
     # Update in database
-    db.update_test(test_id, name, description, steps, script, team['id'])
+    db.update_test(test_id, name, description, steps, script, team['id'], browser)
     
     return jsonify({
         'success': True,

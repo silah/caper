@@ -60,6 +60,7 @@ class Database:
                 description TEXT,
                 steps TEXT NOT NULL,
                 script BLOB NOT NULL,
+                browser TEXT DEFAULT 'firefox',
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 last_executed TIMESTAMP,
                 execution_count INTEGER DEFAULT 0,
@@ -96,6 +97,11 @@ class Database:
             cursor.execute("SELECT team_id FROM executions LIMIT 1")
         except sqlite3.OperationalError:
             cursor.execute("ALTER TABLE executions ADD COLUMN team_id INTEGER")
+        
+        try:
+            cursor.execute("SELECT browser FROM tests LIMIT 1")
+        except sqlite3.OperationalError:
+            cursor.execute("ALTER TABLE tests ADD COLUMN browser TEXT DEFAULT 'firefox'")
         
         conn.commit()
         conn.close()
@@ -237,14 +243,14 @@ class Database:
         return members
     
     # Updated test methods with team filtering
-    def create_test(self, name, description, steps, script, team_id):
+    def create_test(self, name, description, steps, script, team_id, browser='firefox'):
         conn = self.get_connection()
         cursor = conn.cursor()
         
         cursor.execute('''
-            INSERT INTO tests (name, description, steps, script, team_id)
-            VALUES (?, ?, ?, ?, ?)
-        ''', (name, description, json.dumps(steps), script.encode('utf-8'), team_id))
+            INSERT INTO tests (name, description, steps, script, team_id, browser)
+            VALUES (?, ?, ?, ?, ?, ?)
+        ''', (name, description, json.dumps(steps), script.encode('utf-8'), team_id, browser))
         
         test_id = cursor.lastrowid
         conn.commit()
@@ -258,14 +264,14 @@ class Database:
         
         if team_id:
             cursor.execute('''
-                SELECT id, name, description, created_at, last_executed, execution_count
+                SELECT id, name, description, browser, created_at, last_executed, execution_count
                 FROM tests
                 WHERE team_id = ?
                 ORDER BY created_at DESC
             ''', (team_id,))
         else:
             cursor.execute('''
-                SELECT id, name, description, created_at, last_executed, execution_count
+                SELECT id, name, description, browser, created_at, last_executed, execution_count
                 FROM tests
                 ORDER BY created_at DESC
             ''')
@@ -281,13 +287,13 @@ class Database:
         
         if team_id:
             cursor.execute('''
-                SELECT id, name, description, steps, script, created_at, last_executed, execution_count
+                SELECT id, name, description, steps, script, browser, created_at, last_executed, execution_count
                 FROM tests
                 WHERE id = ? AND team_id = ?
             ''', (test_id, team_id))
         else:
             cursor.execute('''
-                SELECT id, name, description, steps, script, created_at, last_executed, execution_count
+                SELECT id, name, description, steps, script, browser, created_at, last_executed, execution_count
                 FROM tests
                 WHERE id = ?
             ''', (test_id,))
@@ -384,22 +390,22 @@ class Database:
         
         return executions
     
-    def update_test(self, test_id, name, description, steps, script, team_id=None):
+    def update_test(self, test_id, name, description, steps, script, team_id=None, browser='firefox'):
         conn = self.get_connection()
         cursor = conn.cursor()
         
         if team_id:
             cursor.execute('''
                 UPDATE tests
-                SET name = ?, description = ?, steps = ?, script = ?
+                SET name = ?, description = ?, steps = ?, script = ?, browser = ?
                 WHERE id = ? AND team_id = ?
-            ''', (name, description, json.dumps(steps), script.encode('utf-8'), test_id, team_id))
+            ''', (name, description, json.dumps(steps), script.encode('utf-8'), browser, test_id, team_id))
         else:
             cursor.execute('''
                 UPDATE tests
-                SET name = ?, description = ?, steps = ?, script = ?
+                SET name = ?, description = ?, steps = ?, script = ?, browser = ?
                 WHERE id = ?
-            ''', (name, description, json.dumps(steps), script.encode('utf-8'), test_id))
+            ''', (name, description, json.dumps(steps), script.encode('utf-8'), browser, test_id))
         
         conn.commit()
         conn.close()
