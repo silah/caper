@@ -222,7 +222,7 @@ def generate_selenium_script(steps, browser='firefox'):
             script_lines.append(f"        try:")
             script_lines.append(f"            import uuid")
             script_lines.append(f"            import os")
-            script_lines.append(f"            screenshot_dir = '/home/silas/caper/static/screenshots'")
+            script_lines.append(f"            screenshot_dir = '/app/static/screenshots'")
             script_lines.append(f"            os.makedirs(screenshot_dir, exist_ok=True)")
             script_lines.append(f"            screenshot_filename = str(uuid.uuid4()) + '.png'")
             script_lines.append(f"            screenshot_path = os.path.join(screenshot_dir, screenshot_filename)")
