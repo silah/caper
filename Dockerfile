@@ -64,9 +64,6 @@ COPY requirements.txt .
 # Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Ensure build-time DNS resolution for driver downloads
-RUN printf "nameserver 1.1.1.1\nnameserver 8.8.8.8\n" > /etc/resolv.conf
-
 # Pre-install browser drivers during build and use cached drivers at runtime
 ENV WDM_LOCAL=1
 ENV WDM_CACHE_DIR=/opt/webdriver
