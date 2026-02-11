@@ -1,12 +1,32 @@
 #!/bin/bash
 # Build script for Caper Selenium Test Builder
 # This script downloads drivers, cleans old images, and builds the container
+#
+# Usage:
+#   ./builder.sh              # Build with cache (faster)
+#   ./builder.sh --no-cache   # Build without cache (clean build)
 
 set -e  # Exit on error
 
-echo "========================================"
-echo "Caper Docker Build Script"
-echo "========================================"
+# Parse arguments
+BUILD_FLAGS=""
+if [[ "$1" == "--no-cache" ]]; then
+    BUILD_FLAGS="--no-cache"
+    echo "========================================"
+    echo "Caper Docker Build Script (NO CACHE)"
+    echo "========================================"
+elif [[ "$1" == "--help" ]] || [[ "$1" == "-h" ]]; then
+    echo "Usage: ./builder.sh [--no-cache]"
+    echo ""
+    echo "Options:"
+    echo "  --no-cache    Build without using Docker cache (slower, clean build)"
+    echo "  --help, -h    Show this help message"
+    exit 0
+else
+    echo "========================================"
+    echo "Caper Docker Build Script"
+    echo "========================================"
+fi
 echo ""
 
 # Step 1: Download browser drivers
@@ -33,7 +53,12 @@ echo ""
 
 # Step 3: Build new image
 echo "[3/3] Building Docker image..."
-docker compose build --no-cache
+if [[ -n "$BUILD_FLAGS" ]]; then
+    echo "Using flags: $BUILD_FLAGS"
+    docker compose build $BUILD_FLAGS
+else
+    docker compose build
+fi
 
 echo ""
 echo "========================================"
@@ -41,5 +66,5 @@ echo "✓ Build completed successfully!"
 echo "========================================"
 echo ""
 echo "To start the application, run:"
-echo "  docker-compose up -d"
+echo "  docker compose up -d"
 echo ""
