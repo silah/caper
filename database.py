@@ -226,11 +226,11 @@ class Database:
         conn = self.get_connection()
         cursor = conn.cursor()
         
-        cursor.execute(''', ut.is_admin, ut.status
+        cursor.execute('''
+            SELECT t.id, t.name, t.registration_code, ut.is_admin, ut.status
             FROM teams t
             JOIN user_teams ut ON t.id = ut.team_id
-            WHERE ut.user_id = ? AND ut.status = 'approved'N t.id = ut.team_id
-            WHERE ut.user_id = ?
+            WHERE ut.user_id = ? AND ut.status = 'approved'
             LIMIT 1
         ''', (user_id,))
         
