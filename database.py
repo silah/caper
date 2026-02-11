@@ -47,6 +47,8 @@ class Database:
                 user_id INTEGER NOT NULL,
                 team_id INTEGER NOT NULL,
                 joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                is_admin BOOLEAN DEFAULT 0,
+                status TEXT DEFAULT 'approved',
                 PRIMARY KEY (user_id, team_id),
                 FOREIGN KEY (user_id) REFERENCES users (id),
                 FOREIGN KEY (team_id) REFERENCES teams (id)
@@ -102,6 +104,17 @@ class Database:
             cursor.execute("SELECT browser FROM tests LIMIT 1")
         except sqlite3.OperationalError:
             cursor.execute("ALTER TABLE tests ADD COLUMN browser TEXT DEFAULT 'firefox'")
+        
+        # Add is_admin and status columns to user_teams
+        try:
+            cursor.execute("SELECT is_admin FROM user_teams LIMIT 1")
+        except sqlite3.OperationalError:
+            cursor.execute("ALTER TABLE user_teams ADD COLUMN is_admin BOOLEAN DEFAULT 0")
+        
+        try:
+            cursor.execute("SELECT status FROM user_teams LIMIT 1")
+        except sqlite3.OperationalError:
+            cursor.execute("ALTER TABLE user_teams ADD COLUMN status TEXT DEFAULT 'approved'")
         
         conn.commit()
         conn.close()
@@ -168,10 +181,10 @@ class Database:
             
             team_id = cursor.lastrowid
             
-            # Add creator to team
+            # Add creator to team as admin with approved status
             cursor.execute('''
-                INSERT INTO user_teams (user_id, team_id)
-                VALUES (?, ?)
+                INSERT INTO user_teams (user_id, team_id, is_admin, status)
+                VALUES (?, ?, 1, 'approved')
             ''', (created_by, team_id))
             
             conn.commit()
@@ -196,9 +209,10 @@ class Database:
         team_id = row['id']
         
         try:
+            # Create pending membership request
             cursor.execute('''
-                INSERT INTO user_teams (user_id, team_id)
-                VALUES (?, ?)
+                INSERT INTO user_teams (user_id, team_id, is_admin, status)
+                VALUES (?, ?, 0, 'pending')
             ''', (user_id, team_id))
             
             conn.commit()
@@ -212,10 +226,10 @@ class Database:
         conn = self.get_connection()
         cursor = conn.cursor()
         
-        cursor.execute('''
-            SELECT t.id, t.name, t.registration_code, t.created_at
+        cursor.execute(''', ut.is_admin, ut.status
             FROM teams t
             JOIN user_teams ut ON t.id = ut.team_id
+            WHERE ut.user_id = ? AND ut.status = 'approved'N t.id = ut.team_id
             WHERE ut.user_id = ?
             LIMIT 1
         ''', (user_id,))
@@ -230,10 +244,10 @@ class Database:
         cursor = conn.cursor()
         
         cursor.execute('''
-            SELECT u.id, u.username, u.email, ut.joined_at
+            SELECT u.id, u.username, u.email, ut.joined_at, ut.is_admin, ut.status
             FROM users u
             JOIN user_teams ut ON u.id = ut.user_id
-            WHERE ut.team_id = ?
+            WHERE ut.team_id = ? AND ut.status = 'approved'
             ORDER BY ut.joined_at
         ''', (team_id,))
         
@@ -241,6 +255,108 @@ class Database:
         conn.close()
         
         return members
+    
+    # Team management methods
+    def get_pending_requests(self, team_id):
+        """Get all pending membership requests for a team"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute('''
+            SELECT u.id, u.username, u.email, ut.joined_at
+            FROM users u
+            JOIN user_teams ut ON u.id = ut.user_id
+            WHERE ut.team_id = ? AND ut.status = 'pending'
+            ORDER BY ut.joined_at DESC
+        ''', (team_id,))
+        
+        requests = [dict(row) for row in cursor.fetchall()]
+        conn.close()
+        
+        return requests
+    
+    def approve_member(self, user_id, team_id):
+        """Approve a pending membership request"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute('''
+            UPDATE user_teams
+            SET status = 'approved'
+            WHERE user_id = ? AND team_id = ? AND status = 'pending'
+        ''', (user_id, team_id))
+        
+        conn.commit()
+        conn.close()
+        
+        return cursor.rowcount > 0
+    
+    def reject_member(self, user_id, team_id):
+        """Reject a pending membership request"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute('''
+            UPDATE user_teams
+            SET status = 'rejected'
+            WHERE user_id = ? AND team_id = ? AND status = 'pending'
+        ''', (user_id, team_id))
+        
+        conn.commit()
+        conn.close()
+        
+        return cursor.rowcount > 0
+    
+    def toggle_admin(self, user_id, team_id):
+        """Toggle admin status for a team member"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute('''
+            UPDATE user_teams
+            SET is_admin = NOT is_admin
+            WHERE user_id = ? AND team_id = ? AND status = 'approved'
+        ''', (user_id, team_id))
+        
+        conn.commit()
+        conn.close()
+        
+        return cursor.rowcount > 0
+    
+    def update_team_name(self, team_id, new_name):
+        """Update team name"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        
+        try:
+            cursor.execute('''
+                UPDATE teams
+                SET name = ?
+                WHERE id = ?
+            ''', (new_name, team_id))
+            
+            conn.commit()
+            conn.close()
+            return True
+        except sqlite3.IntegrityError:
+            conn.close()
+            return False
+    
+    def is_team_admin(self, user_id, team_id):
+        """Check if user is an admin of the team"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute('''
+            SELECT is_admin
+            FROM user_teams
+            WHERE user_id = ? AND team_id = ? AND status = 'approved'
+        ''', (user_id, team_id))
+        
+        row = cursor.fetchone()
+        conn.close()
+        
+        return row and row['is_admin'] == 1
     
     # Updated test methods with team filtering
     def create_test(self, name, description, steps, script, team_id, browser='firefox'):
