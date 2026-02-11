@@ -9,7 +9,8 @@ def get_browser_config(browser='firefox'):
             'imports': [
                 "from selenium.webdriver.firefox.options import Options",
                 "from selenium.webdriver.firefox.service import Service",
-                "from webdriver_manager.firefox import GeckoDriverManager",
+                "import glob",
+                "import os",
             ],
             'setup': [
                 "    # Setup headless Firefox",
@@ -17,7 +18,9 @@ def get_browser_config(browser='firefox'):
                 "    firefox_options.add_argument('--headless')",
                 "    firefox_options.add_argument('--no-sandbox')",
                 "    firefox_options.add_argument('--disable-dev-shm-usage')",
-                "    service = Service(GeckoDriverManager().install())",
+                "    # Find geckodriver in cache",
+                "    driver_path = glob.glob('/opt/webdriver/drivers/geckodriver/linux64/*/geckodriver')[0]",
+                "    service = Service(driver_path)",
                 "    driver = webdriver.Firefox(service=service, options=firefox_options)",
             ]
         },
@@ -25,7 +28,8 @@ def get_browser_config(browser='firefox'):
             'imports': [
                 "from selenium.webdriver.chrome.options import Options",
                 "from selenium.webdriver.chrome.service import Service",
-                "from webdriver_manager.chrome import ChromeDriverManager",
+                "import glob",
+                "import os",
             ],
             'setup': [
                 "    # Setup headless Chrome",
@@ -34,7 +38,9 @@ def get_browser_config(browser='firefox'):
                 "    chrome_options.add_argument('--no-sandbox')",
                 "    chrome_options.add_argument('--disable-dev-shm-usage')",
                 "    chrome_options.add_argument('--disable-gpu')",
-                "    service = Service(ChromeDriverManager().install())",
+                "    # Find chromedriver in cache",
+                "    driver_path = glob.glob('/opt/webdriver/drivers/chromedriver/linux64/*/chromedriver')[0]",
+                "    service = Service(driver_path)",
                 "    driver = webdriver.Chrome(service=service, options=chrome_options)",
             ]
         },
@@ -42,7 +48,8 @@ def get_browser_config(browser='firefox'):
             'imports': [
                 "from selenium.webdriver.edge.options import Options",
                 "from selenium.webdriver.edge.service import Service",
-                "from webdriver_manager.microsoft import EdgeChromiumDriverManager",
+                "import glob",
+                "import os",
             ],
             'setup': [
                 "    # Setup headless Edge",
@@ -51,7 +58,9 @@ def get_browser_config(browser='firefox'):
                 "    edge_options.add_argument('--no-sandbox')",
                 "    edge_options.add_argument('--disable-dev-shm-usage')",
                 "    edge_options.add_argument('--disable-gpu')",
-                "    service = Service(EdgeChromiumDriverManager().install())",
+                "    # Find msedgedriver in cache",
+                "    driver_path = glob.glob('/opt/webdriver/drivers/edgedriver/linux64/*/msedgedriver')[0]",
+                "    service = Service(driver_path)",
                 "    driver = webdriver.Edge(service=service, options=edge_options)",
             ]
         },
@@ -59,7 +68,8 @@ def get_browser_config(browser='firefox'):
             'imports': [
                 "from selenium.webdriver.chrome.options import Options",
                 "from selenium.webdriver.chrome.service import Service",
-                "from webdriver_manager.chrome import ChromeDriverManager",
+                "import glob",
+                "import os",
             ],
             'setup': [
                 "    # Setup Chrome with mobile emulation (Android)",
@@ -72,7 +82,9 @@ def get_browser_config(browser='firefox'):
                 "        'userAgent': 'Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36'",
                 "    }",
                 "    chrome_options.add_experimental_option('mobileEmulation', mobile_emulation)",
-                "    service = Service(ChromeDriverManager().install())",
+                "    # Find chromedriver in cache",
+                "    driver_path = glob.glob('/opt/webdriver/drivers/chromedriver/linux64/*/chromedriver')[0]",
+                "    service = Service(driver_path)",
                 "    driver = webdriver.Chrome(service=service, options=chrome_options)",
             ]
         },
@@ -80,7 +92,8 @@ def get_browser_config(browser='firefox'):
             'imports': [
                 "from selenium.webdriver.firefox.options import Options",
                 "from selenium.webdriver.firefox.service import Service",
-                "from webdriver_manager.firefox import GeckoDriverManager",
+                "import glob",
+                "import os",
             ],
             'setup': [
                 "    # Setup Firefox with mobile emulation (Android)",
@@ -92,7 +105,9 @@ def get_browser_config(browser='firefox'):
                 "    firefox_options.set_preference('general.useragent.override', 'Mozilla/5.0 (Android 13; Mobile; rv:120.0) Gecko/120.0 Firefox/120.0')",
                 "    # Mobile viewport",
                 "    firefox_options.set_preference('layout.css.devPixelsPerPx', '3.0')",
-                "    service = Service(GeckoDriverManager().install())",
+                "    # Find geckodriver in cache",
+                "    driver_path = glob.glob('/opt/webdriver/drivers/geckodriver/linux64/*/geckodriver')[0]",
+                "    service = Service(driver_path)",
                 "    driver = webdriver.Firefox(service=service, options=firefox_options)",
                 "    driver.set_window_size(375, 812)",
             ]
