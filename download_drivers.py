@@ -70,28 +70,47 @@ try:
     gecko_tar.unlink()
     print(f"✓ GeckoDriver {gecko_version} installed")
     
-    # EdgeDriver
+    # EdgeDriver (optional - may fail due to network restrictions)
     print("\n[3/3] Downloading EdgeDriver (latest stable)...")
-    edge_version_url = "https://msedgedriver.azureedge.net/LATEST_STABLE"
-    edge_version = requests.get(edge_version_url).text.strip()
-    edge_url = f"https://msedgedriver.azureedge.net/{edge_version}/edgedriver_linux64.zip"
-    edge_zip = cache_dir / "edgedriver.zip"
-    download_file(edge_url, edge_zip)
-    
-    # Extract edgedriver
-    with zipfile.ZipFile(edge_zip, 'r') as zip_ref:
-        zip_ref.extractall(cache_dir)
-    
-    edge_bin = cache_dir / "msedgedriver"
-    edge_dest = cache_dir / "drivers" / "edgedriver" / "linux64" / edge_version / "msedgedriver"
-    edge_dest.parent.mkdir(parents=True, exist_ok=True)
-    shutil.move(str(edge_bin), str(edge_dest))
-    edge_dest.chmod(0o755)
-    edge_zip.unlink()
-    print(f"✓ EdgeDriver {edge_version} installed")
+    try:
+        # Try GitHub API for Edge driver releases (alternative source)
+        edge_api = "https://api.github.com/repos/MicrosoftEdge/EdgeWebDriver/releases/latest"
+        edge_data = requests.get(edge_api, timeout=10).json()
+        
+        # Find Linux64 asset
+        edge_asset = None
+        for asset in edge_data.get('assets', []):
+            if 'linux64' in asset['name'].lower() and asset['name'].endswith('.zip'):
+                edge_asset = asset
+                break
+        
+        if not edge_asset:
+            raise Exception("No Linux64 EdgeDriver found in GitHub releases")
+        
+        edge_version = edge_data['tag_name']
+        edge_url = edge_asset['browser_download_url']
+        edge_zip = cache_dir / "edgedriver.zip"
+        download_file(edge_url, edge_zip)
+        
+        # Extract edgedriver
+        with zipfile.ZipFile(edge_zip, 'r') as zip_ref:
+            zip_ref.extractall(cache_dir)
+        
+        edge_bin = cache_dir / "msedgedriver"
+        edge_dest = cache_dir / "drivers" / "edgedriver" / "linux64" / edge_version / "msedgedriver"
+        edge_dest.parent.mkdir(parents=True, exist_ok=True)
+        shutil.move(str(edge_bin), str(edge_dest))
+        edge_dest.chmod(0o755)
+        edge_zip.unlink()
+        print(f"✓ EdgeDriver {edge_version} installed")
+    except Exception as edge_error:
+        print(f"⚠ EdgeDriver download failed: {edge_error}")
+        print("  Edge browser tests will download driver at runtime (slower first run)")
     
     print("\n" + "=" * 60)
-    print("✓ All drivers downloaded successfully!")
+    print("✓ Chrome and Firefox drivers ready!")
+    if 'edge_error' in locals():
+        print("⚠ Edge driver will be downloaded at runtime")
     print("You can now build the Docker image.")
     
 except Exception as e:
