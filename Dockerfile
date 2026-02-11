@@ -64,20 +64,12 @@ COPY requirements.txt .
 # Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Pre-install browser drivers during build and use cached drivers at runtime
+# Copy pre-downloaded drivers from host
+# REQUIRED: Run download_drivers.py on host before building!
 ENV WDM_LOCAL=1
 ENV WDM_CACHE_DIR=/opt/webdriver
-RUN mkdir -p /opt/webdriver \
-    && python - <<'PY'
-from webdriver_manager.chrome import ChromeDriverManager
-from webdriver_manager.firefox import GeckoDriverManager
-from webdriver_manager.microsoft import EdgeChromiumDriverManager
-
-ChromeDriverManager().install()
-GeckoDriverManager().install()
-EdgeChromiumDriverManager().install()
-print("Pre-downloaded Chrome/Firefox/Edge drivers")
-PY
+RUN mkdir -p /opt/webdriver
+COPY webdrivers/ /opt/webdriver/
 
 # Copy application code
 COPY . .

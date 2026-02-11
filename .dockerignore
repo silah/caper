@@ -51,3 +51,6 @@ README.md
 test_*.py
 *_test.py
 !test_generator.py
+
+# Keep webdrivers for Docker build
+!webdrivers/
