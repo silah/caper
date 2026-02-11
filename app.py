@@ -29,10 +29,23 @@ def get_current_team():
         return None
     return db.get_user_team(current_user.id)
 
+# Helper function to check if user has pending membership
+def check_pending_redirect():
+    """Check if user has pending membership and redirect if needed"""
+    if current_user.is_authenticated:
+        pending_team = db.has_pending_membership(current_user.id)
+        if pending_team:
+            return redirect(url_for('pending_approval'))
+    return None
+
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     """Login page"""
     if current_user.is_authenticated:
+        # Check if user has pending membership
+        pending_team = db.has_pending_membership(current_user.id)
+        if pending_team:
+            return redirect(url_for('pending_approval'))
         return redirect(url_for('index'))
     
     if request.method == 'POST':
@@ -44,6 +57,11 @@ def login():
         if user_dict:
             user = User.from_dict(user_dict)
             login_user(user, remember=remember)
+            
+            # Check if user has pending membership
+            pending_team = db.has_pending_membership(user.id)
+            if pending_team:
+                return redirect(url_for('pending_approval'))
             
             next_page = request.args.get('next')
             return redirect(next_page) if next_page else redirect(url_for('index'))
@@ -102,10 +120,31 @@ def logout():
     logout_user()
     return redirect(url_for('login'))
 
+@app.route('/pending')
+@login_required
+def pending_approval():
+    """Pending approval page for users waiting for team acceptance"""
+    pending_team = db.has_pending_membership(current_user.id)
+    
+    # If no pending membership, check for approved team
+    if not pending_team:
+        team = get_current_team()
+        if team:
+            return redirect(url_for('index'))
+        # If no team at all, redirect to register to join/create a team
+        flash('You are not part of any team. Please create or join a team.', 'info')
+        return redirect(url_for('register'))
+    
+    return render_template('pending.html', team=pending_team)
+
 @app.route('/')
 @login_required
 def index():
     """Home page"""
+    redirect_response = check_pending_redirect()
+    if redirect_response:
+        return redirect_response
+    
     team = get_current_team()
     return render_template('index.html', team=team)
 
@@ -113,6 +152,10 @@ def index():
 @login_required
 def create():
     """Test creation page"""
+    redirect_response = check_pending_redirect()
+    if redirect_response:
+        return redirect_response
+    
     team = get_current_team()
     if not team:
         flash('You must be part of a team to create tests', 'error')
@@ -123,6 +166,10 @@ def create():
 @login_required
 def view_tests():
     """View all tests"""
+    redirect_response = check_pending_redirect()
+    if redirect_response:
+        return redirect_response
+    
     team = get_current_team()
     if not team:
         flash('You must be part of a team to view tests', 'error')
@@ -134,6 +181,10 @@ def view_tests():
 @login_required
 def view_executions():
     """View all test executions"""
+    redirect_response = check_pending_redirect()
+    if redirect_response:
+        return redirect_response
+    
     team = get_current_team()
     if not team:
         flash('You must be part of a team to view executions', 'error')
@@ -145,6 +196,10 @@ def view_executions():
 @login_required
 def create_test():
     """API endpoint to create a new test"""
+    # Check for pending membership
+    if db.has_pending_membership(current_user.id):
+        return jsonify({'error': 'Your team membership is pending approval'}), 403
+    
     team = get_current_team()
     if not team:
         return jsonify({'error': 'You must be part of a team'}), 403
@@ -187,6 +242,10 @@ def get_test(test_id):
 @login_required
 def execute_test(test_id):
     """API endpoint to execute a test"""
+    # Check for pending membership
+    if db.has_pending_membership(current_user.id):
+        return jsonify({'error': 'Your team membership is pending approval'}), 403
+    
     team = get_current_team()
     test = db.get_test(test_id, team_id=team['id'] if team else None)
     
@@ -295,6 +354,10 @@ def get_test_executions(test_id):
 @login_required
 def delete_test(test_id):
     """API endpoint to delete a test"""
+    # Check for pending membership
+    if db.has_pending_membership(current_user.id):
+        return jsonify({'error': 'Your team membership is pending approval'}), 403
+    
     team = get_current_team()
     db.delete_test(test_id, team_id=team['id'] if team else None)
     return jsonify({'success': True, 'message': 'Test deleted successfully'})
@@ -303,6 +366,10 @@ def delete_test(test_id):
 @login_required
 def test_detail(test_id):
     """Test detail and execution page"""
+    redirect_response = check_pending_redirect()
+    if redirect_response:
+        return redirect_response
+    
     team = get_current_team()
     test = db.get_test(test_id, team_id=team['id'] if team else None)
     
@@ -317,6 +384,10 @@ def test_detail(test_id):
 @login_required
 def edit_test(test_id):
     """Edit test page"""
+    redirect_response = check_pending_redirect()
+    if redirect_response:
+        return redirect_response
+    
     team = get_current_team()
     test = db.get_test(test_id, team_id=team['id'] if team else None)
     
@@ -329,6 +400,10 @@ def edit_test(test_id):
 @login_required
 def update_test(test_id):
     """API endpoint to update an existing test"""
+    # Check for pending membership
+    if db.has_pending_membership(current_user.id):
+        return jsonify({'error': 'Your team membership is pending approval'}), 403
+    
     team = get_current_team()
     if not team:
         return jsonify({'error': 'You must be part of a team'}), 403
@@ -359,6 +434,10 @@ def update_test(test_id):
 @login_required
 def team_management():
     """Team management page"""
+    redirect_response = check_pending_redirect()
+    if redirect_response:
+        return redirect_response
+    
     team = get_current_team()
     if not team:
         flash('You are not part of a team', 'error')
@@ -385,6 +464,10 @@ def team_management():
 @login_required
 def approve_member(user_id):
     """API endpoint to approve a pending member"""
+    # Check for pending membership
+    if db.has_pending_membership(current_user.id):
+        return jsonify({'error': 'Your team membership is pending approval'}), 403
+    
     team = get_current_team()
     if not team:
         return jsonify({'error': 'You are not part of a team'}), 403
@@ -404,6 +487,10 @@ def approve_member(user_id):
 @login_required
 def reject_member(user_id):
     """API endpoint to reject a pending member"""
+    # Check for pending membership
+    if db.has_pending_membership(current_user.id):
+        return jsonify({'error': 'Your team membership is pending approval'}), 403
+    
     team = get_current_team()
     if not team:
         return jsonify({'error': 'You are not part of a team'}), 403
@@ -423,6 +510,10 @@ def reject_member(user_id):
 @login_required
 def toggle_admin(user_id):
     """API endpoint to toggle admin status of a team member"""
+    # Check for pending membership
+    if db.has_pending_membership(current_user.id):
+        return jsonify({'error': 'Your team membership is pending approval'}), 403
+    
     team = get_current_team()
     if not team:
         return jsonify({'error': 'You are not part of a team'}), 403
@@ -446,6 +537,10 @@ def toggle_admin(user_id):
 @login_required
 def update_team_name():
     """API endpoint to update team name"""
+    # Check for pending membership
+    if db.has_pending_membership(current_user.id):
+        return jsonify({'error': 'Your team membership is pending approval'}), 403
+    
     team = get_current_team()
     if not team:
         return jsonify({'error': 'You are not part of a team'}), 403

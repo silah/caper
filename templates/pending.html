@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pending Approval - Selenium Test Builder</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <style>
+        .pending-container {
+            max-width: 600px;
+            margin: 100px auto;
+            padding: 40px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+        .pending-icon {
+            font-size: 80px;
+            margin-bottom: 20px;
+        }
+        .pending-title {
+            color: #333;
+            font-size: 28px;
+            margin-bottom: 15px;
+        }
+        .pending-message {
+            color: #666;
+            font-size: 16px;
+            line-height: 1.6;
+            margin-bottom: 30px;
+        }
+        .team-info {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 5px;
+            margin-bottom: 30px;
+        }
+        .team-name {
+            font-size: 20px;
+            font-weight: bold;
+            color: #007bff;
+            margin-bottom: 10px;
+        }
+        .logout-link {
+            display: inline-block;
+            padding: 10px 20px;
+            background: #ff6b6b;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            transition: background 0.3s;
+        }
+        .logout-link:hover {
+            background: #ff5252;
+        }
+    </style>
+</head>
+<body>
+    <div class="pending-container">
+        <div class="pending-icon">⏳</div>
+        <h1 class="pending-title">Pending Team Approval</h1>
+        
+        <div class="team-info">
+            <div class="team-name">{{ team.name }}</div>
+            <p style="color: #666; margin: 0;">Your membership request is awaiting approval</p>
+        </div>
+        
+        <div class="pending-message">
+            <p>Your request to join this team has been submitted successfully.</p>
+            <p>A team administrator needs to approve your membership before you can access the application.</p>
+            <p>Please check back later or contact your team administrator.</p>
+        </div>
+        
+        <a href="{{ url_for('logout') }}" class="logout-link">Logout</a>
+    </div>
+</body>
+</html>

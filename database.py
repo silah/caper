@@ -239,6 +239,24 @@ class Database:
         
         return dict(row) if row else None
     
+    def has_pending_membership(self, user_id):
+        """Check if user has a pending team membership"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute('''
+            SELECT t.id, t.name
+            FROM teams t
+            JOIN user_teams ut ON t.id = ut.team_id
+            WHERE ut.user_id = ? AND ut.status = 'pending'
+            LIMIT 1
+        ''', (user_id,))
+        
+        row = cursor.fetchone()
+        conn.close()
+        
+        return dict(row) if row else None
+    
     def get_team_members(self, team_id):
         conn = self.get_connection()
         cursor = conn.cursor()
