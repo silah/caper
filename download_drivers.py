@@ -70,25 +70,13 @@ try:
     gecko_tar.unlink()
     print(f"✓ GeckoDriver {gecko_version} installed")
     
-    # EdgeDriver (optional - may fail due to network restrictions)
+    # EdgeDriver
     print("\n[3/3] Downloading EdgeDriver (latest stable)...")
     try:
-        # Try GitHub API for Edge driver releases (alternative source)
-        edge_api = "https://api.github.com/repos/MicrosoftEdge/EdgeWebDriver/releases/latest"
-        edge_data = requests.get(edge_api, timeout=10).json()
-        
-        # Find Linux64 asset
-        edge_asset = None
-        for asset in edge_data.get('assets', []):
-            if 'linux64' in asset['name'].lower() and asset['name'].endswith('.zip'):
-                edge_asset = asset
-                break
-        
-        if not edge_asset:
-            raise Exception("No Linux64 EdgeDriver found in GitHub releases")
-        
-        edge_version = edge_data['tag_name']
-        edge_url = edge_asset['browser_download_url']
+        # Correct Microsoft EdgeDriver domain
+        edge_version_url = "https://msedgedriver.microsoft.com/LATEST_STABLE"
+        edge_version = requests.get(edge_version_url, timeout=10).text.strip()
+        edge_url = f"https://msedgedriver.microsoft.com/{edge_version}/edgedriver_linux64.zip"
         edge_zip = cache_dir / "edgedriver.zip"
         download_file(edge_url, edge_zip)
         
