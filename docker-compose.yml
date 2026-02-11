@@ -1,7 +1,10 @@
 services:
   app:
     build: .
-    container_name: caper-selenium-test-builder
+    container_name: caper
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
     ports:
       - "5000:5000"
     volumes:
