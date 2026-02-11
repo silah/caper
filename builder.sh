@@ -21,7 +21,7 @@ echo ""
 # Step 2: Clean up old Docker images
 echo "[2/3] Cleaning up old Docker images..."
 echo "Stopping and removing old container..."
-docker-compose down 2>/dev/null || true
+docker compose down 2>/dev/null || true
 
 echo "Removing old images for caper..."
 docker images | grep caper | awk '{print $3}' | xargs -r docker rmi -f 2>/dev/null || true
@@ -33,7 +33,7 @@ echo ""
 
 # Step 3: Build new image
 echo "[3/3] Building Docker image..."
-docker-compose build --no-cache
+docker compose build --no-cache
 
 echo ""
 echo "========================================"
