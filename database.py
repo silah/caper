@@ -310,20 +310,36 @@ class Database:
         return cursor.rowcount > 0
     
     def reject_member(self, user_id, team_id):
-        """Reject a pending membership request"""
+        """Reject a pending membership request and delete the user account"""
         conn = self.get_connection()
         cursor = conn.cursor()
         
+        # First verify the user has a pending request for this team
         cursor.execute('''
-            UPDATE user_teams
-            SET status = 'rejected'
+            SELECT COUNT(*) FROM user_teams
             WHERE user_id = ? AND team_id = ? AND status = 'pending'
         ''', (user_id, team_id))
+        
+        if cursor.fetchone()[0] == 0:
+            conn.close()
+            return False
+        
+        # Delete from user_teams first (foreign key constraint)
+        cursor.execute('''
+            DELETE FROM user_teams
+            WHERE user_id = ?
+        ''', (user_id,))
+        
+        # Delete the user account entirely
+        cursor.execute('''
+            DELETE FROM users
+            WHERE id = ?
+        ''', (user_id,))
         
         conn.commit()
         conn.close()
         
-        return cursor.rowcount > 0
+        return True
     
     def toggle_admin(self, user_id, team_id):
         """Toggle admin status for a team member"""
