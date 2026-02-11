@@ -47,5 +47,7 @@ README.md
 .github/
 
 # Test files
+# Keep test_generator.py (required at runtime)
 test_*.py
 *_test.py
+!test_generator.py
