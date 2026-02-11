@@ -4,28 +4,27 @@ A web-based application for creating, managing, and executing Selenium browser a
 
 ## Features
 
-- 🔐 **User Authentication** - Secure login with Flask-Login
-- 👥 **Team Collaboration** - Share tests with your team using registration codes
-- 🌐 **Multi-Browser Support** - Test on Firefox, Chrome, Edge, and mobile browsers
-- 📱 **Mobile Emulation** - Test mobile experiences with Chrome Mobile and Firefox Mobile
-- 🎯 **Visual Test Builder** - No coding required, build tests with a UI
-- 📊 **Execution History** - Track test runs with detailed step-by-step results
-- 📸 **Screenshots** - Capture screenshots during test execution
-- 🐳 **Docker Ready** - Run anywhere with Docker
+- **User Authentication** - Secure login with Flask-Login
+- **Team Collaboration** - Share tests with your team using registration codes
+- **Multi-Browser Support** - Test on Firefox, Chrome, Edge, and mobile browsers
+- **Mobile Emulation** - Test mobile experiences with Chrome Mobile and Firefox Mobile
+- **Visual Test Builder** - No coding required, build tests with a UI
+- **Execution History** - Track test runs with detailed step-by-step results
+- **Screenshots** - Capture screenshots during test execution
 
 ## Supported Browsers
 
-- 🦊 **Firefox** (Desktop) - Default, headless mode
-- 🌐 **Chrome** (Desktop) - Headless mode
-- 🌊 **Edge** (Desktop) - Headless mode  
-- 📱 **Chrome Mobile** - Android emulation (375x812 viewport)
-- 📱 **Firefox Mobile** - Android emulation (375x812 viewport)
+- **Firefox** (Desktop) - Default, headless mode
+- **Chrome** (Desktop) - Headless mode
+- **Edge** (Desktop) - Headless mode  
+- **Chrome Mobile** - Android emulation (375x812 viewport)
+- **Firefox Mobile** - Android emulation (375x812 viewport)
 
 ## Quick Start with Docker
 
 1. **Clone the repository**
    ```bash
-   git clone <your-repo-url>
+   git clone https://github.com/silah/caper.git
    cd caper
    ```
 
@@ -99,27 +98,7 @@ A web-based application for creating, managing, and executing Selenium browser a
    - Enter the registration code from your team admin
    - You'll have access to all team tests
 
-## Docker Commands
 
-```bash
-# Build the image
-docker-compose build
-
-# Start the application
-docker-compose up -d
-
-# View logs
-docker-compose logs -f
-
-# Stop the application
-docker-compose down
-
-# Restart after code changes
-docker-compose restart
-
-# Remove everything (including volumes)
-docker-compose down -v
-```
 
 ## Environment Variables
 
