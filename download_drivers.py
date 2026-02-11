@@ -18,16 +18,17 @@ try:
     from webdriver_manager.firefox import GeckoDriverManager
     from webdriver_manager.microsoft import EdgeChromiumDriverManager
     
-    print("\n[1/3] Downloading ChromeDriver...")
-    chrome_path = ChromeDriverManager().install()
+    print("\n[1/3] Downloading ChromeDriver (latest stable)...")
+    # Use driver_version="latest" to avoid browser version detection
+    chrome_path = ChromeDriverManager(driver_version="latest").install()
     print(f"✓ ChromeDriver installed: {chrome_path}")
     
-    print("\n[2/3] Downloading GeckoDriver (Firefox)...")
-    firefox_path = GeckoDriverManager().install()
+    print("\n[2/3] Downloading GeckoDriver (Firefox, latest)...")
+    firefox_path = GeckoDriverManager(driver_version="latest").install()
     print(f"✓ GeckoDriver installed: {firefox_path}")
     
-    print("\n[3/3] Downloading EdgeDriver...")
-    edge_path = EdgeChromiumDriverManager().install()
+    print("\n[3/3] Downloading EdgeDriver (latest stable)...")
+    edge_path = EdgeChromiumDriverManager(driver_version="latest").install()
     print(f"✓ EdgeDriver installed: {edge_path}")
     
     print("\n" + "=" * 60)
