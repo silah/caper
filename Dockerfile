@@ -3,10 +3,12 @@ FROM ubuntu:22.04
 ARG DEBIAN_FRONTEND=noninteractive
 
 # System dependencies and Firefox runtime libraries
+# xz-utils needed to extract Mozilla's tarball (they switched from bz2 to xz)
 RUN apt-get update && apt-get install -y \
     python3 \
     python3-pip \
     wget \
+    xz-utils \
     ffmpeg \
     libgtk-3-0 \
     libdbus-glib-1-2 \
@@ -18,11 +20,12 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Firefox — download tarball directly from Mozilla to avoid Ubuntu's snap redirect
-RUN wget -qO /tmp/firefox.tar.bz2 \
+# Use -xf (auto-detect compression) in case Mozilla change format again
+RUN wget -qO /tmp/firefox.tar \
         "https://download.mozilla.org/?product=firefox-latest&os=linux64&lang=en-US" \
-    && tar -xjf /tmp/firefox.tar.bz2 -C /opt/ \
+    && tar -xf /tmp/firefox.tar -C /opt/ \
     && ln -sf /opt/firefox/firefox /usr/local/bin/firefox \
-    && rm /tmp/firefox.tar.bz2
+    && rm /tmp/firefox.tar
 
 # GeckoDriver — pre-install so tests don't need internet at run time
 ARG GECKO_VERSION=0.35.0
