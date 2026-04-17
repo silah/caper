@@ -991,7 +991,179 @@ summary {
     margin: 0;
 }
 
-/* Tests page header */
+/* Test overview page (view_tests) */
+.tov-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    margin: 2rem 0 1.25rem;
+}
+
+.tov-title {
+    font-size: 1.6rem;
+    font-weight: 700;
+    color: #1a2332;
+    margin: 0 0 0.2rem;
+}
+
+.tov-subtitle {
+    font-size: 0.85rem;
+    color: #8a95a3;
+    margin: 0;
+}
+
+.tov-actions {
+    display: flex;
+    gap: 0.6rem;
+    align-items: center;
+}
+
+.tov-table-wrap {
+    background: #fff;
+    border-radius: 10px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.06);
+    overflow: hidden;
+}
+
+.tov-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.875rem;
+}
+
+.tov-table thead tr {
+    background: #f7f8fa;
+    border-bottom: 1px solid #e8eaed;
+}
+
+.tov-table th {
+    padding: 0.75rem 1rem;
+    text-align: left;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #8a95a3;
+    white-space: nowrap;
+}
+
+.tov-th-name    { width: 22%; }
+.tov-th-desc    { width: 28%; }
+.tov-th-actions { width: 200px; }
+
+.tov-row {
+    border-bottom: 1px solid #f0f2f5;
+    transition: background 0.12s;
+}
+
+.tov-row:last-child { border-bottom: none; }
+
+.tov-row:hover { background: #f9fafb; }
+
+.tov-row td {
+    padding: 0.85rem 1rem;
+    vertical-align: middle;
+}
+
+.tov-name-link {
+    font-weight: 600;
+    color: #2c3e50;
+    text-decoration: none;
+    transition: color 0.15s;
+}
+
+.tov-name-link:hover { color: #3498db; }
+
+.tov-desc {
+    color: #6b7280;
+    font-size: 0.85rem;
+    max-width: 280px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.tov-count {
+    font-variant-numeric: tabular-nums;
+    color: #555;
+    text-align: center;
+}
+
+.tov-date {
+    font-size: 0.8rem;
+    color: #6b7280;
+    white-space: nowrap;
+}
+
+.tov-none {
+    color: #c5ccd6;
+    font-size: 0.85rem;
+}
+
+.tov-row-actions {
+    display: flex;
+    gap: 0.35rem;
+    align-items: center;
+}
+
+.tov-btn {
+    display: inline-block;
+    padding: 0.3rem 0.7rem;
+    border-radius: 5px;
+    font-size: 0.78rem;
+    font-weight: 500;
+    border: 1px solid transparent;
+    cursor: pointer;
+    text-decoration: none;
+    transition: background 0.15s, border-color 0.15s, color 0.15s;
+    line-height: 1.4;
+    white-space: nowrap;
+}
+
+.tov-btn-view {
+    background: #eef2ff;
+    color: #3d5afe;
+    border-color: #c7d2fe;
+}
+.tov-btn-view:hover { background: #dde6ff; }
+
+.tov-btn-edit {
+    background: #f0fdf4;
+    color: #16a34a;
+    border-color: #bbf7d0;
+}
+.tov-btn-edit:hover { background: #dcfce7; }
+
+.tov-btn-run {
+    background: #fff7ed;
+    color: #ea580c;
+    border-color: #fed7aa;
+}
+.tov-btn-run:hover { background: #ffedd5; }
+.tov-btn-run:disabled { opacity: 0.5; cursor: default; }
+
+.tov-btn-delete {
+    background: #fff1f2;
+    color: #e11d48;
+    border-color: #fecdd3;
+}
+.tov-btn-delete:hover { background: #ffe4e6; }
+
+.tov-empty {
+    text-align: center;
+    padding: 5rem 2rem;
+    color: #aaa;
+}
+
+.tov-empty-icon { margin-bottom: 1rem; }
+
+.tov-empty p {
+    font-size: 1.05rem;
+    color: #9ca3af;
+    margin-bottom: 1.5rem;
+}
+
+/* Tests page header (kept for import status) */
 .tests-page-header {
     display: flex;
     align-items: center;
@@ -1118,7 +1290,7 @@ summary {
 }
 
 .eo-sq {
-    width: 10px;
+    width: 28px;
     height: 28px;
     border-radius: 2px;
     cursor: pointer;
