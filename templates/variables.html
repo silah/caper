@@ -27,6 +27,26 @@
             <h2 class="vars-title">Team Variables</h2>
         </div>
 
+        <div class="vars-add-card" style="margin-bottom:24px">
+            <div class="vars-add-title">Add / update variable</div>
+            <div class="vars-form-row">
+                <div class="ed-field">
+                    <label>Key <span style="font-size:.75rem;color:#888">(uppercase, e.g. BASE_URL)</span></label>
+                    <input type="text" id="newKey" class="ed-input" placeholder="BASE_URL"
+                           style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()">
+                </div>
+                <div class="ed-field">
+                    <label>Value</label>
+                    <input type="text" id="newValue" class="ed-input" placeholder="https://example.com">
+                </div>
+                <div style="padding-bottom:1px">
+                    <button class="btn btn-primary" onclick="saveVar(false)">Save</button>
+                    <button class="btn btn-secondary" onclick="saveVar(true)" style="margin-left:6px" title="Store as secret (masked in UI)">Secret</button>
+                </div>
+            </div>
+            <div id="varStatus" style="margin-top:10px;font-size:.82rem"></div>
+        </div>
+
         <div class="vars-hint">
             Use <code>&#123;&#123;KEY&#125;&#125;</code> anywhere in your test steps to substitute a variable at run time.
             For example, set <code>BASE_URL</code> to <code>https://staging.example.com</code> and use
@@ -71,25 +91,6 @@
         </div>
         {% endif %}
 
-        <div class="vars-add-card">
-            <div class="vars-add-title">Add / update variable</div>
-            <div class="vars-form-row">
-                <div class="ed-field">
-                    <label>Key <span style="font-size:.75rem;color:#888">(uppercase, e.g. BASE_URL)</span></label>
-                    <input type="text" id="newKey" class="ed-input" placeholder="BASE_URL"
-                           style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()">
-                </div>
-                <div class="ed-field">
-                    <label>Value</label>
-                    <input type="text" id="newValue" class="ed-input" placeholder="https://example.com">
-                </div>
-                <div style="padding-bottom:1px">
-                    <button class="btn btn-primary" onclick="saveVar(false)">Save</button>
-                    <button class="btn btn-secondary" onclick="saveVar(true)" style="margin-left:6px" title="Store as secret (masked in UI)">Secret</button>
-                </div>
-            </div>
-            <div id="varStatus" style="margin-top:10px;font-size:.82rem"></div>
-        </div>
     </div>
 
     <script>
