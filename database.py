@@ -1,11 +1,14 @@
 import sqlite3
 import json
+import os
 import secrets
 from datetime import datetime
 from werkzeug.security import generate_password_hash, check_password_hash
 
 class Database:
-    def __init__(self, db_name='tests.db'):
+    def __init__(self, db_name=None):
+        if db_name is None:
+            db_name = os.environ.get('DB_PATH', 'tests.db')
         self.db_name = db_name
         self.init_db()
     

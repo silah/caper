@@ -42,8 +42,8 @@ RUN pip3 install --no-cache-dir -r requirements.txt
 
 COPY . .
 
-# artefacts and the database are mounted as volumes so data survives restarts
-RUN mkdir -p artefacts
+# these directories are bind-mounted as volumes at runtime
+RUN mkdir -p artefacts data
 
 EXPOSE 5098
 

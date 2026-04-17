@@ -5,7 +5,8 @@ services:
       - "5098:5098"
     volumes:
       - ./artefacts:/app/artefacts
-      - ./tests.db:/app/tests.db
+      - ./data:/app/data
     environment:
       - SECRET_KEY=${SECRET_KEY:-change-me-in-production}
+      - DB_PATH=/app/data/tests.db
     restart: unless-stopped
