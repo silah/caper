@@ -886,8 +886,8 @@ summary {
 }
 
 .eo-sq {
-    width: 8px;
-    height: 14px;
+    width: 10px;
+    height: 28px;
     border-radius: 2px;
     cursor: pointer;
     flex-shrink: 0;
