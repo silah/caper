@@ -1,76 +1,113 @@
 # Selenium Test Builder - Installation Guide
 
+This application is designed to run on a headless Linux server. Firefox runs in
+`--headless` mode so no display server (X11/Xvfb) is required, but Firefox still
+needs its GTK/X11 shared libraries even when running headless.
+
 ## Prerequisites
 
-### Install Chrome/Chromium Browser
+### 1. Install Firefox and its headless dependencies
 
-The application requires Chrome or Chromium to run Selenium tests. Install one of the following:
-
-#### Option 1: Google Chrome (Recommended)
 ```bash
-wget https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
-sudo dpkg -i google-chrome-stable_current_amd64.deb
-sudo apt-get install -f
+sudo apt update
+sudo apt install -y firefox \
+    libgtk-3-0 \
+    libdbus-glib-1-2 \
+    libx11-xcb1 \
+    libxt6 \
+    libnss3 \
+    libxss1 \
+    libasound2
 ```
 
-#### Option 2: Chromium
+Verify it works headlessly:
 ```bash
-sudo apt install chromium-browser
+firefox --headless --screenshot /tmp/test.png https://example.com && echo "OK"
 ```
 
-### Install Python Dependencies
+### 2. Install GeckoDriver
+
+GeckoDriver is the WebDriver for Firefox. `webdriver-manager` (installed via pip)
+downloads it automatically on first test run. No manual action needed.
+
+If `webdriver-manager` cannot reach the internet, install it manually:
 
 ```bash
-# Using virtual environment (recommended)
+GECKO_VERSION=$(curl -sI https://github.com/mozilla/geckodriver/releases/latest \
+    | grep -i location | sed 's/.*\/v//' | tr -d '\r\n')
+wget "https://github.com/mozilla/geckodriver/releases/download/v${GECKO_VERSION}/geckodriver-v${GECKO_VERSION}-linux64.tar.gz"
+tar -xzf "geckodriver-v${GECKO_VERSION}-linux64.tar.gz"
+sudo mv geckodriver /usr/local/bin/
+sudo chmod +x /usr/local/bin/geckodriver
+geckodriver --version
+```
+
+### 3. Install ffmpeg
+
+ffmpeg is required to stitch screenshots into an MP4 video after each test run.
+
+```bash
+sudo apt install -y ffmpeg
+ffmpeg -version
+```
+
+### 4. Install Python dependencies
+
+```bash
 python3 -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
 ```
 
-OR
-
-```bash
-# System-wide (if venv not available)
-pip3 install -r requirements.txt
-```
-
 ## Running the Application
 
 ```bash
-# If using virtual environment
 source venv/bin/activate
 python app.py
 ```
 
-OR
+The app listens on `0.0.0.0:5098` by default. Access it from your local machine via:
 
-```bash
-# Direct execution
-python3 app.py
+```
+http://<server-ip>:5098
 ```
 
-Then open your browser to: `http://localhost:5000`
+To run persistently in the background:
+
+```bash
+nohup python app.py > caper.log 2>&1 &
+```
 
 ## Troubleshooting
 
-### ChromeDriver Issues
+### Firefox fails to start
 
-The application uses `webdriver-manager` which automatically downloads and manages ChromeDriver. However, if you encounter issues:
+On a minimal server image some libraries may be missing. Run:
 
-1. Ensure Chrome/Chromium is installed (see above)
-2. The first test execution may take longer as it downloads ChromeDriver
-3. Check that you have internet connectivity for the initial ChromeDriver download
+```bash
+ldd $(which firefox) | grep "not found"
+```
 
-### Permission Errors
+Install any missing libraries reported, then re-run the headless smoke test from step 1.
 
-If you get permission errors when running tests:
+### GeckoDriver issues
+
+1. Confirm Firefox is installed: `firefox --version`
+2. The first test run is slower — GeckoDriver is being downloaded
+3. Ensure the server has outbound internet access for the download
+4. Fall back to the manual install in step 2 if needed
+
+### Permission errors
+
 ```bash
 chmod +x venv/bin/activate
 ```
 
-### Database Errors
+### Database errors
 
-If you see database errors about missing columns, delete the database and restart:
+If you see errors about missing columns, the schema is out of date. Delete the
+database and restart (all test data will be lost):
+
 ```bash
 rm tests.db
 python3 app.py
