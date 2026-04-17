@@ -13,8 +13,10 @@
             <ul class="nav-links">
                 <li><a href="/">Home</a></li>
                 <li><a href="/create">Create Test</a></li>
-                <li><a href="/tests" class="active">View Tests</a></li>
+                <li><a href="/tests" class="active">Tests</a></li>
                 <li><a href="/executions">Executions</a></li>
+                <li><a href="/health">Health</a></li>
+                <li><a href="/variables">Variables</a></li>
                 <li><a href="/logs">Log</a></li>
             </ul>
         </div>
@@ -47,6 +49,7 @@
                         <th class="tov-th-name">Name</th>
                         <th class="tov-th-desc">Description</th>
                         <th>Schedule</th>
+                        <th>SLA</th>
                         <th>Runs</th>
                         <th>Last Run</th>
                         <th class="tov-th-actions">Actions</th>
@@ -57,11 +60,19 @@
                     <tr class="tov-row" data-test-id="{{ test.id }}">
                         <td class="tov-name">
                             <a href="/test/{{ test.id }}" class="tov-name-link">{{ test.name }}</a>
+                            {% if test.flaky %}<span class="tov-flaky-badge" title="This test has inconsistent results">Flaky</span>{% endif %}
                         </td>
                         <td class="tov-desc">{{ test.description or '—' }}</td>
                         <td class="tov-schedule">
                             {% if test.schedule_enabled %}
                             <span class="schedule-badge">Every {{ test.schedule_interval }}m</span>
+                            {% else %}
+                            <span class="tov-none">—</span>
+                            {% endif %}
+                        </td>
+                        <td class="tov-sla">
+                            {% if test.sla_seconds %}
+                            <span class="tov-sla-label">{{ test.sla_seconds }}s</span>
                             {% else %}
                             <span class="tov-none">—</span>
                             {% endif %}

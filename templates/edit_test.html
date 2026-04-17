@@ -13,8 +13,10 @@
             <ul class="nav-links">
                 <li><a href="/">Home</a></li>
                 <li><a href="/create">Create Test</a></li>
-                <li><a href="/tests">View Tests</a></li>
+                <li><a href="/tests">Tests</a></li>
                 <li><a href="/executions">Executions</a></li>
+                <li><a href="/health">Health</a></li>
+                <li><a href="/variables">Variables</a></li>
                 <li><a href="/logs">Log</a></li>
             </ul>
         </div>
@@ -66,6 +68,28 @@
                     {% if test.schedule_next_run and test.schedule_enabled %}
                     <span class="ed-next-run">Next: {{ test.schedule_next_run }}</span>
                     {% endif %}
+                </div>
+            </div>
+
+            <!-- Reliability -->
+            <div class="ed-card">
+                <div class="ed-card-label">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px;margin-right:5px"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>Reliability
+                </div>
+                <div class="ed-schedule-row" style="flex-wrap:wrap;gap:1.2rem">
+                    <div class="ed-schedule-interval">
+                        <span>Retry on failure</span>
+                        <input type="number" id="retryCount" class="ed-interval-input"
+                               min="0" max="5" value="{{ test.retry_count or 0 }}" placeholder="0">
+                        <span>times</span>
+                    </div>
+                    <div class="ed-schedule-interval">
+                        <span>SLA</span>
+                        <input type="number" id="slaSeconds" class="ed-interval-input"
+                               min="1" value="{{ test.sla_seconds or '' }}" placeholder="—">
+                        <span>seconds</span>
+                        <span style="font-size:.75rem;color:#999;margin-left:.25rem">(flag if slower)</span>
+                    </div>
                 </div>
             </div>
 
@@ -404,6 +428,8 @@
 
             const schedEnabled = document.getElementById('schedEnabled').checked;
             const schedInterval = parseInt(document.getElementById('schedInterval').value, 10) || null;
+            const retryCount = parseInt(document.getElementById('retryCount').value, 10) || 0;
+            const slaSecondsVal = parseInt(document.getElementById('slaSeconds').value, 10) || null;
 
             fetch(`/api/tests/${testId}`, {
                 method: 'PUT',
@@ -412,6 +438,8 @@
                     name, description, steps: testSteps,
                     schedule: { enabled: schedEnabled, interval: schedInterval },
                     webhook: _webhookData,
+                    retry_count: retryCount,
+                    sla_seconds: slaSecondsVal,
                 })
             })
             .then(r => r.json())

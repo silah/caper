@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Compare Executions - Caper</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="container">
+            <h1 class="logo">Caper</h1>
+            <ul class="nav-links">
+                <li><a href="/">Home</a></li>
+                <li><a href="/create">Create Test</a></li>
+                <li><a href="/tests">Tests</a></li>
+                <li><a href="/executions">Executions</a></li>
+                <li><a href="/health">Health</a></li>
+                <li><a href="/variables">Variables</a></li>
+                <li><a href="/logs">Log</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <div class="compare-page">
+        <div style="display:flex;align-items:center;gap:14px;margin-bottom:20px">
+            <a href="/executions" class="btn btn-ghost" style="padding:.3rem .7rem;font-size:.8rem">&larr; Back</a>
+            <h2 class="compare-title" style="margin:0">Compare Executions</h2>
+        </div>
+
+        <div class="compare-grid">
+            {% for exec, test in [(exec_a, test_a), (exec_b, test_b)] %}
+            <div class="compare-col">
+                <div class="compare-col-header">
+                    <span class="status-badge status-{{ exec.status }}">{{ exec.status }}</span>
+                    <span class="compare-col-title">{{ test.name if test else 'Unknown test' }}</span>
+                </div>
+
+                <div class="compare-meta"><strong>Run:</strong> {{ exec.executed_at }}</div>
+                {% if exec.duration_seconds %}
+                <div class="compare-meta">
+                    <strong>Duration:</strong> {{ '%.1f'|format(exec.duration_seconds) }}s
+                    {% if exec.sla_violated %}<span class="health-sla-warn"> — SLA violated</span>{% endif %}
+                </div>
+                {% endif %}
+
+                {% if exec.artefact_dir %}
+                <div class="compare-section-title">Recording</div>
+                <div class="compare-video-wrap">
+                    <video controls preload="none"
+                           onerror="this.closest('.compare-video-wrap').style.display='none'">
+                        <source src="/artefacts/{{ exec.artefact_dir }}/video/recording.mp4" type="video/mp4">
+                    </video>
+                </div>
+                {% endif %}
+
+                <div class="compare-section-title">Steps</div>
+                <div id="steps-{{ exec.id }}">
+                    <span class="compare-empty">Loading…</span>
+                </div>
+
+                {% if exec.error and exec.error.strip() %}
+                <div class="compare-section-title">Error</div>
+                <pre class="error-output" style="font-size:.75rem;max-height:150px;overflow:auto">{{ exec.error }}</pre>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <script>
+        const executions = [
+            { id: {{ exec_a.id }}, stepResults: {{ (exec_a.step_results or '[]') | safe }} },
+            { id: {{ exec_b.id }}, stepResults: {{ (exec_b.step_results or '[]') | safe }} },
+        ];
+
+        executions.forEach(ex => {
+            const el = document.getElementById('steps-' + ex.id);
+            let steps = [];
+            try { steps = JSON.parse(ex.stepResults); } catch(e) {}
+            if (!steps.length) {
+                el.innerHTML = '<span class="compare-empty">No step data</span>';
+                return;
+            }
+            const rows = steps.map(s =>
+                `<div class="compare-step-row">
+                    <span class="compare-step-num">${s.step}</span>
+                    <span class="compare-step-action">${(s.action||'').replace(/_/g,' ').toUpperCase()}</span>
+                    <span class="${s.status === 'success' ? 'compare-step-ok' : 'compare-step-err'}">
+                        ${s.status === 'success' ? '✓' : '✗'} ${escHtml(s.message || '')}
+                    </span>
+                </div>`
+            ).join('');
+            el.innerHTML = rows;
+        });
+
+        function escHtml(str) {
+            const d = document.createElement('div');
+            d.textContent = str;
+            return d.innerHTML;
+        }
+    </script>
+</body>
+</html>

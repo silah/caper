@@ -19,7 +19,6 @@ db = Database()
 
 BASE_ARTEFACTS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'artefacts')
 
-# Setup Flask-Login
 login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'login'
@@ -30,7 +29,6 @@ def load_user(user_id):
     user_dict = db.get_user_by_id(int(user_id))
     return User.from_dict(user_dict)
 
-# Helper function to get current user's team
 def get_current_team():
     if not current_user.is_authenticated:
         return None
@@ -43,46 +41,35 @@ def favicon():
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
-    """Login page"""
     if current_user.is_authenticated:
         return redirect(url_for('index'))
-    
     if request.method == 'POST':
         username = request.form.get('username')
         password = request.form.get('password')
         remember = request.form.get('remember', False)
-        
         user_dict = db.verify_password(username, password)
         if user_dict:
             user = User.from_dict(user_dict)
             login_user(user, remember=remember)
-            
             next_page = request.args.get('next')
             return redirect(next_page) if next_page else redirect(url_for('index'))
         else:
             flash('Invalid username or password', 'error')
-    
     return render_template('login.html')
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
-    """Registration page"""
     if current_user.is_authenticated:
         return redirect(url_for('index'))
-    
     if request.method == 'POST':
         username = request.form.get('username')
         email = request.form.get('email')
         password = request.form.get('password')
-        action = request.form.get('action')  # 'create' or 'join'
-        
-        # Create user
+        action = request.form.get('action')
         user_id = db.create_user(username, email, password)
         if not user_id:
             flash('Username or email already exists', 'error')
             return render_template('register.html', teams=db.get_all_teams())
-
-        # Handle team creation or joining
         if action == 'create':
             team_name = request.form.get('team_name')
             team_id, reg_code = db.create_team(team_name, user_id)
@@ -98,33 +85,27 @@ def register():
             else:
                 flash('Could not join team', 'error')
                 return render_template('register.html', teams=db.get_all_teams())
-        
-        # Log user in with Flask-Login
         user_dict = db.get_user_by_id(user_id)
         user = User.from_dict(user_dict)
         login_user(user)
         return redirect(url_for('index'))
-
     return render_template('register.html', teams=db.get_all_teams())
 
 @app.route('/logout')
 @login_required
 def logout():
-    """Logout"""
     logout_user()
     return redirect(url_for('login'))
 
 @app.route('/')
 @login_required
 def index():
-    """Home page"""
     team = get_current_team()
     return render_template('index.html', team=team)
 
 @app.route('/create')
 @login_required
 def create():
-    """Test creation page"""
     team = get_current_team()
     if not team:
         flash('You must be part of a team to create tests', 'error')
@@ -134,7 +115,6 @@ def create():
 @app.route('/tests')
 @login_required
 def view_tests():
-    """View all tests"""
     team = get_current_team()
     if not team:
         flash('You must be part of a team to view tests', 'error')
@@ -145,7 +125,6 @@ def view_tests():
 @app.route('/executions')
 @login_required
 def view_executions():
-    """View all test executions"""
     team = get_current_team()
     if not team:
         flash('You must be part of a team to view executions', 'error')
@@ -153,46 +132,85 @@ def view_executions():
     tests = db.get_executions_grouped_by_test(team_id=team['id'])
     return render_template('view_executions.html', tests=tests, team=team)
 
-@app.route('/api/tests', methods=['POST'])
+@app.route('/health')
 @login_required
-def create_test():
-    """API endpoint to create a new test"""
+def health_dashboard():
     team = get_current_team()
     if not team:
-        return jsonify({'error': 'You must be part of a team'}), 403
-    
-    data = request.json
-    
-    name = data.get('name')
-    description = data.get('description', '')
-    steps = data.get('steps', [])
-    
-    if not name or not steps:
-        return jsonify({'error': 'Name and steps are required'}), 400
-    
-    # Generate Selenium script
-    script = generate_selenium_script(steps, test_name=name, base_artefacts_dir=BASE_ARTEFACTS_DIR)
+        flash('You must be part of a team to view the health dashboard', 'error')
+        return redirect(url_for('index'))
+    tests = db.get_health_dashboard(team_id=team['id'])
+    return render_template('health.html', tests=tests, team=team)
 
-    # Save to database
-    test_id = db.create_test(name, description, steps, script, team['id'])
-    
-    return jsonify({
-        'success': True,
-        'test_id': test_id,
-        'message': f'Test "{name}" created successfully'
-    })
-
-@app.route('/api/tests/<int:test_id>')
+@app.route('/compare/<int:exec_a>/<int:exec_b>')
 @login_required
-def get_test(test_id):
-    """API endpoint to get a specific test"""
+def compare_executions(exec_a, exec_b):
     team = get_current_team()
-    test = db.get_test(test_id, team_id=team['id'] if team else None)
-    
-    if not test:
-        return jsonify({'error': 'Test not found'}), 404
-    
-    return jsonify(test)
+    a = db.get_execution(exec_a)
+    b = db.get_execution(exec_b)
+    if not a or not b:
+        return "Execution not found", 404
+    if team:
+        if (a.get('team_id') and a['team_id'] != team['id']) or \
+           (b.get('team_id') and b['team_id'] != team['id']):
+            return "Not found", 404
+    test_a = db.get_test(a['test_id'])
+    test_b = db.get_test(b['test_id'])
+    return render_template('compare.html', exec_a=a, exec_b=b,
+                           test_a=test_a, test_b=test_b, team=team)
+
+@app.route('/variables')
+@login_required
+def variables_page():
+    team = get_current_team()
+    if not team:
+        flash('You must be part of a team to manage variables', 'error')
+        return redirect(url_for('index'))
+    variables = db.get_team_variables(team['id'])
+    return render_template('variables.html', variables=variables, team=team)
+
+@app.route('/api/variables', methods=['GET'])
+@login_required
+def api_get_variables():
+    team = get_current_team()
+    if not team:
+        return jsonify({'error': 'No team'}), 403
+    variables = db.get_team_variables(team['id'])
+    # Mask secret values
+    masked = []
+    for v in variables:
+        masked.append({
+            'key': v['key'],
+            'value': '••••••••' if v['is_secret'] else v['value'],
+            'is_secret': v['is_secret'],
+            'created_at': v['created_at'],
+        })
+    return jsonify(masked)
+
+@app.route('/api/variables', methods=['POST'])
+@login_required
+def api_set_variable():
+    team = get_current_team()
+    if not team:
+        return jsonify({'error': 'No team'}), 403
+    data = request.json
+    key = (data.get('key') or '').strip()
+    value = data.get('value', '')
+    is_secret = bool(data.get('is_secret', False))
+    if not key or not re.match(r'^[A-Z0-9_]+$', key):
+        return jsonify({'error': 'Key must be uppercase letters, digits, and underscores'}), 400
+    db.set_team_variable(team['id'], key, value, is_secret)
+    return jsonify({'success': True})
+
+@app.route('/api/variables/<key>', methods=['DELETE'])
+@login_required
+def api_delete_variable(key):
+    team = get_current_team()
+    if not team:
+        return jsonify({'error': 'No team'}), 403
+    db.delete_team_variable(team['id'], key)
+    return jsonify({'success': True})
+
 
 def _send_webhook(test_id, status):
     test = db.get_test(test_id)
@@ -218,114 +236,182 @@ def _send_webhook(test_id, status):
         db.log_event('error', f'Webhook failed ({status}): {method} {url}', str(e))
 
 
-def _run_test_subprocess(test_id, script, execution_id, test_name=''):
-    with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as f:
-        f.write(script)
-        temp_script_path = f.name
-
-    try:
-        result = subprocess.run(
-            ['python3', temp_script_path],
-            capture_output=True,
-            text=True,
-            timeout=60
-        )
-
-        output = result.stdout
-        error = result.stderr
-
-        step_results = ''
-        if 'STEP_RESULTS:' in output:
-            start_idx = output.find('STEP_RESULTS:') + len('STEP_RESULTS:')
-            rest = output[start_idx:].strip()
-            lines = rest.split('\n')
-            step_results = lines[0].strip() if lines else ''
-
-        artefact_dir = ''
-        for line in output.splitlines():
-            if line.startswith('ARTEFACT_DIR:'):
-                artefact_dir = line[len('ARTEFACT_DIR:'):].strip()
-                break
-
-        if result.returncode != 0:
-            status = 'error'
-        elif step_results:
-            try:
-                if any(s.get('status') == 'error' for s in json.loads(step_results)):
-                    status = 'error'
-                else:
-                    status = 'success'
-            except Exception:
-                status = 'success'
-        else:
-            status = 'success'
-
-        db.update_execution(execution_id, status, output, error, step_results, artefact_dir)
-        db.update_execution_stats(test_id)
-        label = f'"{test_name}" ' if test_name else ''
-        db.log_event(
-            'info' if status == 'success' else 'error',
-            f'Test {label}finished: {status.upper()}',
-            f'execution_id={execution_id} test_id={test_id}'
-        )
-        _send_webhook(test_id, status)
-
-    except subprocess.TimeoutExpired:
-        db.update_execution(execution_id, 'timeout', '', 'Test execution timed out after 60 seconds', '')
-        db.log_event('error', f'Test execution timed out (execution_id={execution_id})')
-
-    except Exception as e:
-        import traceback
-        db.update_execution(execution_id, 'error', '', str(e), '')
-        db.log_event('error', f'Test execution failed: {e}', traceback.format_exc())
-
-    finally:
+def _run_test_subprocess(test_id, script, execution_id, test_name='',
+                         team_id=None, retry_count=0, sla_seconds=None):
+    # Substitute {{VARIABLE}} placeholders with team variables
+    if team_id:
         try:
-            os.unlink(temp_script_path)
+            variables = db.get_team_variables(team_id)
+            for var in variables:
+                script = script.replace('{{' + var['key'] + '}}', var['value'])
         except Exception:
             pass
 
+    start_time = time.time()
+    max_attempts = 1 + max(0, int(retry_count or 0))
+
+    final_status = 'error'
+    final_output = ''
+    final_error = ''
+    final_step_results = ''
+    final_artefact_dir = ''
+
+    for attempt in range(max_attempts):
+        if attempt > 0:
+            db.log_event('info',
+                         f'Retrying "{test_name}" (attempt {attempt + 1}/{max_attempts})',
+                         f'execution_id={execution_id}')
+
+        temp_script_path = None
+        try:
+            with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as f:
+                f.write(script)
+                temp_script_path = f.name
+
+            result = subprocess.run(
+                ['python3', temp_script_path],
+                capture_output=True,
+                text=True,
+                timeout=60
+            )
+
+            output = result.stdout
+            error = result.stderr
+
+            step_results = ''
+            if 'STEP_RESULTS:' in output:
+                start_idx = output.find('STEP_RESULTS:') + len('STEP_RESULTS:')
+                rest = output[start_idx:].strip()
+                lines = rest.split('\n')
+                step_results = lines[0].strip() if lines else ''
+
+            artefact_dir = ''
+            for line in output.splitlines():
+                if line.startswith('ARTEFACT_DIR:'):
+                    artefact_dir = line[len('ARTEFACT_DIR:'):].strip()
+                    break
+
+            if result.returncode != 0:
+                status = 'error'
+            elif step_results:
+                try:
+                    if any(s.get('status') == 'error' for s in json.loads(step_results)):
+                        status = 'error'
+                    else:
+                        status = 'success'
+                except Exception:
+                    status = 'success'
+            else:
+                status = 'success'
+
+            final_status = status
+            final_output = output
+            final_error = error
+            final_step_results = step_results
+            final_artefact_dir = artefact_dir
+
+            if status == 'success':
+                break
+
+        except subprocess.TimeoutExpired:
+            final_status = 'timeout'
+            final_error = 'Test execution timed out after 60 seconds'
+
+        except Exception as e:
+            import traceback
+            final_status = 'error'
+            final_error = str(e)
+            db.log_event('error', f'Test execution exception: {e}', traceback.format_exc())
+
+        finally:
+            if temp_script_path:
+                try:
+                    os.unlink(temp_script_path)
+                except Exception:
+                    pass
+
+    duration_seconds = time.time() - start_time
+    sla_violated = 1 if (sla_seconds and duration_seconds > float(sla_seconds)) else 0
+
+    db.update_execution(execution_id, final_status, final_output, final_error,
+                        final_step_results, final_artefact_dir, duration_seconds, sla_violated)
+    db.update_execution_stats(test_id)
+
+    label = f'"{test_name}" ' if test_name else ''
+    detail = f'execution_id={execution_id} test_id={test_id} duration={duration_seconds:.1f}s'
+    if sla_violated:
+        detail += f' SLA_VIOLATED (limit={sla_seconds}s)'
+    db.log_event(
+        'info' if final_status == 'success' else 'error',
+        f'Test {label}finished: {final_status.upper()}',
+        detail
+    )
+    _send_webhook(test_id, final_status)
+
+
+@app.route('/api/tests', methods=['POST'])
+@login_required
+def create_test():
+    team = get_current_team()
+    if not team:
+        return jsonify({'error': 'You must be part of a team'}), 403
+    data = request.json
+    name = data.get('name')
+    description = data.get('description', '')
+    steps = data.get('steps', [])
+    if not name or not steps:
+        return jsonify({'error': 'Name and steps are required'}), 400
+    script = generate_selenium_script(steps, test_name=name, base_artefacts_dir=BASE_ARTEFACTS_DIR)
+    test_id = db.create_test(name, description, steps, script, team['id'])
+    return jsonify({'success': True, 'test_id': test_id,
+                    'message': f'Test "{name}" created successfully'})
+
+@app.route('/api/tests/<int:test_id>')
+@login_required
+def get_test(test_id):
+    team = get_current_team()
+    test = db.get_test(test_id, team_id=team['id'] if team else None)
+    if not test:
+        return jsonify({'error': 'Test not found'}), 404
+    return jsonify(test)
 
 @app.route('/api/tests/<int:test_id>/execute', methods=['POST'])
 @login_required
 def execute_test(test_id):
-    """API endpoint to execute a test"""
     team = get_current_team()
     test = db.get_test(test_id, team_id=team['id'] if team else None)
-
     if not test:
         return jsonify({'error': 'Test not found'}), 404
-
     execution_id = db.create_execution(test_id, team['id'] if team else None)
-
     thread = threading.Thread(
         target=_run_test_subprocess,
-        args=(test_id, test['script'], execution_id, test['name']),
+        args=(test_id, test['script'], execution_id, test['name'],
+              team['id'] if team else None,
+              test.get('retry_count', 0),
+              test.get('sla_seconds')),
         daemon=True
     )
     thread.start()
-
     return jsonify({'execution_id': execution_id, 'status': 'running'})
 
 
 @app.route('/api/executions/<int:execution_id>/status')
 @login_required
 def get_execution_status(execution_id):
-    """Poll endpoint for async execution status"""
     execution = db.get_execution(execution_id)
     if not execution:
         return jsonify({'error': 'Execution not found'}), 404
-
     team = get_current_team()
     if team and execution.get('team_id') and execution['team_id'] != team['id']:
         return jsonify({'error': 'Not found'}), 404
-
     return jsonify({
         'status': execution['status'],
         'output': execution['output'],
         'error': execution['error'],
         'step_results': execution['step_results'],
         'artefact_dir': execution['artefact_dir'],
+        'duration_seconds': execution['duration_seconds'],
+        'sla_violated': execution['sla_violated'],
     })
 
 
@@ -347,7 +433,6 @@ def list_screenshots(artefact_dir):
 @app.route('/api/tests/<int:test_id>/executions')
 @login_required
 def get_test_executions(test_id):
-    """API endpoint to get execution history for a test"""
     team = get_current_team()
     executions = db.get_test_executions(test_id, team_id=team['id'] if team else None)
     return jsonify(executions)
@@ -355,7 +440,6 @@ def get_test_executions(test_id):
 @app.route('/api/tests/<int:test_id>', methods=['DELETE'])
 @login_required
 def delete_test(test_id):
-    """API endpoint to delete a test"""
     team = get_current_team()
     db.delete_test(test_id, team_id=team['id'] if team else None)
     return jsonify({'success': True, 'message': 'Test deleted successfully'})
@@ -363,58 +447,48 @@ def delete_test(test_id):
 @app.route('/test/<int:test_id>')
 @login_required
 def test_detail(test_id):
-    """Test detail and execution page"""
     team = get_current_team()
     test = db.get_test(test_id, team_id=team['id'] if team else None)
-    
     if not test:
         return "Test not found", 404
-    
     executions = db.get_test_executions(test_id, team_id=team['id'] if team else None)
-    
     return render_template('test_detail.html', test=test, executions=executions, team=team)
 
 @app.route('/edit/<int:test_id>')
 @login_required
 def edit_test(test_id):
-    """Edit test page"""
     team = get_current_team()
     test = db.get_test(test_id, team_id=team['id'] if team else None)
-    
     if not test:
         return "Test not found", 404
-    
     return render_template('edit_test.html', test=test, team=team)
 
 @app.route('/api/tests/<int:test_id>', methods=['PUT'])
 @login_required
 def update_test(test_id):
-    """API endpoint to update an existing test"""
     team = get_current_team()
     if not team:
         return jsonify({'error': 'You must be part of a team'}), 403
-    
     data = request.json
-    
     name = data.get('name')
     description = data.get('description', '')
     steps = data.get('steps', [])
-    
     if not name or not steps:
         return jsonify({'error': 'Name and steps are required'}), 400
-    
-    # Generate Selenium script
+
     script = generate_selenium_script(steps, test_name=name, base_artefacts_dir=BASE_ARTEFACTS_DIR)
 
-    # Update core test
-    db.update_test(test_id, name, description, steps, script, team['id'])
+    retry_count = int(data.get('retry_count') or 0)
+    sla_seconds_raw = data.get('sla_seconds')
+    sla_seconds = int(sla_seconds_raw) if sla_seconds_raw else None
 
-    # Schedule
+    db.update_test(test_id, name, description, steps, script, team['id'],
+                   retry_count=retry_count, sla_seconds=sla_seconds)
+
     sched = data.get('schedule', {})
     if sched:
         db.set_test_schedule(test_id, sched.get('interval'), bool(sched.get('enabled')))
 
-    # Webhook
     wh = data.get('webhook', {})
     if wh is not None:
         db.set_test_webhook(
@@ -426,31 +500,24 @@ def update_test(test_id):
             wh.get('payload_failure', '')
         )
 
-    return jsonify({
-        'success': True,
-        'test_id': test_id,
-        'message': f'Test "{name}" updated successfully'
-    })
+    return jsonify({'success': True, 'test_id': test_id,
+                    'message': f'Test "{name}" updated successfully'})
+
 
 def _extract_querySelector_arg(jspath):
-    """Pull the CSS selector string out of document.querySelector("...") expressions."""
     m = re.match(r'''document\.querySelector\s*\(\s*["'](.+?)["']\s*\)''', jspath.strip())
     return m.group(1) if m else None
-
 
 def _map_selector_type(st):
     return {'id': 'id', 'css': 'css', 'xpath': 'xpath', 'name': 'name',
             'class': 'class', 'tag': 'tag'}.get(st, 'css')
 
-
 def _map_imported_step(raw):
     step_type = raw.get('type', '')
     name = raw.get('name', '')
-
     if step_type == 'go_to_url':
         url = raw.get('url') or raw.get('options', {}).get('url', '')
         return {'action': 'navigate', 'value': url}
-
     if step_type == 'click_element':
         st = raw.get('selectorType', 'css')
         sel = raw.get('selector', '')
@@ -460,7 +527,6 @@ def _map_imported_step(raw):
                 return {'action': 'click', 'selectorType': 'css', 'selector': css}
             return {'action': 'execute_js', 'value': f'({sel}).click()'}
         return {'action': 'click', 'selectorType': _map_selector_type(st), 'selector': sel}
-
     if step_type == 'enter_value':
         st = raw.get('selectorType', 'css')
         sel = raw.get('selector', '')
@@ -471,14 +537,11 @@ def _map_imported_step(raw):
                 return {'action': 'type', 'selectorType': 'css', 'selector': css, 'value': val}
             return {'action': 'execute_js', 'value': f'var el=({sel}); el.value={json.dumps(val)}; el.dispatchEvent(new Event("input"));'}
         return {'action': 'type', 'selectorType': _map_selector_type(st), 'selector': sel, 'value': val}
-
     if step_type == 'wait':
         seconds = raw.get('duration', 1000) / 1000
         return {'action': 'wait', 'value': str(seconds)}
-
     if step_type == 'run_javascript':
         return {'action': 'execute_js', 'value': raw.get('value', '')}
-
     if step_type == 'assert_element_visible':
         st = raw.get('selectorType', 'css')
         sel = raw.get('selector', '')
@@ -487,7 +550,6 @@ def _map_imported_step(raw):
             return {'action': 'execute_js',
                     'value': f'if (!({sel})) throw new Error({json.dumps("Element not visible: " + label)});'}
         return {'action': 'assert_text', 'selectorType': _map_selector_type(st), 'selector': sel, 'value': ''}
-
     return None
 
 
@@ -498,11 +560,9 @@ def set_schedule(test_id):
     test = db.get_test(test_id, team_id=team['id'] if team else None)
     if not test:
         return jsonify({'error': 'Test not found'}), 404
-
     data = request.json
     enabled = bool(data.get('enabled', False))
     interval = data.get('interval')
-
     if enabled:
         try:
             interval = int(interval)
@@ -510,7 +570,6 @@ def set_schedule(test_id):
                 return jsonify({'error': 'Interval must be at least 1 minute'}), 400
         except (ValueError, TypeError):
             return jsonify({'error': 'Invalid interval'}), 400
-
     db.set_test_schedule(test_id, interval, enabled)
     return jsonify({'success': True})
 
@@ -521,19 +580,15 @@ def import_test():
     team = get_current_team()
     if not team:
         return jsonify({'error': 'You must be part of a team'}), 403
-
     f = request.files.get('file')
     if not f:
         return jsonify({'error': 'No file provided'}), 400
-
     try:
         data = json.load(f)
     except Exception:
         return jsonify({'error': 'Invalid JSON file'}), 400
-
     test_data = data.get('test', data)
     name = test_data.get('name', 'Imported Test')
-
     steps = []
     skipped = []
     for transaction in test_data.get('transactions', []):
@@ -542,17 +597,12 @@ def import_test():
             if mapped:
                 steps.append(mapped)
             else:
-                skipped.append({
-                    'name': raw_step.get('name', '(unnamed)'),
-                    'type': raw_step.get('type', '(unknown)'),
-                })
-
+                skipped.append({'name': raw_step.get('name', '(unnamed)'),
+                                'type': raw_step.get('type', '(unknown)')})
     if not steps:
         return jsonify({'error': 'No recognisable steps found in the file'}), 400
-
     script = generate_selenium_script(steps, test_name=name, base_artefacts_dir=BASE_ARTEFACTS_DIR)
     test_id = db.create_test(name, '', steps, script, team['id'])
-
     return jsonify({'success': True, 'test_id': test_id,
                     'message': f'Imported "{name}" with {len(steps)} steps',
                     'skipped': skipped})
@@ -592,13 +642,16 @@ def _scheduler_loop():
                     db.advance_next_run(test['id'], test['schedule_interval'])
                     execution_id = db.create_execution(test['id'], test.get('team_id'))
                     db.log_event('info', f'Scheduled run started: {test["name"]}',
-                                 f'test_id={test["id"]} execution_id={execution_id} interval={test["schedule_interval"]}m')
+                                 f'test_id={test["id"]} execution_id={execution_id} '
+                                 f'interval={test["schedule_interval"]}m')
                     threading.Thread(
                         target=_run_test_subprocess,
-                        args=(test['id'], test['script'], execution_id, test['name']),
+                        args=(test['id'], test['script'], execution_id, test['name'],
+                              test.get('team_id'),
+                              test.get('retry_count', 0),
+                              test.get('sla_seconds')),
                         daemon=True
                     ).start()
-            # Heartbeat every 10 ticks (~5 min) so logs confirm the scheduler is alive
             if tick % 10 == 0:
                 db.log_event('info', f'Scheduler heartbeat (tick {tick})')
         except Exception as e:

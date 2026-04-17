@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Variables - Caper</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="container">
+            <h1 class="logo">Caper</h1>
+            <ul class="nav-links">
+                <li><a href="/">Home</a></li>
+                <li><a href="/create">Create Test</a></li>
+                <li><a href="/tests">Tests</a></li>
+                <li><a href="/executions">Executions</a></li>
+                <li><a href="/health">Health</a></li>
+                <li><a href="/variables" class="active">Variables</a></li>
+                <li><a href="/logs">Log</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <div class="vars-page">
+        <div class="vars-header">
+            <h2 class="vars-title">Team Variables</h2>
+        </div>
+
+        <div class="vars-hint">
+            Use <code>&#123;&#123;KEY&#125;&#125;</code> anywhere in your test steps to substitute a variable at run time.
+            For example, set <code>BASE_URL</code> to <code>https://staging.example.com</code> and use
+            <code>&#123;&#123;BASE_URL&#125;&#125;</code> in navigate steps. Variables are shared across all tests in your team.
+            Secrets are stored in plain text but their values are masked in this UI.
+        </div>
+
+        {% if variables %}
+        <table class="vars-table">
+            <thead>
+                <tr>
+                    <th>Key</th>
+                    <th>Value</th>
+                    <th>Type</th>
+                    <th>Created</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody id="varTableBody">
+                {% for var in variables %}
+                <tr id="var-row-{{ loop.index }}">
+                    <td><span class="vars-key">&#123;&#123;{{ var.key }}&#125;&#125;</span></td>
+                    <td><span class="vars-value">{{ '••••••••' if var.is_secret else var.value }}</span></td>
+                    <td>
+                        {% if var.is_secret %}
+                        <span class="vars-secret-badge">Secret</span>
+                        {% else %}
+                        <span style="color:#666;font-size:.8rem">Plain</span>
+                        {% endif %}
+                    </td>
+                    <td style="font-size:.78rem;color:#888">{{ var.created_at }}</td>
+                    <td>
+                        <button class="tov-btn tov-btn-delete" onclick="deleteVar('{{ var.key }}')">Delete</button>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="tov-empty" style="margin-bottom:24px">
+            <p>No variables yet.</p>
+        </div>
+        {% endif %}
+
+        <div class="vars-add-card">
+            <div class="vars-add-title">Add / update variable</div>
+            <div class="vars-form-row">
+                <div class="ed-field">
+                    <label>Key <span style="font-size:.75rem;color:#888">(uppercase, e.g. BASE_URL)</span></label>
+                    <input type="text" id="newKey" class="ed-input" placeholder="BASE_URL"
+                           style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()">
+                </div>
+                <div class="ed-field">
+                    <label>Value</label>
+                    <input type="text" id="newValue" class="ed-input" placeholder="https://example.com">
+                </div>
+                <div style="padding-bottom:1px">
+                    <button class="btn btn-primary" onclick="saveVar(false)">Save</button>
+                    <button class="btn btn-secondary" onclick="saveVar(true)" style="margin-left:6px" title="Store as secret (masked in UI)">Secret</button>
+                </div>
+            </div>
+            <div id="varStatus" style="margin-top:10px;font-size:.82rem"></div>
+        </div>
+    </div>
+
+    <script>
+        function saveVar(isSecret) {
+            const key = document.getElementById('newKey').value.trim();
+            const value = document.getElementById('newValue').value;
+            const statusEl = document.getElementById('varStatus');
+
+            if (!key) { statusEl.style.color = '#c62828'; statusEl.textContent = 'Key is required'; return; }
+            if (!/^[A-Z0-9_]+$/.test(key)) {
+                statusEl.style.color = '#c62828';
+                statusEl.textContent = 'Key must be uppercase letters, digits, and underscores only';
+                return;
+            }
+
+            fetch('/api/variables', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ key, value, is_secret: isSecret })
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    statusEl.style.color = '#27ae60';
+                    statusEl.textContent = `Saved ${key}`;
+                    document.getElementById('newKey').value = '';
+                    document.getElementById('newValue').value = '';
+                    setTimeout(() => window.location.reload(), 800);
+                } else {
+                    statusEl.style.color = '#c62828';
+                    statusEl.textContent = data.error || 'Error saving variable';
+                }
+            })
+            .catch(err => { statusEl.style.color = '#c62828'; statusEl.textContent = 'Error: ' + err; });
+        }
+
+        function deleteVar(key) {
+            if (!confirm(`Delete variable ${key}?`)) return;
+            fetch(`/api/variables/${encodeURIComponent(key)}`, { method: 'DELETE' })
+            .then(r => r.json())
+            .then(() => window.location.reload())
+            .catch(err => alert('Error: ' + err));
+        }
+
+        document.getElementById('newValue') && document.getElementById('newValue').addEventListener('keydown', e => {
+            if (e.key === 'Enter') saveVar(false);
+        });
+    </script>
+</body>
+</html>

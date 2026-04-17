@@ -13,8 +13,10 @@
             <ul class="nav-links">
                 <li><a href="/">Home</a></li>
                 <li><a href="/create">Create Test</a></li>
-                <li><a href="/tests">View Tests</a></li>
+                <li><a href="/tests">Tests</a></li>
                 <li><a href="/executions" class="active">Executions</a></li>
+                <li><a href="/health">Health</a></li>
+                <li><a href="/variables">Variables</a></li>
                 <li><a href="/logs">Log</a></li>
             </ul>
         </div>
@@ -22,8 +24,19 @@
 
     <div class="eo-page">
         <div class="eo-header">
-            <h2>Execution Overview</h2>
-            <p class="eo-subtitle">Last 100 runs per test &mdash; newest on the right</p>
+            <div>
+                <h2>Execution Overview</h2>
+                <p class="eo-subtitle">Last 100 runs per test &mdash; newest on the right</p>
+            </div>
+            <button class="btn btn-secondary" id="compareModeBtn" onclick="toggleCompareMode()" style="align-self:flex-start">
+                Compare two runs
+            </button>
+        </div>
+
+        <div class="eo-compare-bar" id="compareBar">
+            <span id="compareBarText">Select two runs to compare</span>
+            <button class="btn btn-primary btn-sm" id="compareGoBtn" onclick="goCompare()" disabled>Compare</button>
+            <button class="btn btn-ghost" style="padding:.3rem .7rem;font-size:.8rem" onclick="cancelCompareMode()">Cancel</button>
         </div>
 
         {% if tests %}
@@ -42,13 +55,15 @@
                     <div class="eo-squares">
                         {% if test.executions %}
                             {% for ex in test.executions|reverse %}
-                            <div class="eo-sq sq-{{ ex.status }}"
+                            <div class="eo-sq sq-{{ ex.status }}{% if ex.sla_violated %} sla-violated{% endif %}"
                                  data-id="{{ ex.id }}"
                                  data-test-name="{{ test.name }}"
                                  data-at="{{ ex.executed_at }}"
                                  data-status="{{ ex.status }}"
                                  data-artefact-dir="{{ ex.artefact_dir or '' }}"
-                                 title="{{ ex.executed_at }} &mdash; {{ ex.status }}"></div>
+                                 data-duration="{{ ex.duration_seconds or '' }}"
+                                 data-sla-violated="{{ ex.sla_violated or 0 }}"
+                                 title="{{ ex.executed_at }} &mdash; {{ ex.status }}{% if ex.sla_violated %} (SLA violated){% endif %}{% if ex.duration_seconds %} &mdash; {{ '%.1f'|format(ex.duration_seconds) }}s{% endif %}"></div>
                             {% endfor %}
                         {% else %}
                             <span class="eo-no-runs">no runs yet</span>
@@ -84,8 +99,58 @@
 
     <script src="{{ url_for('static', filename='js/har-viewer.js') }}"></script>
     <script>
+        let _compareMode = false;
+        let _compareSelected = [];
+
+        function toggleCompareMode() {
+            _compareMode = true;
+            _compareSelected = [];
+            document.getElementById('compareBar').classList.add('active');
+            document.getElementById('compareModeBtn').style.display = 'none';
+            updateCompareBar();
+        }
+
+        function cancelCompareMode() {
+            _compareMode = false;
+            _compareSelected = [];
+            document.getElementById('compareBar').classList.remove('active');
+            document.getElementById('compareModeBtn').style.display = '';
+            document.querySelectorAll('.eo-sq.selected-for-compare').forEach(sq => {
+                sq.classList.remove('selected-for-compare');
+            });
+        }
+
+        function updateCompareBar() {
+            const n = _compareSelected.length;
+            document.getElementById('compareBarText').textContent =
+                n === 0 ? 'Select two runs to compare' :
+                n === 1 ? 'Select one more run' :
+                'Ready to compare';
+            document.getElementById('compareGoBtn').disabled = n !== 2;
+        }
+
+        function goCompare() {
+            if (_compareSelected.length === 2) {
+                window.location.href = `/compare/${_compareSelected[0]}/${_compareSelected[1]}`;
+            }
+        }
+
         document.querySelectorAll('.eo-sq').forEach(sq => {
-            sq.addEventListener('click', () => openExecution(sq));
+            sq.addEventListener('click', () => {
+                if (_compareMode) {
+                    const id = sq.dataset.id;
+                    if (_compareSelected.includes(id)) {
+                        _compareSelected = _compareSelected.filter(x => x !== id);
+                        sq.classList.remove('selected-for-compare');
+                    } else if (_compareSelected.length < 2) {
+                        _compareSelected.push(id);
+                        sq.classList.add('selected-for-compare');
+                    }
+                    updateCompareBar();
+                } else {
+                    openExecution(sq);
+                }
+            });
         });
 
         // Poll any running squares until they finish
@@ -126,10 +191,16 @@
             let html = '';
 
             // Status badge
-            html += `<div class="modal-meta">
+            let metaHtml = `<div class="modal-meta">
                 <span><strong>Executed:</strong> ${executedAt}</span>
-                <span><strong>Status:</strong> <span class="status-badge status-${data.status}">${data.status}</span></span>
-            </div>`;
+                <span><strong>Status:</strong> <span class="status-badge status-${data.status}">${data.status}</span></span>`;
+            if (data.duration_seconds != null) {
+                metaHtml += `<span><strong>Duration:</strong> ${parseFloat(data.duration_seconds).toFixed(1)}s`;
+                if (data.sla_violated) metaHtml += ` <span style="color:#e67e22;font-weight:600">SLA violated</span>`;
+                metaHtml += `</span>`;
+            }
+            metaHtml += `</div>`;
+            html += metaHtml;
 
             // Video
             if (dir) {
