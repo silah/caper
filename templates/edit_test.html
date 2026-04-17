@@ -276,6 +276,13 @@
 
         function _cancelEdit() { _editingIndex = null; renderSteps(); }
 
+        function insertStepAfter(index) {
+            window.insertAfterIndex = index;
+            document.querySelector('.ed-add-step').scrollIntoView({ behavior: 'smooth' });
+            const actionType = document.getElementById('actionType');
+            if (actionType) actionType.focus();
+        }
+
         function _changeEditAction(index) {
             const newAction = document.getElementById(`ei_action_${index}`).value;
             testSteps[index] = { action: newAction };
