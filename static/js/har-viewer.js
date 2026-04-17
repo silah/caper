@@ -20,12 +20,57 @@ document.addEventListener('toggle', function (e) {
                 gallery.innerHTML = '<p class="gallery-empty">No screenshots available.</p>';
                 return;
             }
-            gallery.innerHTML = urls.map((url, i) =>
-                `<div class="screenshot-frame">
-                    <span class="screenshot-label">${i + 1}</span>
-                    <img src="${url}" loading="lazy" class="screenshot-img">
-                </div>`
-            ).join('');
+
+            gallery.innerHTML = `
+                <button class="gallery-arrow gallery-arrow-l">&#8249;</button>
+                <div class="gallery-track">
+                    ${urls.map((url, i) => `
+                        <div class="screenshot-frame">
+                            <span class="screenshot-label">${i + 1}</span>
+                            <img src="${url}" loading="lazy" class="screenshot-img">
+                        </div>`).join('')}
+                </div>
+                <button class="gallery-arrow gallery-arrow-r">&#8250;</button>`;
+
+            const track = gallery.querySelector('.gallery-track');
+
+            gallery.querySelector('.gallery-arrow-l').addEventListener('click', () =>
+                track.scrollBy({ left: -320, behavior: 'smooth' }));
+            gallery.querySelector('.gallery-arrow-r').addEventListener('click', () =>
+                track.scrollBy({ left: 320, behavior: 'smooth' }));
+
+            let isDown = false, startX, scrollLeft, didDrag = false;
+            track.addEventListener('mousedown', e => {
+                isDown = true; didDrag = false;
+                track.classList.add('dragging');
+                startX = e.pageX - track.offsetLeft;
+                scrollLeft = track.scrollLeft;
+            });
+            track.addEventListener('mouseleave', () => { isDown = false; track.classList.remove('dragging'); });
+            track.addEventListener('mouseup',    () => { isDown = false; track.classList.remove('dragging'); });
+            track.addEventListener('mousemove', e => {
+                if (!isDown) return;
+                e.preventDefault();
+                const x = e.pageX - track.offsetLeft;
+                const delta = x - startX;
+                if (Math.abs(delta) > 4) didDrag = true;
+                track.scrollLeft = scrollLeft - delta * 1.5;
+            });
+
+            track.addEventListener('click', e => {
+                if (didDrag) return;
+                const img = e.target.closest('.screenshot-frame')?.querySelector('img');
+                if (!img) return;
+                const label = e.target.closest('.screenshot-frame')?.querySelector('.screenshot-label')?.textContent || '';
+                const lb = document.createElement('div');
+                lb.className = 'gallery-lightbox';
+                lb.innerHTML = `<img src="${img.src}"><span class="gallery-lightbox-label">Screenshot ${label}</span>`;
+                lb.addEventListener('click', () => lb.remove());
+                document.addEventListener('keydown', function esc(e) {
+                    if (e.key === 'Escape') { lb.remove(); document.removeEventListener('keydown', esc); }
+                });
+                document.body.appendChild(lb);
+            });
         })
         .catch(() => {
             gallery.innerHTML = '<p class="gallery-empty">Failed to load screenshots.</p>';
