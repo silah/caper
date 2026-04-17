@@ -37,7 +37,7 @@
                         {% if test.webhook_enabled %}<span class="ed-badge-active"></span>{% endif %}
                     </button>
                     <button class="btn btn-primary" onclick="updateTest()">Save changes</button>
-                    <a href="/test/{{ test.id }}" class="btn btn-ghost">Cancel</a>
+                    <a href="/tests" class="btn btn-ghost">Cancel</a>
                 </div>
             </div>
 
@@ -445,7 +445,7 @@
             .then(r => r.json())
             .then(data => {
                 if (data.success) {
-                    window.location.href = `/test/${testId}`;
+                    window.location.href = `/tests`;
                 } else {
                     alert('Error: ' + (data.error || 'Unknown error'));
                 }
