@@ -1245,7 +1245,7 @@ summary {
 .st-col-drag   { width: 28px; }
 .st-col-num    { width: 36px; }
 .st-col-action { width: 130px; }
-.st-col-btns   { width: 130px; text-align: right; }
+.st-col-btns   { width: 190px; text-align: right; }
 
 .st-row {
     border-bottom: 1px solid #f0f2f5;

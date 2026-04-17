@@ -247,6 +247,7 @@
                     <td><span class="step-action-tag">${step.action.replace(/_/g,' ').toUpperCase()}</span></td>
                     <td class="st-detail">${_stepDetail(step)}</td>
                     <td class="st-col-btns">
+                        <button class="tov-btn tov-btn-view" onclick="insertStepAfter(${i})" title="Insert step below">+ Below</button>
                         <button class="tov-btn tov-btn-edit" onclick="_editingIndex===${i}?_cancelEdit():editStep(${i})">
                             ${editing ? 'Cancel' : 'Edit'}
                         </button>
