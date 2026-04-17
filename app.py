@@ -6,6 +6,7 @@ import subprocess
 import tempfile
 import os
 import threading
+import time
 from database import Database
 from test_generator import generate_selenium_script
 from models import User
@@ -432,6 +433,30 @@ def _map_imported_step(raw):
     return None
 
 
+@app.route('/api/tests/<int:test_id>/schedule', methods=['POST'])
+@login_required
+def set_schedule(test_id):
+    team = get_current_team()
+    test = db.get_test(test_id, team_id=team['id'] if team else None)
+    if not test:
+        return jsonify({'error': 'Test not found'}), 404
+
+    data = request.json
+    enabled = bool(data.get('enabled', False))
+    interval = data.get('interval')
+
+    if enabled:
+        try:
+            interval = int(interval)
+            if interval < 1:
+                return jsonify({'error': 'Interval must be at least 1 minute'}), 400
+        except (ValueError, TypeError):
+            return jsonify({'error': 'Invalid interval'}), 400
+
+    db.set_test_schedule(test_id, interval, enabled)
+    return jsonify({'success': True})
+
+
 @app.route('/api/tests/import', methods=['POST'])
 @login_required
 def import_test():
@@ -475,5 +500,24 @@ def import_test():
                     'skipped': skipped})
 
 
+def _scheduler_loop():
+    while True:
+        time.sleep(30)
+        try:
+            for test in db.get_due_scheduled_tests():
+                db.advance_next_run(test['id'], test['schedule_interval'])
+                execution_id = db.create_execution(test['id'], test.get('team_id'))
+                threading.Thread(
+                    target=_run_test_subprocess,
+                    args=(test['id'], test['script'], execution_id),
+                    daemon=True
+                ).start()
+        except Exception:
+            pass
+
+
+_scheduler_thread = threading.Thread(target=_scheduler_loop, daemon=True)
+_scheduler_thread.start()
+
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=5098)
+    app.run(debug=True, host='0.0.0.0', port=5098, use_reloader=False)

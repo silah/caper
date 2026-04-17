@@ -34,7 +34,12 @@
         <div class="tests-grid">
             {% for test in tests %}
             <div class="test-card">
-                <h3>{{ test.name }}</h3>
+                <div class="test-card-title">
+                    <h3>{{ test.name }}</h3>
+                    {% if test.schedule_enabled %}
+                    <span class="schedule-badge">Every {{ test.schedule_interval }}m</span>
+                    {% endif %}
+                </div>
                 <p class="test-description">{{ test.description or 'No description' }}</p>
                 
                 <div class="test-stats">

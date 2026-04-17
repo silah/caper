@@ -105,6 +105,13 @@ class Database:
         except sqlite3.OperationalError:
             cursor.execute("ALTER TABLE executions ADD COLUMN artefact_dir TEXT")
 
+        try:
+            cursor.execute("SELECT schedule_interval FROM tests LIMIT 1")
+        except sqlite3.OperationalError:
+            cursor.execute("ALTER TABLE tests ADD COLUMN schedule_interval INTEGER DEFAULT NULL")
+            cursor.execute("ALTER TABLE tests ADD COLUMN schedule_enabled INTEGER DEFAULT 0")
+            cursor.execute("ALTER TABLE tests ADD COLUMN schedule_next_run TIMESTAMP DEFAULT NULL")
+
         conn.commit()
         conn.close()
     
@@ -263,17 +270,19 @@ class Database:
     def get_all_tests(self, team_id=None):
         conn = self.get_connection()
         cursor = conn.cursor()
-        
+
         if team_id:
             cursor.execute('''
-                SELECT id, name, description, created_at, last_executed, execution_count
+                SELECT id, name, description, created_at, last_executed, execution_count,
+                       schedule_interval, schedule_enabled, schedule_next_run
                 FROM tests
                 WHERE team_id = ?
                 ORDER BY created_at DESC
             ''', (team_id,))
         else:
             cursor.execute('''
-                SELECT id, name, description, created_at, last_executed, execution_count
+                SELECT id, name, description, created_at, last_executed, execution_count,
+                       schedule_interval, schedule_enabled, schedule_next_run
                 FROM tests
                 ORDER BY created_at DESC
             ''')
@@ -289,13 +298,15 @@ class Database:
         
         if team_id:
             cursor.execute('''
-                SELECT id, name, description, steps, script, created_at, last_executed, execution_count
+                SELECT id, name, description, steps, script, created_at, last_executed, execution_count,
+                       schedule_interval, schedule_enabled, schedule_next_run
                 FROM tests
                 WHERE id = ? AND team_id = ?
             ''', (test_id, team_id))
         else:
             cursor.execute('''
-                SELECT id, name, description, steps, script, created_at, last_executed, execution_count
+                SELECT id, name, description, steps, script, created_at, last_executed, execution_count,
+                       schedule_interval, schedule_enabled, schedule_next_run
                 FROM tests
                 WHERE id = ?
             ''', (test_id,))
@@ -426,6 +437,53 @@ class Database:
         
         return executions
     
+    def set_test_schedule(self, test_id, interval_minutes, enabled):
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        if enabled and interval_minutes:
+            cursor.execute('''
+                UPDATE tests
+                SET schedule_interval = ?, schedule_enabled = 1,
+                    schedule_next_run = datetime('now', ? || ' minutes')
+                WHERE id = ?
+            ''', (interval_minutes, str(interval_minutes), test_id))
+        else:
+            cursor.execute('''
+                UPDATE tests
+                SET schedule_interval = ?, schedule_enabled = 0, schedule_next_run = NULL
+                WHERE id = ?
+            ''', (interval_minutes, test_id))
+        conn.commit()
+        conn.close()
+
+    def advance_next_run(self, test_id, interval_minutes):
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        cursor.execute('''
+            UPDATE tests
+            SET schedule_next_run = datetime('now', ? || ' minutes')
+            WHERE id = ?
+        ''', (str(interval_minutes), test_id))
+        conn.commit()
+        conn.close()
+
+    def get_due_scheduled_tests(self):
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        cursor.execute('''
+            SELECT id, name, script, team_id, schedule_interval
+            FROM tests
+            WHERE schedule_enabled = 1
+              AND schedule_interval IS NOT NULL
+              AND (schedule_next_run IS NULL OR schedule_next_run <= datetime('now'))
+        ''')
+        tests = [dict(row) for row in cursor.fetchall()]
+        conn.close()
+        for t in tests:
+            if isinstance(t.get('script'), bytes):
+                t['script'] = t['script'].decode('utf-8')
+        return tests
+
     def get_executions_grouped_by_test(self, team_id=None, limit_per_test=100):
         conn = self.get_connection()
         cursor = conn.cursor()

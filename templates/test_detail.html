@@ -45,6 +45,26 @@
                 {% endif %}
             </div>
 
+            <div class="section schedule-section">
+                <h3>Schedule</h3>
+                <div class="schedule-form">
+                    <label class="schedule-toggle">
+                        <input type="checkbox" id="scheduleEnabled" {% if test.schedule_enabled %}checked{% endif %}>
+                        <span>Enable automatic scheduling</span>
+                    </label>
+                    <div class="schedule-interval">
+                        <label for="scheduleInterval">Run every</label>
+                        <input type="number" id="scheduleInterval" min="1" value="{{ test.schedule_interval or '' }}" placeholder="e.g. 60">
+                        <span>minutes</span>
+                    </div>
+                    {% if test.schedule_next_run and test.schedule_enabled %}
+                    <p class="schedule-next">Next run: <strong>{{ test.schedule_next_run }}</strong></p>
+                    {% endif %}
+                    <button class="btn btn-primary btn-sm" onclick="saveSchedule()">Save Schedule</button>
+                    <span id="scheduleStatus" class="schedule-status"></span>
+                </div>
+            </div>
+
             <div class="section">
                 <h3>Test Steps</h3>
                 <ol class="steps-list">
@@ -140,6 +160,38 @@
     </div>
 
     <script>
+        function saveSchedule() {
+            const enabled = document.getElementById('scheduleEnabled').checked;
+            const interval = parseInt(document.getElementById('scheduleInterval').value, 10);
+            const status = document.getElementById('scheduleStatus');
+
+            if (enabled && (!interval || interval < 1)) {
+                status.textContent = 'Please enter a valid interval.';
+                status.className = 'schedule-status schedule-status-err';
+                return;
+            }
+
+            fetch('/api/tests/{{ test.id }}/schedule', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ enabled, interval })
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    status.textContent = enabled ? `Scheduled every ${interval} min.` : 'Schedule disabled.';
+                    status.className = 'schedule-status schedule-status-ok';
+                } else {
+                    status.textContent = data.error || 'Failed to save.';
+                    status.className = 'schedule-status schedule-status-err';
+                }
+            })
+            .catch(() => {
+                status.textContent = 'Request failed.';
+                status.className = 'schedule-status schedule-status-err';
+            });
+        }
+
         function executeTest() {
             if (!confirm('Are you sure you want to run this test?')) return;
 
