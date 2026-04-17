@@ -1,0 +1,11 @@
+services:
+  caper:
+    build: .
+    ports:
+      - "5098:5098"
+    volumes:
+      - ./artefacts:/app/artefacts
+      - ./tests.db:/app/tests.db
+    environment:
+      - SECRET_KEY=${SECRET_KEY:-change-me-in-production}
+    restart: unless-stopped

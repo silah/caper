@@ -1,5 +1,40 @@
 # Selenium Test Builder - Installation Guide
 
+## Docker (recommended)
+
+Docker is the easiest way to run Caper. Firefox, GeckoDriver, and ffmpeg are
+all baked into the image.
+
+```bash
+# Build and start
+docker compose up -d
+
+# View logs
+docker compose logs -f
+
+# Stop
+docker compose down
+```
+
+The app will be available at `http://<server-ip>:5098`.
+
+Test artefacts (screenshots, HAR files, videos) are written to `./artefacts/`
+on the host. The database is persisted at `./tests.db`.
+
+To set a production secret key:
+```bash
+SECRET_KEY=your-secret-here docker compose up -d
+```
+
+Or create a `.env` file in the project root:
+```
+SECRET_KEY=your-secret-here
+```
+
+---
+
+## Manual Installation
+
 This application is designed to run on a headless Linux server. Firefox runs in
 `--headless` mode so no display server (X11/Xvfb) is required, but Firefox still
 needs its GTK/X11 shared libraries even when running headless.
