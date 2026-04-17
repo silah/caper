@@ -513,12 +513,13 @@ class Database:
         conn = self.get_connection()
         cursor = conn.cursor()
         if enabled and interval_minutes:
+            # Set next_run to now so the scheduler fires it on the very next tick
             cursor.execute('''
                 UPDATE tests
                 SET schedule_interval = ?, schedule_enabled = 1,
-                    schedule_next_run = datetime('now', ? || ' minutes')
+                    schedule_next_run = datetime('now')
                 WHERE id = ?
-            ''', (interval_minutes, str(interval_minutes), test_id))
+            ''', (interval_minutes, test_id))
         else:
             cursor.execute('''
                 UPDATE tests

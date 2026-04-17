@@ -530,19 +530,27 @@ def handle_exception(e):
 
 
 def _scheduler_loop():
+    db.log_event('info', 'Scheduler started')
+    tick = 0
     while True:
         time.sleep(30)
+        tick += 1
         try:
-            for test in db.get_due_scheduled_tests():
-                db.advance_next_run(test['id'], test['schedule_interval'])
-                execution_id = db.create_execution(test['id'], test.get('team_id'))
-                db.log_event('info', f'Scheduled run started: {test["name"]}',
-                             f'test_id={test["id"]} execution_id={execution_id}')
-                threading.Thread(
-                    target=_run_test_subprocess,
-                    args=(test['id'], test['script'], execution_id),
-                    daemon=True
-                ).start()
+            due = db.get_due_scheduled_tests()
+            if due:
+                for test in due:
+                    db.advance_next_run(test['id'], test['schedule_interval'])
+                    execution_id = db.create_execution(test['id'], test.get('team_id'))
+                    db.log_event('info', f'Scheduled run started: {test["name"]}',
+                                 f'test_id={test["id"]} execution_id={execution_id} interval={test["schedule_interval"]}m')
+                    threading.Thread(
+                        target=_run_test_subprocess,
+                        args=(test['id'], test['script'], execution_id),
+                        daemon=True
+                    ).start()
+            # Heartbeat every 10 ticks (~5 min) so logs confirm the scheduler is alive
+            if tick % 10 == 0:
+                db.log_event('info', f'Scheduler heartbeat (tick {tick})')
         except Exception as e:
             import traceback
             db.log_event('error', f'Scheduler error: {e}', traceback.format_exc())
