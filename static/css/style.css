@@ -799,6 +799,41 @@ summary {
     margin-bottom: 0.5rem;
 }
 
+/* Tests page header */
+.tests-page-header {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.tests-page-header h2 {
+    margin: 0;
+    flex: 1;
+}
+
+.import-status {
+    padding: 0.75rem 1rem;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    margin-bottom: 1rem;
+}
+
+.import-status-loading {
+    background: #e8f4fd;
+    color: #2980b9;
+}
+
+.import-status-ok {
+    background: #d4edda;
+    color: #155724;
+}
+
+.import-status-err {
+    background: #f8d7da;
+    color: #721c24;
+}
+
 /* Execution Overview page */
 .eo-page {
     width: 90%;

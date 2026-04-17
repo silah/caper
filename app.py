@@ -1,6 +1,7 @@
 from flask import Flask, render_template, request, jsonify, redirect, url_for, flash, send_from_directory
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 import json
+import re
 import subprocess
 import tempfile
 import os
@@ -361,6 +362,101 @@ def update_test(test_id):
         'test_id': test_id,
         'message': f'Test "{name}" updated successfully'
     })
+
+def _extract_querySelector_arg(jspath):
+    """Pull the CSS selector string out of document.querySelector("...") expressions."""
+    m = re.match(r'''document\.querySelector\s*\(\s*["'](.+?)["']\s*\)''', jspath.strip())
+    return m.group(1) if m else None
+
+
+def _map_selector_type(st):
+    return {'id': 'id', 'css': 'css', 'xpath': 'xpath', 'name': 'name',
+            'class': 'class', 'tag': 'tag'}.get(st, 'css')
+
+
+def _map_imported_step(raw):
+    step_type = raw.get('type', '')
+    name = raw.get('name', '')
+
+    if step_type == 'go_to_url':
+        url = raw.get('url') or raw.get('options', {}).get('url', '')
+        return {'action': 'navigate', 'value': url}
+
+    if step_type == 'click_element':
+        st = raw.get('selectorType', 'css')
+        sel = raw.get('selector', '')
+        if st == 'jspath':
+            css = _extract_querySelector_arg(sel)
+            if css:
+                return {'action': 'click', 'selectorType': 'css', 'selector': css}
+            return {'action': 'execute_js', 'value': f'({sel}).click()'}
+        return {'action': 'click', 'selectorType': _map_selector_type(st), 'selector': sel}
+
+    if step_type == 'enter_value':
+        st = raw.get('selectorType', 'css')
+        sel = raw.get('selector', '')
+        val = raw.get('value', '')
+        if st == 'jspath':
+            css = _extract_querySelector_arg(sel)
+            if css:
+                return {'action': 'type', 'selectorType': 'css', 'selector': css, 'value': val}
+            return {'action': 'execute_js', 'value': f'var el=({sel}); el.value={json.dumps(val)}; el.dispatchEvent(new Event("input"));'}
+        return {'action': 'type', 'selectorType': _map_selector_type(st), 'selector': sel, 'value': val}
+
+    if step_type == 'wait':
+        seconds = raw.get('duration', 1000) / 1000
+        return {'action': 'wait', 'value': str(seconds)}
+
+    if step_type == 'run_javascript':
+        return {'action': 'execute_js', 'value': raw.get('value', '')}
+
+    if step_type == 'assert_element_visible':
+        st = raw.get('selectorType', 'css')
+        sel = raw.get('selector', '')
+        label = name or sel
+        if st == 'jspath':
+            return {'action': 'execute_js',
+                    'value': f'if (!({sel})) throw new Error({json.dumps("Element not visible: " + label)});'}
+        return {'action': 'assert_text', 'selectorType': _map_selector_type(st), 'selector': sel, 'value': ''}
+
+    return None
+
+
+@app.route('/api/tests/import', methods=['POST'])
+@login_required
+def import_test():
+    team = get_current_team()
+    if not team:
+        return jsonify({'error': 'You must be part of a team'}), 403
+
+    f = request.files.get('file')
+    if not f:
+        return jsonify({'error': 'No file provided'}), 400
+
+    try:
+        data = json.load(f)
+    except Exception:
+        return jsonify({'error': 'Invalid JSON file'}), 400
+
+    test_data = data.get('test', data)
+    name = test_data.get('name', 'Imported Test')
+
+    steps = []
+    for transaction in test_data.get('transactions', []):
+        for raw_step in transaction.get('steps', []):
+            mapped = _map_imported_step(raw_step)
+            if mapped:
+                steps.append(mapped)
+
+    if not steps:
+        return jsonify({'error': 'No recognisable steps found in the file'}), 400
+
+    script = generate_selenium_script(steps, test_name=name, base_artefacts_dir=BASE_ARTEFACTS_DIR)
+    test_id = db.create_test(name, '', steps, script, team['id'])
+
+    return jsonify({'success': True, 'test_id': test_id,
+                    'message': f'Imported "{name}" with {len(steps)} steps'})
+
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5098)
