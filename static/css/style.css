@@ -966,6 +966,61 @@ summary {
     text-align: center;
 }
 
+/* Screenshot gallery */
+.screenshots-details {
+    margin-top: 0.75rem;
+}
+
+.screenshots-details > summary {
+    font-size: 0.9rem;
+    color: #3498db;
+    cursor: pointer;
+    padding: 0.25rem 0;
+}
+
+.screenshots-gallery {
+    margin-top: 0.75rem;
+    max-height: 520px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    border-radius: 4px;
+    background: #111;
+    padding: 4px;
+}
+
+.screenshot-frame {
+    position: relative;
+    flex-shrink: 0;
+}
+
+.screenshot-label {
+    position: absolute;
+    top: 6px;
+    left: 6px;
+    background: rgba(0,0,0,0.55);
+    color: #fff;
+    font-size: 0.7rem;
+    padding: 2px 6px;
+    border-radius: 3px;
+    pointer-events: none;
+}
+
+.screenshot-img {
+    width: 100%;
+    display: block;
+    border-radius: 2px;
+}
+
+.gallery-loading,
+.gallery-empty {
+    color: #888;
+    font-size: 0.85rem;
+    padding: 1rem;
+    text-align: center;
+}
+
 /* HAR viewer */
 .har-details {
     margin-top: 0.75rem;

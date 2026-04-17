@@ -107,6 +107,13 @@
                         </div>
                         {% endif %}
 
+                        {% if execution.artefact_dir %}
+                        <details class="screenshots-details" data-artefact-dir="{{ execution.artefact_dir }}">
+                            <summary>Screenshots</summary>
+                            <div class="screenshots-gallery"></div>
+                        </details>
+                        {% endif %}
+
                         {% if execution.step_results %}
                         <details class="execution-steps">
                             <summary>Step results</summary>
@@ -182,6 +189,34 @@
                 setTimeout(() => pollStatus(executionId, btn, startTime), 2000);
             });
         }
+
+        document.addEventListener('toggle', function(e) {
+            const details = e.target;
+            if (!details.classList.contains('screenshots-details') || !details.open) return;
+            if (details.dataset.loaded) return;
+            details.dataset.loaded = 'true';
+
+            const gallery = details.querySelector('.screenshots-gallery');
+            gallery.innerHTML = '<p class="gallery-loading">Loading\u2026</p>';
+
+            fetch(`/api/artefacts/${details.dataset.artefactDir}/screenshots`)
+                .then(r => r.json())
+                .then(urls => {
+                    if (!urls.length) {
+                        gallery.innerHTML = '<p class="gallery-empty">No screenshots available.</p>';
+                        return;
+                    }
+                    gallery.innerHTML = urls.map((url, i) =>
+                        `<div class="screenshot-frame">
+                            <span class="screenshot-label">${i + 1}</span>
+                            <img src="${url}" loading="lazy" class="screenshot-img">
+                        </div>`
+                    ).join('');
+                })
+                .catch(() => {
+                    gallery.innerHTML = '<p class="gallery-empty">Failed to load screenshots.</p>';
+                });
+        }, true);
 
         document.querySelectorAll('.steps-results-list[data-steps]').forEach(el => {
             const steps = JSON.parse(el.dataset.steps || '[]');

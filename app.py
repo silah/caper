@@ -292,6 +292,16 @@ def get_execution_status(execution_id):
 def serve_artefact(filename):
     return send_from_directory(BASE_ARTEFACTS_DIR, filename)
 
+@app.route('/api/artefacts/<path:artefact_dir>/screenshots')
+@login_required
+def list_screenshots(artefact_dir):
+    screenshots_dir = os.path.join(BASE_ARTEFACTS_DIR, artefact_dir, 'screenshots')
+    if not os.path.isdir(screenshots_dir):
+        return jsonify([])
+    files = sorted(f for f in os.listdir(screenshots_dir) if f.endswith('.png'))
+    return jsonify([f'/artefacts/{artefact_dir}/screenshots/{f}' for f in files])
+
+
 @app.route('/api/tests/<int:test_id>/executions')
 @login_required
 def get_test_executions(test_id):
