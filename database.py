@@ -227,6 +227,29 @@ class Database:
             conn.close()
             return False
     
+    def get_all_teams(self):
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        cursor.execute('SELECT id, name FROM teams ORDER BY name')
+        teams = [dict(row) for row in cursor.fetchall()]
+        conn.close()
+        return teams
+
+    def join_team_by_id(self, user_id, team_id):
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        try:
+            cursor.execute(
+                'INSERT INTO user_teams (user_id, team_id) VALUES (?, ?)',
+                (user_id, team_id)
+            )
+            conn.commit()
+            conn.close()
+            return True
+        except sqlite3.IntegrityError:
+            conn.close()
+            return False
+
     def get_user_team(self, user_id):
         conn = self.get_connection()
         cursor = conn.cursor()

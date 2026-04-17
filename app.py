@@ -78,8 +78,8 @@ def register():
         user_id = db.create_user(username, email, password)
         if not user_id:
             flash('Username or email already exists', 'error')
-            return render_template('register.html')
-        
+            return render_template('register.html', teams=db.get_all_teams())
+
         # Handle team creation or joining
         if action == 'create':
             team_name = request.form.get('team_name')
@@ -88,22 +88,22 @@ def register():
                 flash(f'Team created! Registration code: {reg_code}', 'success')
             else:
                 flash('Team name already exists', 'error')
-                return render_template('register.html')
+                return render_template('register.html', teams=db.get_all_teams())
         elif action == 'join':
-            reg_code = request.form.get('registration_code')
-            if db.join_team(user_id, reg_code):
+            team_id = request.form.get('team_id')
+            if team_id and db.join_team_by_id(user_id, int(team_id)):
                 flash('Successfully joined team!', 'success')
             else:
-                flash('Invalid registration code', 'error')
-                return render_template('register.html')
+                flash('Could not join team', 'error')
+                return render_template('register.html', teams=db.get_all_teams())
         
         # Log user in with Flask-Login
         user_dict = db.get_user_by_id(user_id)
         user = User.from_dict(user_dict)
         login_user(user)
         return redirect(url_for('index'))
-    
-    return render_template('register.html')
+
+    return render_template('register.html', teams=db.get_all_teams())
 
 @app.route('/logout')
 @login_required

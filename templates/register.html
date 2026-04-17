@@ -107,7 +107,7 @@
 </head>
 <body>
     <div class="auth-container">
-        <h2>🧪 Selenium Test Builder</h2>
+        <h2>Caper</h2>
         <h3 style="text-align: center; color: #666; font-weight: normal; margin-bottom: 30px;">Register</h3>
         
         {% with messages = get_flashed_messages(with_categories=true) %}
@@ -157,8 +157,13 @@
                     </label>
                     <div id="join_fields" class="team-fields">
                         <div class="form-group">
-                            <label for="registration_code">Registration Code</label>
-                            <input type="text" id="registration_code" name="registration_code" placeholder="Enter team registration code">
+                            <label for="team_id">Select Team</label>
+                            <select id="team_id" name="team_id">
+                                <option value="">— choose a team —</option>
+                                {% for team in teams %}
+                                <option value="{{ team.id }}">{{ team.name }}</option>
+                                {% endfor %}
+                            </select>
                         </div>
                     </div>
                 </div>
@@ -183,10 +188,10 @@
                 if (this.value === 'create') {
                     document.getElementById('create_fields').classList.add('active');
                     document.getElementById('team_name').required = true;
-                    document.getElementById('registration_code').required = false;
+                    document.getElementById('team_id').required = false;
                 } else if (this.value === 'join') {
                     document.getElementById('join_fields').classList.add('active');
-                    document.getElementById('registration_code').required = true;
+                    document.getElementById('team_id').required = true;
                     document.getElementById('team_name').required = false;
                 }
             });
