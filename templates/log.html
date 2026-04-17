@@ -36,7 +36,6 @@
                         <th class="log-col-time">Time</th>
                         <th class="log-col-level">Level</th>
                         <th class="log-col-msg">Message</th>
-                        <th class="log-col-detail">Details</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -44,11 +43,11 @@
                     <tr class="log-row log-row-{{ entry.level }}">
                         <td class="log-time">{{ entry.created_at }}</td>
                         <td><span class="log-level log-level-{{ entry.level }}">{{ entry.level.upper() }}</span></td>
-                        <td class="log-message">{{ entry.message }}</td>
-                        <td class="log-details">
+                        <td class="log-message">
+                            {{ entry.message }}
                             {% if entry.details %}
                             <details class="log-details-toggle">
-                                <summary>Show</summary>
+                                <summary>Show details</summary>
                                 <pre class="log-details-pre">{{ entry.details }}</pre>
                             </details>
                             {% endif %}

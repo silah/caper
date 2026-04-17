@@ -839,9 +839,8 @@ summary {
     white-space: nowrap;
 }
 
-.log-col-time   { width: 160px; }
-.log-col-level  { width: 80px; }
-.log-col-detail { width: 80px; }
+.log-col-time  { width: 160px; }
+.log-col-level { width: 80px; }
 
 .log-row td {
     padding: 0.6rem 1rem;
@@ -884,16 +883,18 @@ summary {
 }
 
 .log-details-pre {
-    margin-top: 0.4rem;
+    margin-top: 0.5rem;
     background: #f4f4f4;
-    padding: 0.5rem 0.75rem;
+    padding: 0.75rem 1rem;
     border-radius: 4px;
     font-size: 0.75rem;
-    max-height: 200px;
+    max-height: 300px;
     overflow-y: auto;
     white-space: pre-wrap;
     word-break: break-all;
     color: #333;
+    width: 100%;
+    box-sizing: border-box;
 }
 
 .log-pagination {

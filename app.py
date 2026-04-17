@@ -34,6 +34,11 @@ def get_current_team():
         return None
     return db.get_user_team(current_user.id)
 
+@app.route('/favicon.ico')
+def favicon():
+    return '', 204
+
+
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     """Login page"""
