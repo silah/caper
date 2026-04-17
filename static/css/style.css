@@ -933,6 +933,7 @@ summary {
     flex-shrink: 0;
     transition: transform 0.1s, opacity 0.1s;
     opacity: 0.85;
+    border: 1px solid rgba(0,0,0,0.18);
 }
 
 .eo-sq:hover {
@@ -944,7 +945,12 @@ summary {
 .sq-success  { background: #27ae60; }
 .sq-error    { background: #e74c3c; }
 .sq-timeout  { background: #f39c12; }
-.sq-running  { background: #3498db; }
+.sq-running  { background: #3498db; animation: sq-pulse 1.2s ease-in-out infinite; }
+
+@keyframes sq-pulse {
+    0%, 100% { opacity: 0.85; }
+    50%       { opacity: 0.25; }
+}
 
 .eo-no-runs {
     font-size: 0.75rem;
