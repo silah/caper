@@ -4,6 +4,7 @@ import json
 import subprocess
 import tempfile
 import os
+import threading
 from database import Database
 from test_generator import generate_selenium_script
 from models import User
@@ -11,6 +12,8 @@ from models import User
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'dev-secret-key-change-in-production')
 db = Database()
+
+BASE_ARTEFACTS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'artefacts')
 
 # Setup Flask-Login
 login_manager = LoginManager()
@@ -159,8 +162,8 @@ def create_test():
         return jsonify({'error': 'Name and steps are required'}), 400
     
     # Generate Selenium script
-    script = generate_selenium_script(steps)
-    
+    script = generate_selenium_script(steps, test_name=name, base_artefacts_dir=BASE_ARTEFACTS_DIR)
+
     # Save to database
     test_id = db.create_test(name, description, steps, script, team['id'])
     
@@ -182,105 +185,86 @@ def get_test(test_id):
     
     return jsonify(test)
 
+def _run_test_subprocess(test_id, script, execution_id):
+    with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as f:
+        f.write(script)
+        temp_script_path = f.name
+
+    try:
+        result = subprocess.run(
+            ['python', temp_script_path],
+            capture_output=True,
+            text=True,
+            timeout=60
+        )
+
+        output = result.stdout
+        error = result.stderr
+
+        step_results = ''
+        if 'STEP_RESULTS:' in output:
+            start_idx = output.find('STEP_RESULTS:') + len('STEP_RESULTS:')
+            rest = output[start_idx:].strip()
+            lines = rest.split('\n')
+            step_results = lines[0].strip() if lines else ''
+
+        status = 'success' if result.returncode == 0 else 'error'
+        db.update_execution(execution_id, status, output, error, step_results)
+        db.update_execution_stats(test_id)
+
+    except subprocess.TimeoutExpired:
+        db.update_execution(execution_id, 'timeout', '', 'Test execution timed out after 60 seconds', '')
+
+    except Exception as e:
+        db.update_execution(execution_id, 'error', '', str(e), '')
+
+    finally:
+        try:
+            os.unlink(temp_script_path)
+        except Exception:
+            pass
+
+
 @app.route('/api/tests/<int:test_id>/execute', methods=['POST'])
 @login_required
 def execute_test(test_id):
     """API endpoint to execute a test"""
     team = get_current_team()
     test = db.get_test(test_id, team_id=team['id'] if team else None)
-    
+
     if not test:
         return jsonify({'error': 'Test not found'}), 404
-    
-    print(f"\n{'='*60}")
-    print(f"EXECUTING TEST: {test['name']} (ID: {test_id})")
-    print(f"{'='*60}")
-    
-    # Create a temporary file with the script
-    with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as f:
-        f.write(test['script'])
-        temp_script_path = f.name
-    
-    print(f"Temporary script path: {temp_script_path}")
-    print(f"Script preview (first 500 chars):\n{test['script'][:500]}...")
-    
-    try:
-        # Execute the script
-        print(f"\nExecuting script...")
-        result = subprocess.run(
-            ['python', temp_script_path],
-            capture_output=True,
-            text=True,
-            timeout=60  # 60 second timeout
-        )
-        
-        # Parse output
-        output = result.stdout
-        error = result.stderr
-        
-        print(f"\nReturn code: {result.returncode}")
-        print(f"STDOUT length: {len(output)} characters")
-        print(f"STDERR length: {len(error)} characters")
-        print(f"\n--- STDOUT ---\n{output}")
-        print(f"\n--- STDERR ---\n{error}")
-        
-        # Try to parse step results from output
-        step_results = ''
-        try:
-            if 'STEP_RESULTS:' in output:
-                # Extract the JSON part after STEP_RESULTS:
-                start_idx = output.find('STEP_RESULTS:') + len('STEP_RESULTS:')
-                # Find the end of the JSON array (look for the next line or end)
-                rest = output[start_idx:].strip()
-                # Try to find where JSON ends
-                lines = rest.split('\n')
-                step_results = lines[0].strip() if lines else ''
-                print(f"\nExtracted step_results: {step_results}")
-        except Exception as e:
-            print(f"Error parsing step results: {e}")
-        
-        # Determine status
-        if result.returncode == 0:
-            status = 'success'
-        else:
-            status = 'error'
-        
-        print(f"\nStatus: {status}")
-        print(f"Step results to save: {step_results}")
-        
-        # Log execution
-        db.log_execution(test_id, status, output, error, step_results, team['id'] if team else None)
-        db.update_execution_stats(test_id)
-        
-        print(f"{'='*60}\n")
-        
-        return jsonify({
-            'status': status,
-            'output': output,
-            'error': error,
-            'return_code': result.returncode
-        })
-    
-    except subprocess.TimeoutExpired:
-        db.log_execution(test_id, 'timeout', '', 'Test execution timed out after 60 seconds', '', team['id'] if team else None)
-        return jsonify({
-            'status': 'timeout',
-            'error': 'Test execution timed out after 60 seconds'
-        }), 408
-    
-    except Exception as e:
-        db.log_execution(test_id, 'error', '', str(e), '', team['id'] if team else None)
-        return jsonify({
-            'status': 'error',
-            'error': str(e)
-        }), 500
-    
-    finally:
-        # Clean up temporary file
-        try:
-            os.unlink(temp_script_path)
-        except:
-            pass
+
+    execution_id = db.create_execution(test_id, team['id'] if team else None)
+
+    thread = threading.Thread(
+        target=_run_test_subprocess,
+        args=(test_id, test['script'], execution_id),
+        daemon=True
+    )
+    thread.start()
+
+    return jsonify({'execution_id': execution_id, 'status': 'running'})
+
+
+@app.route('/api/executions/<int:execution_id>/status')
+@login_required
+def get_execution_status(execution_id):
+    """Poll endpoint for async execution status"""
+    execution = db.get_execution(execution_id)
+    if not execution:
+        return jsonify({'error': 'Execution not found'}), 404
+
+    team = get_current_team()
+    if team and execution.get('team_id') and execution['team_id'] != team['id']:
+        return jsonify({'error': 'Not found'}), 404
+
+    return jsonify({
+        'status': execution['status'],
+        'output': execution['output'],
+        'error': execution['error'],
+        'step_results': execution['step_results'],
+    })
 
 @app.route('/api/tests/<int:test_id>/executions')
 @login_required
@@ -342,8 +326,8 @@ def update_test(test_id):
         return jsonify({'error': 'Name and steps are required'}), 400
     
     # Generate Selenium script
-    script = generate_selenium_script(steps)
-    
+    script = generate_selenium_script(steps, test_name=name, base_artefacts_dir=BASE_ARTEFACTS_DIR)
+
     # Update in database
     db.update_test(test_id, name, description, steps, script, team['id'])
     

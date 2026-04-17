@@ -317,15 +317,49 @@ class Database:
         conn.commit()
         conn.close()
     
+    def create_execution(self, test_id, team_id=None):
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        cursor.execute('''
+            INSERT INTO executions (test_id, status, team_id)
+            VALUES (?, 'running', ?)
+        ''', (test_id, team_id))
+        execution_id = cursor.lastrowid
+        conn.commit()
+        conn.close()
+        return execution_id
+
+    def update_execution(self, execution_id, status, output='', error='', step_results=''):
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        cursor.execute('''
+            UPDATE executions
+            SET status = ?, output = ?, error = ?, step_results = ?
+            WHERE id = ?
+        ''', (status, output, error, step_results, execution_id))
+        conn.commit()
+        conn.close()
+
+    def get_execution(self, execution_id):
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        cursor.execute('''
+            SELECT id, test_id, status, output, error, step_results, executed_at, team_id
+            FROM executions WHERE id = ?
+        ''', (execution_id,))
+        row = cursor.fetchone()
+        conn.close()
+        return dict(row) if row else None
+
     def log_execution(self, test_id, status, output='', error='', step_results='', team_id=None):
         conn = self.get_connection()
         cursor = conn.cursor()
-        
+
         cursor.execute('''
             INSERT INTO executions (test_id, status, output, error, step_results, team_id)
             VALUES (?, ?, ?, ?, ?, ?)
         ''', (test_id, status, output, error, step_results, team_id))
-        
+
         conn.commit()
         conn.close()
     
