@@ -8,9 +8,13 @@ needs its GTK/X11 shared libraries even when running headless.
 
 ### 1. Install Firefox and its headless dependencies
 
+On Ubuntu 22.04+, `apt install firefox` installs the snap version which
+conflicts with GeckoDriver. Download the `.deb` directly from Mozilla instead:
+
 ```bash
-sudo apt update
-sudo apt install -y firefox \
+wget -O /tmp/firefox.deb \
+    "https://download.mozilla.org/?product=firefox-latest&os=linux64&lang=en-US&_type=deb"
+sudo apt install -y /tmp/firefox.deb \
     libgtk-3-0 \
     libdbus-glib-1-2 \
     libx11-xcb1 \
@@ -18,6 +22,11 @@ sudo apt install -y firefox \
     libnss3 \
     libxss1 \
     libasound2
+```
+
+Verify it is the `.deb` version (should be `/usr/bin/firefox`, not a snap wrapper):
+```bash
+which firefox && firefox --version
 ```
 
 Verify it works headlessly:
