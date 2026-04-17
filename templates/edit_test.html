@@ -171,6 +171,150 @@
     <script>
         const testId = {{ test.id }};
         testSteps = {{ test.steps | tojson }};
+
+        /* ── Step table rendering ── */
+        let _editingIndex = null;
+
+        function _esc(s) {
+            return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+        }
+
+        function _stepDetail(step) {
+            switch(step.action) {
+                case 'navigate':     return `<code>${_esc(step.value)}</code>`;
+                case 'click':        return `<code>${_esc(step.selector)}</code> <span class="st-sel-type">${_esc(step.selectorType)}</span>`;
+                case 'type':         return `"${_esc(step.value)}" &rarr; <code>${_esc(step.selector)}</code>`;
+                case 'wait':         return `${_esc(step.value)}s`;
+                case 'execute_js':   const js = (step.value||''); return `<code>${_esc(js.substring(0,70))}${js.length>70?'…':''}</code>`;
+                case 'screenshot':   return '—';
+                case 'assert_title': return `title contains "${_esc(step.value)}"`;
+                case 'assert_text':  return `<code>${_esc(step.selector)}</code> contains "${_esc(step.value)}"`;
+                case 'scroll_to':    return `<code>${_esc(step.selector)}</code>`;
+                default:             return '';
+            }
+        }
+
+        function _buildEditFields(step, index) {
+            const actionType = step.action;
+            const config = actionConfigs[actionType] || { fields: [] };
+            let html = `<div class="ed-field-row"><div class="ed-field"><label>Action</label>
+                <select id="ei_action_${index}" class="ed-select" onchange="_changeEditAction(${index})">`;
+            Object.keys(actionConfigs).forEach(a => {
+                html += `<option value="${a}"${a===actionType?' selected':''}>${a.replace(/_/g,' ').toUpperCase()}</option>`;
+            });
+            html += `</select></div></div>`;
+            config.fields.forEach(field => {
+                const val = step[field.name] || '';
+                html += `<div class="ed-field-row"><div class="ed-field"><label>${_esc(field.label)}</label>`;
+                if (field.type === 'select') {
+                    html += `<select id="ei_${field.name}_${index}" class="ed-select">`;
+                    field.options.forEach(o => html += `<option value="${o}"${o===val?' selected':''}>${o}</option>`);
+                    html += `</select>`;
+                } else if (field.type === 'textarea') {
+                    html += `<textarea id="ei_${field.name}_${index}" class="ed-input ed-textarea" rows="4">${_esc(val)}</textarea>`;
+                } else {
+                    html += `<input type="${field.type}" id="ei_${field.name}_${index}" class="ed-input" value="${_esc(val)}">`;
+                }
+                html += `</div></div>`;
+            });
+            html += `<div style="display:flex;gap:.5rem;margin-top:.5rem">
+                <button class="btn btn-primary btn-sm" onclick="_saveStepEdit(${index})">Save step</button>
+                <button class="btn btn-ghost" style="padding:.28rem .65rem;font-size:.78rem" onclick="_cancelEdit()">Cancel</button>
+            </div>`;
+            return html;
+        }
+
+        function renderSteps() {
+            const el = document.getElementById('stepsList');
+            if (!el) return;
+            if (!testSteps.length) {
+                el.innerHTML = '<p class="empty-steps">No steps yet. Add one below.</p>';
+                return;
+            }
+            let html = `<table class="st-table">
+                <thead><tr>
+                    <th class="st-col-drag"></th>
+                    <th class="st-col-num">#</th>
+                    <th class="st-col-action">Action</th>
+                    <th>Details</th>
+                    <th class="st-col-btns"></th>
+                </tr></thead><tbody>`;
+            testSteps.forEach((step, i) => {
+                const editing = _editingIndex === i;
+                html += `<tr class="st-row${editing?' st-row-editing':''}" draggable="${!editing}" data-index="${i}">
+                    <td class="st-col-drag"><span class="drag-handle">⋮⋮</span></td>
+                    <td class="st-col-num">${i+1}</td>
+                    <td><span class="step-action-tag">${step.action.replace(/_/g,' ').toUpperCase()}</span></td>
+                    <td class="st-detail">${_stepDetail(step)}</td>
+                    <td class="st-col-btns">
+                        <button class="tov-btn tov-btn-edit" onclick="_editingIndex===${i}?_cancelEdit():editStep(${i})">
+                            ${editing ? 'Cancel' : 'Edit'}
+                        </button>
+                        <button class="tov-btn tov-btn-delete" onclick="removeStep(${i})">Delete</button>
+                    </td>
+                </tr>`;
+                if (editing) {
+                    html += `<tr class="st-edit-row"><td colspan="5">
+                        <div class="st-edit-form">${_buildEditFields(step, i)}</div>
+                    </td></tr>`;
+                }
+            });
+            html += `</tbody></table>`;
+            el.innerHTML = html;
+            _setupTableDrag();
+        }
+
+        function editStep(index) {
+            _editingIndex = index;
+            renderSteps();
+            setTimeout(() => {
+                const row = document.querySelector('.st-edit-row');
+                if (row) row.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }, 50);
+        }
+
+        function _cancelEdit() { _editingIndex = null; renderSteps(); }
+
+        function _changeEditAction(index) {
+            const newAction = document.getElementById(`ei_action_${index}`).value;
+            testSteps[index] = { action: newAction };
+            renderSteps();
+        }
+
+        function _saveStepEdit(index) {
+            const actionType = document.getElementById(`ei_action_${index}`).value;
+            const config = actionConfigs[actionType] || { fields: [] };
+            const step = { action: actionType };
+            config.fields.forEach(field => {
+                const el = document.getElementById(`ei_${field.name}_${index}`);
+                if (el) step[field.name] = el.value;
+            });
+            testSteps[index] = step;
+            _editingIndex = null;
+            renderSteps();
+        }
+
+        function _setupTableDrag() {
+            const rows = document.querySelectorAll('.st-row[draggable="true"]');
+            let dragged = null;
+            rows.forEach(row => {
+                row.addEventListener('dragstart', e => { dragged = row; row.classList.add('dragging'); e.dataTransfer.effectAllowed = 'move'; });
+                row.addEventListener('dragend',   () => { dragged = null; rows.forEach(r => r.classList.remove('dragging','drag-over')); });
+                row.addEventListener('dragover',  e => { e.preventDefault(); if (row !== dragged) row.classList.add('drag-over'); });
+                row.addEventListener('dragleave', () => row.classList.remove('drag-over'));
+                row.addEventListener('drop', e => {
+                    e.stopPropagation();
+                    if (dragged && dragged !== row) {
+                        const from = parseInt(dragged.dataset.index);
+                        const to   = parseInt(row.dataset.index);
+                        const item = testSteps.splice(from, 1)[0];
+                        testSteps.splice(to, 0, item);
+                        renderSteps();
+                    }
+                });
+            });
+        }
+
         renderSteps();
 
         // Override updateStepConfig to use ed-field styling

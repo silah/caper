@@ -218,7 +218,7 @@ def _send_webhook(test_id, status):
         db.log_event('error', f'Webhook failed ({status}): {method} {url}', str(e))
 
 
-def _run_test_subprocess(test_id, script, execution_id):
+def _run_test_subprocess(test_id, script, execution_id, test_name=''):
     with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as f:
         f.write(script)
         temp_script_path = f.name
@@ -262,6 +262,12 @@ def _run_test_subprocess(test_id, script, execution_id):
 
         db.update_execution(execution_id, status, output, error, step_results, artefact_dir)
         db.update_execution_stats(test_id)
+        label = f'"{test_name}" ' if test_name else ''
+        db.log_event(
+            'info' if status == 'success' else 'error',
+            f'Test {label}finished: {status.upper()}',
+            f'execution_id={execution_id} test_id={test_id}'
+        )
         _send_webhook(test_id, status)
 
     except subprocess.TimeoutExpired:
@@ -294,7 +300,7 @@ def execute_test(test_id):
 
     thread = threading.Thread(
         target=_run_test_subprocess,
-        args=(test_id, test['script'], execution_id),
+        args=(test_id, test['script'], execution_id, test['name']),
         daemon=True
     )
     thread.start()
@@ -589,7 +595,7 @@ def _scheduler_loop():
                                  f'test_id={test["id"]} execution_id={execution_id} interval={test["schedule_interval"]}m')
                     threading.Thread(
                         target=_run_test_subprocess,
-                        args=(test['id'], test['script'], execution_id),
+                        args=(test['id'], test['script'], execution_id, test['name']),
                         daemon=True
                     ).start()
             # Heartbeat every 10 ticks (~5 min) so logs confirm the scheduler is alive

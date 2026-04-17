@@ -1218,6 +1218,99 @@ summary {
     text-align: center;
 }
 
+/* Steps table */
+.st-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.875rem;
+    margin-bottom: 0.5rem;
+}
+
+.st-table thead tr {
+    background: #f7f8fa;
+    border-bottom: 1px solid #e8eaed;
+}
+
+.st-table th {
+    padding: 0.5rem 0.75rem;
+    text-align: left;
+    font-size: 0.72rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #8a95a3;
+    white-space: nowrap;
+}
+
+.st-col-drag   { width: 28px; }
+.st-col-num    { width: 36px; }
+.st-col-action { width: 130px; }
+.st-col-btns   { width: 130px; text-align: right; }
+
+.st-row {
+    border-bottom: 1px solid #f0f2f5;
+    transition: background 0.12s;
+}
+
+.st-row:last-child { border-bottom: none; }
+.st-row:hover { background: #f9fafb; }
+.st-row.dragging  { opacity: 0.35; }
+.st-row.drag-over { border-top: 2px solid #3498db; }
+.st-row-editing   { background: #f0f7ff !important; border-bottom: none !important; }
+
+.st-row td {
+    padding: 0.6rem 0.75rem;
+    vertical-align: middle;
+}
+
+.st-col-num { color: #9ca3af; font-size: 0.8rem; }
+
+.step-action-tag {
+    display: inline-block;
+    background: #eef2ff;
+    color: #3d5afe;
+    font-size: 0.7rem;
+    font-weight: 700;
+    padding: 2px 7px;
+    border-radius: 4px;
+    letter-spacing: 0.04em;
+    white-space: nowrap;
+}
+
+.st-detail {
+    color: #6b7280;
+    font-size: 0.83rem;
+    max-width: 360px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.st-detail code {
+    background: #f0f2f5;
+    padding: 1px 5px;
+    border-radius: 3px;
+    font-size: 0.78rem;
+    color: #374151;
+}
+
+.st-sel-type { font-size: 0.75rem; color: #9ca3af; }
+
+.st-col-btns { white-space: nowrap; }
+
+.st-edit-row td {
+    background: #f0f7ff;
+    border-bottom: 1px solid #bdd6f0;
+    padding: 0;
+}
+
+.st-edit-form {
+    padding: 1rem 1.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.65rem;
+}
+
 /* Add step section */
 .ed-add-step {
     border-top: 1px solid #f0f2f5;
