@@ -9,6 +9,67 @@ def _sanitize_name(name):
     return re.sub(r'[^\w\-]', '_', name)
 
 
+def get_by_type(selector_type):
+    mapping = {
+        'css': 'By.CSS_SELECTOR',
+        'id': 'By.ID',
+        'xpath': 'By.XPATH',
+        'name': 'By.NAME',
+        'class': 'By.CLASS_NAME',
+        'tag': 'By.TAG_NAME',
+        'link_text': 'By.LINK_TEXT',
+        'partial_link_text': 'By.PARTIAL_LINK_TEXT',
+    }
+    return mapping.get(selector_type, 'By.CSS_SELECTOR')
+
+
+def _element_find_code(selector_type, selector, ec_type='presence', timeout=10, var_name='element'):
+    """Return indented lines (8 spaces) that locate an element into var_name.
+
+    ec_type: 'presence' | 'clickable' | 'visible'
+    Handles jspath (JS expression polling) and aria ([aria-label=...] CSS).
+    """
+    if selector_type == 'jspath':
+        expr_r = repr(selector)
+        return [f"            {var_name} = _jspath_wait({expr_r}, timeout={timeout})"]
+
+    if selector_type == 'aria':
+        resolved = f'[aria-label="{selector}"]'
+        by_type = 'By.CSS_SELECTOR'
+    else:
+        resolved = selector
+        by_type = get_by_type(selector_type)
+
+    sel_r = repr(resolved)
+
+    ec_map = {
+        'clickable': f'EC.element_to_be_clickable(({by_type}, {sel_r}))',
+        'presence':  f'EC.presence_of_element_located(({by_type}, {sel_r}))',
+        'visible':   f'EC.visibility_of_element_located(({by_type}, {sel_r}))',
+    }
+    ec_call = ec_map.get(ec_type, ec_map['presence'])
+
+    return [
+        f"            {var_name} = WebDriverWait(driver, {timeout}).until(",
+        f"                {ec_call}",
+        f"            )",
+    ]
+
+
+# Lines added to every generated script's run_test() body, before `try:`
+_JSPATH_HELPER = [
+    "    def _jspath_wait(expr, timeout=10):",
+    "        _deadline = time.time() + timeout",
+    "        while time.time() < _deadline:",
+    "            _el = driver.execute_script('return (' + expr + ')')",
+    "            if _el is not None:",
+    "                return _el",
+    "            time.sleep(0.3)",
+    "        raise Exception('JSPath timed out: ' + repr(expr))",
+    "",
+]
+
+
 def generate_selenium_script(steps, test_name='test', base_artefacts_dir=None):
     if base_artefacts_dir is None:
         base_artefacts_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'artefacts')
@@ -130,14 +191,13 @@ def generate_selenium_script(steps, test_name='test', base_artefacts_dir=None):
         "        except Exception:",
         "            pass",
         "",
+    ] + _JSPATH_HELPER + [
         "    try:",
     ]
 
     for i, step in enumerate(steps, 1):
         action = step.get('action')
 
-        # Clear captured requests before each step so the HAR only contains
-        # traffic triggered by that step.
         script_lines.extend([
             "        try:",
             "            driver.execute_script('window.performance.clearResourceTimings()')",
@@ -165,15 +225,12 @@ def generate_selenium_script(steps, test_name='test', base_artefacts_dir=None):
         elif action == 'click':
             selector_type = step.get('selectorType', 'css')
             selector = step.get('selector', '')
-            selector_r = repr(selector)
             msg_r = repr(f'Clicked element {selector}')
-            by_type = get_by_type(selector_type)
+            find_lines = _element_find_code(selector_type, selector, ec_type='clickable')
             script_lines.extend([
                 f"        # Step {i}: Click element",
                 f"        try:",
-                f"            element = WebDriverWait(driver, 10).until(",
-                f"                EC.element_to_be_clickable(({by_type}, {selector_r}))",
-                f"            )",
+            ] + find_lines + [
                 f"            element.click()",
                 f"            time.sleep(0.5)",
                 f"            step_results.append({{'step': {i}, 'action': 'click', 'status': 'success', 'message': {msg_r}}})",
@@ -188,16 +245,13 @@ def generate_selenium_script(steps, test_name='test', base_artefacts_dir=None):
             selector_type = step.get('selectorType', 'css')
             selector = step.get('selector', '')
             text = step.get('value', '')
-            selector_r = repr(selector)
             text_r = repr(text)
             msg_r = repr(f'Typed text into {selector}')
-            by_type = get_by_type(selector_type)
+            find_lines = _element_find_code(selector_type, selector, ec_type='presence')
             script_lines.extend([
                 f"        # Step {i}: Type text into element",
                 f"        try:",
-                f"            element = WebDriverWait(driver, 10).until(",
-                f"                EC.presence_of_element_located(({by_type}, {selector_r}))",
-                f"            )",
+            ] + find_lines + [
                 f"            element.clear()",
                 f"            element.send_keys({text_r})",
                 f"            time.sleep(0.5)",
@@ -244,8 +298,6 @@ def generate_selenium_script(steps, test_name='test', base_artefacts_dir=None):
             ])
 
         elif action == 'screenshot':
-            # Continuous screenshots are handled by the background thread;
-            # this step just records the fact in step_results and saves HAR.
             script_lines.extend([
                 f"        # Step {i}: Screenshot (continuous screenshots running in background)",
                 f"        try:",
@@ -276,17 +328,15 @@ def generate_selenium_script(steps, test_name='test', base_artefacts_dir=None):
             selector_type = step.get('selectorType', 'css')
             selector = step.get('selector', '')
             expected_text = step.get('value', '')
-            selector_r = repr(selector)
             text_r = repr(expected_text)
-            by_type = get_by_type(selector_type)
+            msg_r = repr(f'Text assertion passed on {selector}')
+            find_lines = _element_find_code(selector_type, selector, ec_type='presence')
             script_lines.extend([
                 f"        # Step {i}: Assert element text",
                 f"        try:",
-                f"            element = WebDriverWait(driver, 10).until(",
-                f"                EC.presence_of_element_located(({by_type}, {selector_r}))",
-                f"            )",
+            ] + find_lines + [
                 f"            assert {text_r} in element.text, 'Expected text to contain ' + {text_r}",
-                f"            step_results.append({{'step': {i}, 'action': 'assert_text', 'status': 'success', 'message': 'Text assertion passed'}})",
+                f"            step_results.append({{'step': {i}, 'action': 'assert_text', 'status': 'success', 'message': {msg_r}}})",
                 f"        except Exception as e:",
                 f"            step_results.append({{'step': {i}, 'action': 'assert_text', 'status': 'error', 'message': str(e)}})",
                 f"            raise",
@@ -297,15 +347,12 @@ def generate_selenium_script(steps, test_name='test', base_artefacts_dir=None):
         elif action == 'scroll_to':
             selector_type = step.get('selectorType', 'css')
             selector = step.get('selector', '')
-            selector_r = repr(selector)
             msg_r = repr(f'Scrolled to element {selector}')
-            by_type = get_by_type(selector_type)
+            find_lines = _element_find_code(selector_type, selector, ec_type='presence')
             script_lines.extend([
                 f"        # Step {i}: Scroll to element",
                 f"        try:",
-                f"            element = WebDriverWait(driver, 10).until(",
-                f"                EC.presence_of_element_located(({by_type}, {selector_r}))",
-                f"            )",
+            ] + find_lines + [
                 f"            driver.execute_script('arguments[0].scrollIntoView();', element)",
                 f"            time.sleep(0.5)",
                 f"            step_results.append({{'step': {i}, 'action': 'scroll_to', 'status': 'success', 'message': {msg_r}}})",
@@ -321,10 +368,9 @@ def generate_selenium_script(steps, test_name='test', base_artefacts_dir=None):
             selector = step.get('selector', '')
             option = step.get('value', '')
             select_by = step.get('selectBy', 'text')
-            by_type = get_by_type(selector_type)
-            selector_r = repr(selector)
             option_r = repr(option)
             msg_r = repr(f'Selected "{option}" in {selector}')
+            find_lines = _element_find_code(selector_type, selector, ec_type='presence')
             if select_by == 'value':
                 select_call = f"Select(element).select_by_value({option_r})"
             elif select_by == 'index':
@@ -334,9 +380,7 @@ def generate_selenium_script(steps, test_name='test', base_artefacts_dir=None):
             script_lines.extend([
                 f"        # Step {i}: Select dropdown option",
                 f"        try:",
-                f"            element = WebDriverWait(driver, 10).until(",
-                f"                EC.presence_of_element_located(({by_type}, {selector_r}))",
-                f"            )",
+            ] + find_lines + [
                 f"            {select_call}",
                 f"            time.sleep(0.5)",
                 f"            step_results.append({{'step': {i}, 'action': 'select', 'status': 'success', 'message': {msg_r}}})",
@@ -350,15 +394,12 @@ def generate_selenium_script(steps, test_name='test', base_artefacts_dir=None):
         elif action == 'assert_visible':
             selector_type = step.get('selectorType', 'css')
             selector = step.get('selector', '')
-            by_type = get_by_type(selector_type)
-            selector_r = repr(selector)
             msg_r = repr(f'Element {selector} is visible')
+            find_lines = _element_find_code(selector_type, selector, ec_type='visible')
             script_lines.extend([
                 f"        # Step {i}: Assert element visible",
                 f"        try:",
-                f"            WebDriverWait(driver, 10).until(",
-                f"                EC.visibility_of_element_located(({by_type}, {selector_r}))",
-                f"            )",
+            ] + find_lines + [
                 f"            step_results.append({{'step': {i}, 'action': 'assert_visible', 'status': 'success', 'message': {msg_r}}})",
                 f"        except Exception as e:",
                 f"            step_results.append({{'step': {i}, 'action': 'assert_visible', 'status': 'error', 'message': str(e)}})",
@@ -388,8 +429,6 @@ def generate_selenium_script(steps, test_name='test', base_artefacts_dir=None):
             key_name = step.get('key', 'Enter')
             selector_type = step.get('selectorType', 'css')
             selector = step.get('selector', '')
-            by_type = get_by_type(selector_type)
-            selector_r = repr(selector)
             key_map = {
                 'Enter': 'Keys.ENTER', 'Tab': 'Keys.TAB', 'Escape': 'Keys.ESCAPE',
                 'Space': 'Keys.SPACE', 'Backspace': 'Keys.BACK_SPACE', 'Delete': 'Keys.DELETE',
@@ -399,18 +438,14 @@ def generate_selenium_script(steps, test_name='test', base_artefacts_dir=None):
             keys_const = key_map.get(key_name, 'Keys.ENTER')
             msg_r = repr(f'Pressed {key_name}')
             if selector:
-                send_key_code = (
-                    f"            element = WebDriverWait(driver, 10).until(\n"
-                    f"                EC.presence_of_element_located(({by_type}, {selector_r}))\n"
-                    f"            )\n"
-                    f"            element.send_keys({keys_const})"
-                )
+                find_lines = _element_find_code(selector_type, selector, ec_type='presence')
+                send_lines = find_lines + [f"            element.send_keys({keys_const})"]
             else:
-                send_key_code = f"            ActionChains(driver).send_keys({keys_const}).perform()"
+                send_lines = [f"            ActionChains(driver).send_keys({keys_const}).perform()"]
             script_lines.extend([
                 f"        # Step {i}: Key press",
                 f"        try:",
-                send_key_code,
+            ] + send_lines + [
                 f"            time.sleep(0.3)",
                 f"            step_results.append({{'step': {i}, 'action': 'key_press', 'status': 'success', 'message': {msg_r}}})",
                 f"        except Exception as e:",
@@ -423,15 +458,12 @@ def generate_selenium_script(steps, test_name='test', base_artefacts_dir=None):
         elif action == 'hover':
             selector_type = step.get('selectorType', 'css')
             selector = step.get('selector', '')
-            by_type = get_by_type(selector_type)
-            selector_r = repr(selector)
             msg_r = repr(f'Hovered over {selector}')
+            find_lines = _element_find_code(selector_type, selector, ec_type='presence')
             script_lines.extend([
                 f"        # Step {i}: Hover over element",
                 f"        try:",
-                f"            element = WebDriverWait(driver, 10).until(",
-                f"                EC.presence_of_element_located(({by_type}, {selector_r}))",
-                f"            )",
+            ] + find_lines + [
                 f"            ActionChains(driver).move_to_element(element).perform()",
                 f"            time.sleep(0.5)",
                 f"            step_results.append({{'step': {i}, 'action': 'hover', 'status': 'success', 'message': {msg_r}}})",
@@ -445,15 +477,12 @@ def generate_selenium_script(steps, test_name='test', base_artefacts_dir=None):
         elif action == 'double_click':
             selector_type = step.get('selectorType', 'css')
             selector = step.get('selector', '')
-            by_type = get_by_type(selector_type)
-            selector_r = repr(selector)
             msg_r = repr(f'Double-clicked {selector}')
+            find_lines = _element_find_code(selector_type, selector, ec_type='clickable')
             script_lines.extend([
                 f"        # Step {i}: Double-click element",
                 f"        try:",
-                f"            element = WebDriverWait(driver, 10).until(",
-                f"                EC.element_to_be_clickable(({by_type}, {selector_r}))",
-                f"            )",
+            ] + find_lines + [
                 f"            ActionChains(driver).double_click(element).perform()",
                 f"            time.sleep(0.5)",
                 f"            step_results.append({{'step': {i}, 'action': 'double_click', 'status': 'success', 'message': {msg_r}}})",
@@ -468,19 +497,16 @@ def generate_selenium_script(steps, test_name='test', base_artefacts_dir=None):
             selector_type = step.get('selectorType', 'css')
             selector = step.get('selector', '')
             timeout = step.get('value', '10')
-            by_type = get_by_type(selector_type)
-            selector_r = repr(selector)
-            msg_r = repr(f'Element {selector} appeared')
             try:
                 timeout_val = float(timeout)
             except (ValueError, TypeError):
                 timeout_val = 10.0
+            msg_r = repr(f'Element {selector} appeared')
+            find_lines = _element_find_code(selector_type, selector, ec_type='visible', timeout=int(timeout_val))
             script_lines.extend([
                 f"        # Step {i}: Wait for element",
                 f"        try:",
-                f"            WebDriverWait(driver, {timeout_val}).until(",
-                f"                EC.visibility_of_element_located(({by_type}, {selector_r}))",
-                f"            )",
+            ] + find_lines + [
                 f"            step_results.append({{'step': {i}, 'action': 'wait_for_element', 'status': 'success', 'message': {msg_r}}})",
                 f"        except Exception as e:",
                 f"            step_results.append({{'step': {i}, 'action': 'wait_for_element', 'status': 'error', 'message': str(e)}})",
@@ -492,15 +518,12 @@ def generate_selenium_script(steps, test_name='test', base_artefacts_dir=None):
         elif action == 'clear':
             selector_type = step.get('selectorType', 'css')
             selector = step.get('selector', '')
-            by_type = get_by_type(selector_type)
-            selector_r = repr(selector)
             msg_r = repr(f'Cleared {selector}')
+            find_lines = _element_find_code(selector_type, selector, ec_type='presence')
             script_lines.extend([
                 f"        # Step {i}: Clear input",
                 f"        try:",
-                f"            element = WebDriverWait(driver, 10).until(",
-                f"                EC.presence_of_element_located(({by_type}, {selector_r}))",
-                f"            )",
+            ] + find_lines + [
                 f"            element.clear()",
                 f"            time.sleep(0.3)",
                 f"            step_results.append({{'step': {i}, 'action': 'clear', 'status': 'success', 'message': {msg_r}}})",
@@ -540,20 +563,3 @@ def generate_selenium_script(steps, test_name='test', base_artefacts_dir=None):
     ])
 
     return '\n'.join(script_lines)
-
-
-def get_by_type(selector_type):
-    """
-    Convert selector type to Selenium By constant
-    """
-    mapping = {
-        'css': 'By.CSS_SELECTOR',
-        'id': 'By.ID',
-        'xpath': 'By.XPATH',
-        'name': 'By.NAME',
-        'class': 'By.CLASS_NAME',
-        'tag': 'By.TAG_NAME',
-        'link_text': 'By.LINK_TEXT',
-        'partial_link_text': 'By.PARTIAL_LINK_TEXT',
-    }
-    return mapping.get(selector_type, 'By.CSS_SELECTOR')

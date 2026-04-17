@@ -114,7 +114,11 @@ caper/
 | `assert_visible` | Assert an element is present and visible |
 | `assert_url` | Assert the current URL contains a string |
 
-Selectors support: CSS, ID, XPath, Name, Class, Tag, Link Text, Partial Link Text.
+Selectors support: CSS, ID, XPath, Name, Class, Tag, Link Text, Partial Link Text, JSPath, ARIA label.
+
+**JSPath** — supply a JavaScript expression that returns a DOM element (e.g. `document.querySelector('.btn')`). Caper polls the expression until it returns a non-null value (10 s default).
+
+**ARIA** — supply the `aria-label` value; Caper converts it to `[aria-label="value"]` CSS at run time.
 
 ---
 

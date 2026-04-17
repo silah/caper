@@ -10,13 +10,13 @@ const actionConfigs = {
     },
     click: {
         fields: [
-            { name: 'selectorType', label: 'Selector Type', type: 'select', options: ['css', 'id', 'xpath', 'name', 'class', 'tag', 'link_text'], required: true },
+            { name: 'selectorType', label: 'Selector Type', type: 'select', options: ['css', 'id', 'xpath', 'name', 'class', 'tag', 'link_text', 'jspath', 'aria'], required: true },
             { name: 'selector', label: 'Selector', type: 'text', placeholder: '#submit-button', required: true }
         ]
     },
     type: {
         fields: [
-            { name: 'selectorType', label: 'Selector Type', type: 'select', options: ['css', 'id', 'xpath', 'name', 'class', 'tag'], required: true },
+            { name: 'selectorType', label: 'Selector Type', type: 'select', options: ['css', 'id', 'xpath', 'name', 'class', 'tag', 'jspath', 'aria'], required: true },
             { name: 'selector', label: 'Selector', type: 'text', placeholder: '#email-input', required: true },
             { name: 'value', label: 'Text to Type', type: 'text', placeholder: 'test@example.com', required: true }
         ]
@@ -28,7 +28,7 @@ const actionConfigs = {
     },
     execute_js: {
         fields: [
-            { name: 'value', label: 'JavaScript Code', type: 'textarea', placeholder: 'window.scrollTo(0, document.body.scrollHeight);', required: true }
+            { name: 'value', label: 'JavaScript Code', type: 'textarea', rows: 8, placeholder: 'window.scrollTo(0, document.body.scrollHeight);', required: true }
         ]
     },
     screenshot: {
@@ -41,20 +41,20 @@ const actionConfigs = {
     },
     assert_text: {
         fields: [
-            { name: 'selectorType', label: 'Selector Type', type: 'select', options: ['css', 'id', 'xpath', 'name', 'class', 'tag'], required: true },
+            { name: 'selectorType', label: 'Selector Type', type: 'select', options: ['css', 'id', 'xpath', 'name', 'class', 'tag', 'jspath', 'aria'], required: true },
             { name: 'selector', label: 'Selector', type: 'text', placeholder: '.message', required: true },
             { name: 'value', label: 'Expected Text (partial match)', type: 'text', placeholder: 'Success', required: true }
         ]
     },
     scroll_to: {
         fields: [
-            { name: 'selectorType', label: 'Selector Type', type: 'select', options: ['css', 'id', 'xpath', 'name', 'class', 'tag'], required: true },
+            { name: 'selectorType', label: 'Selector Type', type: 'select', options: ['css', 'id', 'xpath', 'name', 'class', 'tag', 'jspath', 'aria'], required: true },
             { name: 'selector', label: 'Selector', type: 'text', placeholder: '#footer', required: true }
         ]
     },
     select: {
         fields: [
-            { name: 'selectorType', label: 'Selector Type', type: 'select', options: ['css', 'id', 'xpath', 'name', 'class', 'tag'], required: true },
+            { name: 'selectorType', label: 'Selector Type', type: 'select', options: ['css', 'id', 'xpath', 'name', 'class', 'tag', 'jspath', 'aria'], required: true },
             { name: 'selector', label: 'Selector', type: 'text', placeholder: '#country-select', required: true },
             { name: 'selectBy', label: 'Select By', type: 'select', options: ['text', 'value', 'index'], required: true },
             { name: 'value', label: 'Option', type: 'text', placeholder: 'United Kingdom', required: true }
@@ -62,7 +62,7 @@ const actionConfigs = {
     },
     assert_visible: {
         fields: [
-            { name: 'selectorType', label: 'Selector Type', type: 'select', options: ['css', 'id', 'xpath', 'name', 'class', 'tag'], required: true },
+            { name: 'selectorType', label: 'Selector Type', type: 'select', options: ['css', 'id', 'xpath', 'name', 'class', 'tag', 'jspath', 'aria'], required: true },
             { name: 'selector', label: 'Selector', type: 'text', placeholder: '.success-banner', required: true }
         ]
     },
@@ -74,32 +74,32 @@ const actionConfigs = {
     key_press: {
         fields: [
             { name: 'key', label: 'Key', type: 'select', options: ['Enter', 'Tab', 'Escape', 'Space', 'Backspace', 'Delete', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'], required: true },
-            { name: 'selectorType', label: 'Target Selector Type (optional)', type: 'select', options: ['css', 'id', 'xpath', 'name', 'class', 'tag'], required: false },
+            { name: 'selectorType', label: 'Target Selector Type (optional)', type: 'select', options: ['css', 'id', 'xpath', 'name', 'class', 'tag', 'jspath', 'aria'], required: false },
             { name: 'selector', label: 'Target Selector (optional)', type: 'text', placeholder: 'Leave blank to send to focused element', required: false }
         ]
     },
     hover: {
         fields: [
-            { name: 'selectorType', label: 'Selector Type', type: 'select', options: ['css', 'id', 'xpath', 'name', 'class', 'tag'], required: true },
+            { name: 'selectorType', label: 'Selector Type', type: 'select', options: ['css', 'id', 'xpath', 'name', 'class', 'tag', 'jspath', 'aria'], required: true },
             { name: 'selector', label: 'Selector', type: 'text', placeholder: '.dropdown-trigger', required: true }
         ]
     },
     double_click: {
         fields: [
-            { name: 'selectorType', label: 'Selector Type', type: 'select', options: ['css', 'id', 'xpath', 'name', 'class', 'tag'], required: true },
+            { name: 'selectorType', label: 'Selector Type', type: 'select', options: ['css', 'id', 'xpath', 'name', 'class', 'tag', 'jspath', 'aria'], required: true },
             { name: 'selector', label: 'Selector', type: 'text', placeholder: '.editable-cell', required: true }
         ]
     },
     wait_for_element: {
         fields: [
-            { name: 'selectorType', label: 'Selector Type', type: 'select', options: ['css', 'id', 'xpath', 'name', 'class', 'tag'], required: true },
+            { name: 'selectorType', label: 'Selector Type', type: 'select', options: ['css', 'id', 'xpath', 'name', 'class', 'tag', 'jspath', 'aria'], required: true },
             { name: 'selector', label: 'Selector', type: 'text', placeholder: '.results-table', required: true },
             { name: 'value', label: 'Timeout (seconds)', type: 'number', placeholder: '10', required: false }
         ]
     },
     clear: {
         fields: [
-            { name: 'selectorType', label: 'Selector Type', type: 'select', options: ['css', 'id', 'xpath', 'name', 'class', 'tag'], required: true },
+            { name: 'selectorType', label: 'Selector Type', type: 'select', options: ['css', 'id', 'xpath', 'name', 'class', 'tag', 'jspath', 'aria'], required: true },
             { name: 'selector', label: 'Selector', type: 'text', placeholder: '#search-input', required: true }
         ]
     }
@@ -139,7 +139,7 @@ function updateStepConfig() {
             });
             html += `</select>`;
         } else if (field.type === 'textarea') {
-            html += `<textarea id="step_${field.name}" placeholder="${field.placeholder || ''}" ${field.required ? 'required' : ''} rows="3"></textarea>`;
+            html += `<textarea id="step_${field.name}" placeholder="${field.placeholder || ''}" ${field.required ? 'required' : ''} rows="${field.rows || 3}"></textarea>`;
         } else {
             html += `<input type="${field.type}" id="step_${field.name}" placeholder="${field.placeholder || ''}" ${field.required ? 'required' : ''}>`;
         }
