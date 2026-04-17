@@ -112,6 +112,16 @@ class Database:
             cursor.execute("ALTER TABLE tests ADD COLUMN schedule_enabled INTEGER DEFAULT 0")
             cursor.execute("ALTER TABLE tests ADD COLUMN schedule_next_run TIMESTAMP DEFAULT NULL")
 
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS logs (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                level TEXT NOT NULL,
+                message TEXT NOT NULL,
+                details TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+
         conn.commit()
         conn.close()
     
@@ -437,6 +447,45 @@ class Database:
         
         return executions
     
+    def log_event(self, level, message, details=None):
+        try:
+            conn = self.get_connection()
+            cursor = conn.cursor()
+            cursor.execute(
+                'INSERT INTO logs (level, message, details) VALUES (?, ?, ?)',
+                (level, message, details)
+            )
+            conn.commit()
+            conn.close()
+        except Exception:
+            pass
+
+    def get_logs(self, hours=5, page=1, per_page=100):
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        offset = (page - 1) * per_page
+        cursor.execute('''
+            SELECT id, level, message, details, created_at
+            FROM logs
+            WHERE created_at >= datetime('now', ? || ' hours')
+            ORDER BY created_at DESC
+            LIMIT ? OFFSET ?
+        ''', (str(-hours), per_page, offset))
+        rows = [dict(r) for r in cursor.fetchall()]
+        conn.close()
+        return rows
+
+    def get_log_count(self, hours=5):
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        cursor.execute('''
+            SELECT COUNT(*) FROM logs
+            WHERE created_at >= datetime('now', ? || ' hours')
+        ''', (str(-hours),))
+        count = cursor.fetchone()[0]
+        conn.close()
+        return count
+
     def set_test_schedule(self, test_id, interval_minutes, enabled):
         conn = self.get_connection()
         cursor = conn.cursor()

@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Log - Caper</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="container">
+            <h1 class="logo">Caper</h1>
+            <ul class="nav-links">
+                <li><a href="/">Home</a></li>
+                <li><a href="/create">Create Test</a></li>
+                <li><a href="/tests">View Tests</a></li>
+                <li><a href="/executions">Executions</a></li>
+                <li><a href="/logs" class="active">Log</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="log-page-header">
+            <div>
+                <h2>Application Log</h2>
+                <p class="log-subtitle">Last 5 hours &mdash; {{ total }} event{% if total != 1 %}s{% endif %} &mdash; newest first</p>
+            </div>
+        </div>
+
+        {% if entries %}
+        <div class="log-table-wrap">
+            <table class="log-table">
+                <thead>
+                    <tr>
+                        <th class="log-col-time">Time</th>
+                        <th class="log-col-level">Level</th>
+                        <th class="log-col-msg">Message</th>
+                        <th class="log-col-detail">Details</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for entry in entries %}
+                    <tr class="log-row log-row-{{ entry.level }}">
+                        <td class="log-time">{{ entry.created_at }}</td>
+                        <td><span class="log-level log-level-{{ entry.level }}">{{ entry.level.upper() }}</span></td>
+                        <td class="log-message">{{ entry.message }}</td>
+                        <td class="log-details">
+                            {% if entry.details %}
+                            <details class="log-details-toggle">
+                                <summary>Show</summary>
+                                <pre class="log-details-pre">{{ entry.details }}</pre>
+                            </details>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        {% if total_pages > 1 %}
+        <div class="log-pagination">
+            {% if page > 1 %}
+            <a href="?page={{ page - 1 }}" class="btn btn-secondary btn-sm">&larr; Newer</a>
+            {% endif %}
+            <span class="log-page-info">Page {{ page }} of {{ total_pages }}</span>
+            {% if page < total_pages %}
+            <a href="?page={{ page + 1 }}" class="btn btn-secondary btn-sm">Older &rarr;</a>
+            {% endif %}
+        </div>
+        {% endif %}
+
+        {% else %}
+        <div class="empty-state">
+            <p>No log entries in the last 5 hours.</p>
+        </div>
+        {% endif %}
+    </div>
+</body>
+</html>

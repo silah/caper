@@ -799,6 +799,116 @@ summary {
     margin-bottom: 0.5rem;
 }
 
+/* Log page */
+.log-page-header {
+    display: flex;
+    align-items: flex-start;
+    margin-bottom: 1.5rem;
+}
+
+.log-page-header h2 {
+    margin: 0 0 0.2rem;
+    color: #2c3e50;
+}
+
+.log-subtitle {
+    color: #888;
+    font-size: 0.85rem;
+    margin: 0;
+}
+
+.log-table-wrap {
+    background: #fff;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    overflow: hidden;
+}
+
+.log-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.875rem;
+}
+
+.log-table th {
+    background: #2c3e50;
+    color: #fff;
+    padding: 0.7rem 1rem;
+    text-align: left;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.log-col-time   { width: 160px; }
+.log-col-level  { width: 80px; }
+.log-col-detail { width: 80px; }
+
+.log-row td {
+    padding: 0.6rem 1rem;
+    border-bottom: 1px solid #f0f0f0;
+    vertical-align: top;
+}
+
+.log-row:last-child td { border-bottom: none; }
+
+.log-row-error  { background: #fff8f8; }
+.log-row-warning { background: #fffdf0; }
+.log-row-info   { background: #fff; }
+
+.log-time {
+    font-family: monospace;
+    font-size: 0.8rem;
+    color: #666;
+    white-space: nowrap;
+}
+
+.log-level {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+}
+
+.log-level-info    { background: #d1ecf1; color: #0c5460; }
+.log-level-error   { background: #f8d7da; color: #721c24; }
+.log-level-warning { background: #fff3cd; color: #856404; }
+
+.log-message { color: #2c3e50; }
+
+.log-details-toggle > summary {
+    cursor: pointer;
+    color: #3498db;
+    font-size: 0.8rem;
+}
+
+.log-details-pre {
+    margin-top: 0.4rem;
+    background: #f4f4f4;
+    padding: 0.5rem 0.75rem;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    max-height: 200px;
+    overflow-y: auto;
+    white-space: pre-wrap;
+    word-break: break-all;
+    color: #333;
+}
+
+.log-pagination {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+    margin-top: 1.5rem;
+}
+
+.log-page-info {
+    font-size: 0.9rem;
+    color: #666;
+}
+
 /* Schedule UI */
 .schedule-section {
     background: #f8f9fa;

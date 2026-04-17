@@ -234,9 +234,12 @@ def _run_test_subprocess(test_id, script, execution_id):
 
     except subprocess.TimeoutExpired:
         db.update_execution(execution_id, 'timeout', '', 'Test execution timed out after 60 seconds', '')
+        db.log_event('error', f'Test execution timed out (execution_id={execution_id})')
 
     except Exception as e:
+        import traceback
         db.update_execution(execution_id, 'error', '', str(e), '')
+        db.log_event('error', f'Test execution failed: {e}', traceback.format_exc())
 
     finally:
         try:
@@ -500,6 +503,27 @@ def import_test():
                     'skipped': skipped})
 
 
+@app.route('/logs')
+@login_required
+def view_logs():
+    per_page = 100
+    page = max(1, request.args.get('page', 1, type=int))
+    hours = 5
+    entries = db.get_logs(hours=hours, page=page, per_page=per_page)
+    total = db.get_log_count(hours=hours)
+    total_pages = max(1, (total + per_page - 1) // per_page)
+    team = get_current_team()
+    return render_template('log.html', entries=entries, page=page,
+                           total_pages=total_pages, total=total, team=team)
+
+
+@app.errorhandler(Exception)
+def handle_exception(e):
+    import traceback
+    db.log_event('error', f'{type(e).__name__}: {e}', traceback.format_exc())
+    raise e
+
+
 def _scheduler_loop():
     while True:
         time.sleep(30)
@@ -507,13 +531,16 @@ def _scheduler_loop():
             for test in db.get_due_scheduled_tests():
                 db.advance_next_run(test['id'], test['schedule_interval'])
                 execution_id = db.create_execution(test['id'], test.get('team_id'))
+                db.log_event('info', f'Scheduled run started: {test["name"]}',
+                             f'test_id={test["id"]} execution_id={execution_id}')
                 threading.Thread(
                     target=_run_test_subprocess,
                     args=(test['id'], test['script'], execution_id),
                     daemon=True
                 ).start()
-        except Exception:
-            pass
+        except Exception as e:
+            import traceback
+            db.log_event('error', f'Scheduler error: {e}', traceback.format_exc())
 
 
 _scheduler_thread = threading.Thread(target=_scheduler_loop, daemon=True)
