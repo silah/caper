@@ -139,9 +139,19 @@
                 .then(r => r.json())
                 .then(data => {
                     if (data.success) {
-                        status.className = 'import-status import-status-ok';
-                        status.textContent = data.message;
-                        setTimeout(() => window.location.reload(), 1200);
+                        let msg = data.message;
+                        if (data.skipped && data.skipped.length > 0) {
+                            msg += `\n\nSkipped ${data.skipped.length} unrecognised step(s):\n` +
+                                data.skipped.map(s => `  • ${s.name} (type: "${s.type}")`).join('\n');
+                            status.className = 'import-status import-status-warn';
+                            status.style.whiteSpace = 'pre-wrap';
+                            status.textContent = msg;
+                            setTimeout(() => window.location.reload(), 4000);
+                        } else {
+                            status.className = 'import-status import-status-ok';
+                            status.textContent = msg;
+                            setTimeout(() => window.location.reload(), 1200);
+                        }
                     } else {
                         status.className = 'import-status import-status-err';
                         status.textContent = 'Import failed: ' + (data.error || 'Unknown error');

@@ -442,11 +442,17 @@ def import_test():
     name = test_data.get('name', 'Imported Test')
 
     steps = []
+    skipped = []
     for transaction in test_data.get('transactions', []):
         for raw_step in transaction.get('steps', []):
             mapped = _map_imported_step(raw_step)
             if mapped:
                 steps.append(mapped)
+            else:
+                skipped.append({
+                    'name': raw_step.get('name', '(unnamed)'),
+                    'type': raw_step.get('type', '(unknown)'),
+                })
 
     if not steps:
         return jsonify({'error': 'No recognisable steps found in the file'}), 400
@@ -455,7 +461,8 @@ def import_test():
     test_id = db.create_test(name, '', steps, script, team['id'])
 
     return jsonify({'success': True, 'test_id': test_id,
-                    'message': f'Imported "{name}" with {len(steps)} steps'})
+                    'message': f'Imported "{name}" with {len(steps)} steps',
+                    'skipped': skipped})
 
 
 if __name__ == '__main__':

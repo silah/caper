@@ -834,6 +834,11 @@ summary {
     color: #721c24;
 }
 
+.import-status-warn {
+    background: #fff3cd;
+    color: #856404;
+}
+
 /* Execution Overview page */
 .eo-page {
     width: 90%;
