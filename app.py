@@ -214,7 +214,19 @@ def _run_test_subprocess(test_id, script, execution_id):
                 artefact_dir = line[len('ARTEFACT_DIR:'):].strip()
                 break
 
-        status = 'success' if result.returncode == 0 else 'error'
+        if result.returncode != 0:
+            status = 'error'
+        elif step_results:
+            try:
+                if any(s.get('status') == 'error' for s in json.loads(step_results)):
+                    status = 'error'
+                else:
+                    status = 'success'
+            except Exception:
+                status = 'success'
+        else:
+            status = 'success'
+
         db.update_execution(execution_id, status, output, error, step_results, artefact_dir)
         db.update_execution_stats(test_id)
 
