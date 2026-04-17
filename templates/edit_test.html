@@ -115,6 +115,14 @@
                                     <option value="assert_title">Assert Title</option>
                                     <option value="assert_text">Assert Element Text</option>
                                     <option value="scroll_to">Scroll To Element</option>
+                                    <option value="select">Select Dropdown Option</option>
+                                    <option value="assert_visible">Assert Element Visible</option>
+                                    <option value="assert_url">Assert URL</option>
+                                    <option value="key_press">Key Press</option>
+                                    <option value="hover">Hover</option>
+                                    <option value="double_click">Double Click</option>
+                                    <option value="wait_for_element">Wait For Element</option>
+                                    <option value="clear">Clear Input</option>
                                 </select>
                             </div>
                         </div>
@@ -210,11 +218,19 @@
                 case 'type':         return `"${_esc(step.value)}" &rarr; <code>${_esc(step.selector)}</code>`;
                 case 'wait':         return `${_esc(step.value)}s`;
                 case 'execute_js':   const js = (step.value||''); return `<code>${_esc(js.substring(0,70))}${js.length>70?'…':''}</code>`;
-                case 'screenshot':   return '—';
-                case 'assert_title': return `title contains "${_esc(step.value)}"`;
-                case 'assert_text':  return `<code>${_esc(step.selector)}</code> contains "${_esc(step.value)}"`;
-                case 'scroll_to':    return `<code>${_esc(step.selector)}</code>`;
-                default:             return '';
+                case 'screenshot':        return '—';
+                case 'assert_title':      return `title contains "${_esc(step.value)}"`;
+                case 'assert_text':       return `<code>${_esc(step.selector)}</code> contains "${_esc(step.value)}"`;
+                case 'scroll_to':         return `<code>${_esc(step.selector)}</code>`;
+                case 'select':            return `"${_esc(step.value)}" by ${_esc(step.selectBy||'text')} &rarr; <code>${_esc(step.selector)}</code>`;
+                case 'assert_visible':    return `<code>${_esc(step.selector)}</code> <span class="st-sel-type">${_esc(step.selectorType)}</span>`;
+                case 'assert_url':        return `URL contains "${_esc(step.value)}"`;
+                case 'key_press':         return `${_esc(step.key)}${step.selector ? ` &rarr; <code>${_esc(step.selector)}</code>` : ' (focused element)'}`;
+                case 'hover':             return `<code>${_esc(step.selector)}</code> <span class="st-sel-type">${_esc(step.selectorType)}</span>`;
+                case 'double_click':      return `<code>${_esc(step.selector)}</code> <span class="st-sel-type">${_esc(step.selectorType)}</span>`;
+                case 'wait_for_element':  return `<code>${_esc(step.selector)}</code> (${_esc(step.value||'10')}s)`;
+                case 'clear':             return `<code>${_esc(step.selector)}</code> <span class="st-sel-type">${_esc(step.selectorType)}</span>`;
+                default:                  return '';
             }
         }
 

@@ -98,13 +98,21 @@ caper/
 |---|---|
 | `navigate` | Load a URL |
 | `click` | Click an element |
+| `double_click` | Double-click an element |
 | `type` | Type text into an input |
+| `clear` | Clear an input field |
+| `select` | Choose an option from a `<select>` dropdown (by visible text, value, or index) |
+| `key_press` | Send a key (Enter, Tab, Escape, Arrow keys, etc.) to an element or the focused element |
+| `hover` | Move the mouse over an element |
 | `wait` | Pause for N seconds |
+| `wait_for_element` | Wait up to N seconds for an element to become visible |
 | `execute_js` | Run arbitrary JavaScript |
 | `screenshot` | Mark a screenshot point (continuous capture always active) |
+| `scroll_to` | Scroll an element into view |
 | `assert_title` | Assert the page title contains a string |
 | `assert_text` | Assert an element's text contains a string |
-| `scroll_to` | Scroll an element into view |
+| `assert_visible` | Assert an element is present and visible |
+| `assert_url` | Assert the current URL contains a string |
 
 Selectors support: CSS, ID, XPath, Name, Class, Tag, Link Text, Partial Link Text.
 

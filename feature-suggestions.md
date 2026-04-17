@@ -18,6 +18,7 @@
 
 ## Test Authoring
 - [ ] Record mode — launch a browser, capture clicks/types as steps automatically
+- [x] Expanded step actions: select, assert_visible, assert_url, key_press, hover, double_click, wait_for_element, clear
 - [x] Variables/secrets — parameterise tests (e.g. `{{BASE_URL}}`, `{{PASSWORD}}`) stored per-team
 - [ ] Test chaining — run one test, then another, passing output between them
 

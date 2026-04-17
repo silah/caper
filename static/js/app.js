@@ -51,6 +51,57 @@ const actionConfigs = {
             { name: 'selectorType', label: 'Selector Type', type: 'select', options: ['css', 'id', 'xpath', 'name', 'class', 'tag'], required: true },
             { name: 'selector', label: 'Selector', type: 'text', placeholder: '#footer', required: true }
         ]
+    },
+    select: {
+        fields: [
+            { name: 'selectorType', label: 'Selector Type', type: 'select', options: ['css', 'id', 'xpath', 'name', 'class', 'tag'], required: true },
+            { name: 'selector', label: 'Selector', type: 'text', placeholder: '#country-select', required: true },
+            { name: 'selectBy', label: 'Select By', type: 'select', options: ['text', 'value', 'index'], required: true },
+            { name: 'value', label: 'Option', type: 'text', placeholder: 'United Kingdom', required: true }
+        ]
+    },
+    assert_visible: {
+        fields: [
+            { name: 'selectorType', label: 'Selector Type', type: 'select', options: ['css', 'id', 'xpath', 'name', 'class', 'tag'], required: true },
+            { name: 'selector', label: 'Selector', type: 'text', placeholder: '.success-banner', required: true }
+        ]
+    },
+    assert_url: {
+        fields: [
+            { name: 'value', label: 'URL contains', type: 'text', placeholder: '/dashboard', required: true }
+        ]
+    },
+    key_press: {
+        fields: [
+            { name: 'key', label: 'Key', type: 'select', options: ['Enter', 'Tab', 'Escape', 'Space', 'Backspace', 'Delete', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'], required: true },
+            { name: 'selectorType', label: 'Target Selector Type (optional)', type: 'select', options: ['css', 'id', 'xpath', 'name', 'class', 'tag'], required: false },
+            { name: 'selector', label: 'Target Selector (optional)', type: 'text', placeholder: 'Leave blank to send to focused element', required: false }
+        ]
+    },
+    hover: {
+        fields: [
+            { name: 'selectorType', label: 'Selector Type', type: 'select', options: ['css', 'id', 'xpath', 'name', 'class', 'tag'], required: true },
+            { name: 'selector', label: 'Selector', type: 'text', placeholder: '.dropdown-trigger', required: true }
+        ]
+    },
+    double_click: {
+        fields: [
+            { name: 'selectorType', label: 'Selector Type', type: 'select', options: ['css', 'id', 'xpath', 'name', 'class', 'tag'], required: true },
+            { name: 'selector', label: 'Selector', type: 'text', placeholder: '.editable-cell', required: true }
+        ]
+    },
+    wait_for_element: {
+        fields: [
+            { name: 'selectorType', label: 'Selector Type', type: 'select', options: ['css', 'id', 'xpath', 'name', 'class', 'tag'], required: true },
+            { name: 'selector', label: 'Selector', type: 'text', placeholder: '.results-table', required: true },
+            { name: 'value', label: 'Timeout (seconds)', type: 'number', placeholder: '10', required: false }
+        ]
+    },
+    clear: {
+        fields: [
+            { name: 'selectorType', label: 'Selector Type', type: 'select', options: ['css', 'id', 'xpath', 'name', 'class', 'tag'], required: true },
+            { name: 'selector', label: 'Selector', type: 'text', placeholder: '#search-input', required: true }
+        ]
     }
 };
 
@@ -179,6 +230,22 @@ function renderSteps() {
             html += ` - Assert element <code>${step.selector}</code> contains: "${step.value}"`;
         } else if (step.action === 'scroll_to') {
             html += ` - Scroll to element: <code>${step.selector}</code> (${step.selectorType})`;
+        } else if (step.action === 'select') {
+            html += ` - Select "${step.value}" by ${step.selectBy} in: <code>${step.selector}</code>`;
+        } else if (step.action === 'assert_visible') {
+            html += ` - Assert visible: <code>${step.selector}</code> (${step.selectorType})`;
+        } else if (step.action === 'assert_url') {
+            html += ` - Assert URL contains: "${step.value}"`;
+        } else if (step.action === 'key_press') {
+            html += ` - Press ${step.key}${step.selector ? ` on <code>${step.selector}</code>` : ' (focused element)'}`;
+        } else if (step.action === 'hover') {
+            html += ` - Hover over: <code>${step.selector}</code> (${step.selectorType})`;
+        } else if (step.action === 'double_click') {
+            html += ` - Double-click: <code>${step.selector}</code> (${step.selectorType})`;
+        } else if (step.action === 'wait_for_element') {
+            html += ` - Wait for: <code>${step.selector}</code> (${step.value || 10}s timeout)`;
+        } else if (step.action === 'clear') {
+            html += ` - Clear: <code>${step.selector}</code> (${step.selectorType})`;
         }
         
         html += `</div>`;

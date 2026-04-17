@@ -19,8 +19,9 @@ def generate_selenium_script(steps, test_name='test', base_artefacts_dir=None):
         "from selenium import webdriver",
         "from selenium.webdriver.common.by import By",
         "from selenium.webdriver.common.keys import Keys",
-        "from selenium.webdriver.support.ui import WebDriverWait",
+        "from selenium.webdriver.support.ui import WebDriverWait, Select",
         "from selenium.webdriver.support import expected_conditions as EC",
+        "from selenium.webdriver.common.action_chains import ActionChains",
         "from selenium.webdriver.firefox.options import Options",
         "from selenium.webdriver.firefox.service import Service",
         "import shutil",
@@ -310,6 +311,201 @@ def generate_selenium_script(steps, test_name='test', base_artefacts_dir=None):
                 f"            step_results.append({{'step': {i}, 'action': 'scroll_to', 'status': 'success', 'message': {msg_r}}})",
                 f"        except Exception as e:",
                 f"            step_results.append({{'step': {i}, 'action': 'scroll_to', 'status': 'error', 'message': str(e)}})",
+                f"            raise",
+                f"        finally:",
+                f"            _save_har({i})",
+            ])
+
+        elif action == 'select':
+            selector_type = step.get('selectorType', 'css')
+            selector = step.get('selector', '')
+            option = step.get('value', '')
+            select_by = step.get('selectBy', 'text')
+            by_type = get_by_type(selector_type)
+            selector_r = repr(selector)
+            option_r = repr(option)
+            msg_r = repr(f'Selected "{option}" in {selector}')
+            if select_by == 'value':
+                select_call = f"Select(element).select_by_value({option_r})"
+            elif select_by == 'index':
+                select_call = f"Select(element).select_by_index(int({option_r}))"
+            else:
+                select_call = f"Select(element).select_by_visible_text({option_r})"
+            script_lines.extend([
+                f"        # Step {i}: Select dropdown option",
+                f"        try:",
+                f"            element = WebDriverWait(driver, 10).until(",
+                f"                EC.presence_of_element_located(({by_type}, {selector_r}))",
+                f"            )",
+                f"            {select_call}",
+                f"            time.sleep(0.5)",
+                f"            step_results.append({{'step': {i}, 'action': 'select', 'status': 'success', 'message': {msg_r}}})",
+                f"        except Exception as e:",
+                f"            step_results.append({{'step': {i}, 'action': 'select', 'status': 'error', 'message': str(e)}})",
+                f"            raise",
+                f"        finally:",
+                f"            _save_har({i})",
+            ])
+
+        elif action == 'assert_visible':
+            selector_type = step.get('selectorType', 'css')
+            selector = step.get('selector', '')
+            by_type = get_by_type(selector_type)
+            selector_r = repr(selector)
+            msg_r = repr(f'Element {selector} is visible')
+            script_lines.extend([
+                f"        # Step {i}: Assert element visible",
+                f"        try:",
+                f"            WebDriverWait(driver, 10).until(",
+                f"                EC.visibility_of_element_located(({by_type}, {selector_r}))",
+                f"            )",
+                f"            step_results.append({{'step': {i}, 'action': 'assert_visible', 'status': 'success', 'message': {msg_r}}})",
+                f"        except Exception as e:",
+                f"            step_results.append({{'step': {i}, 'action': 'assert_visible', 'status': 'error', 'message': str(e)}})",
+                f"            raise",
+                f"        finally:",
+                f"            _save_har({i})",
+            ])
+
+        elif action == 'assert_url':
+            expected = step.get('value', '')
+            expected_r = repr(expected)
+            msg_r = repr(f'URL contains "{expected}"')
+            script_lines.extend([
+                f"        # Step {i}: Assert URL",
+                f"        try:",
+                f"            _current_url = driver.current_url",
+                f"            assert {expected_r} in _current_url, 'Expected URL to contain ' + {expected_r} + ', got: ' + _current_url",
+                f"            step_results.append({{'step': {i}, 'action': 'assert_url', 'status': 'success', 'message': {msg_r}}})",
+                f"        except Exception as e:",
+                f"            step_results.append({{'step': {i}, 'action': 'assert_url', 'status': 'error', 'message': str(e)}})",
+                f"            raise",
+                f"        finally:",
+                f"            _save_har({i})",
+            ])
+
+        elif action == 'key_press':
+            key_name = step.get('key', 'Enter')
+            selector_type = step.get('selectorType', 'css')
+            selector = step.get('selector', '')
+            by_type = get_by_type(selector_type)
+            selector_r = repr(selector)
+            key_map = {
+                'Enter': 'Keys.ENTER', 'Tab': 'Keys.TAB', 'Escape': 'Keys.ESCAPE',
+                'Space': 'Keys.SPACE', 'Backspace': 'Keys.BACK_SPACE', 'Delete': 'Keys.DELETE',
+                'ArrowUp': 'Keys.ARROW_UP', 'ArrowDown': 'Keys.ARROW_DOWN',
+                'ArrowLeft': 'Keys.ARROW_LEFT', 'ArrowRight': 'Keys.ARROW_RIGHT',
+            }
+            keys_const = key_map.get(key_name, 'Keys.ENTER')
+            msg_r = repr(f'Pressed {key_name}')
+            if selector:
+                send_key_code = (
+                    f"            element = WebDriverWait(driver, 10).until(\n"
+                    f"                EC.presence_of_element_located(({by_type}, {selector_r}))\n"
+                    f"            )\n"
+                    f"            element.send_keys({keys_const})"
+                )
+            else:
+                send_key_code = f"            ActionChains(driver).send_keys({keys_const}).perform()"
+            script_lines.extend([
+                f"        # Step {i}: Key press",
+                f"        try:",
+                send_key_code,
+                f"            time.sleep(0.3)",
+                f"            step_results.append({{'step': {i}, 'action': 'key_press', 'status': 'success', 'message': {msg_r}}})",
+                f"        except Exception as e:",
+                f"            step_results.append({{'step': {i}, 'action': 'key_press', 'status': 'error', 'message': str(e)}})",
+                f"            raise",
+                f"        finally:",
+                f"            _save_har({i})",
+            ])
+
+        elif action == 'hover':
+            selector_type = step.get('selectorType', 'css')
+            selector = step.get('selector', '')
+            by_type = get_by_type(selector_type)
+            selector_r = repr(selector)
+            msg_r = repr(f'Hovered over {selector}')
+            script_lines.extend([
+                f"        # Step {i}: Hover over element",
+                f"        try:",
+                f"            element = WebDriverWait(driver, 10).until(",
+                f"                EC.presence_of_element_located(({by_type}, {selector_r}))",
+                f"            )",
+                f"            ActionChains(driver).move_to_element(element).perform()",
+                f"            time.sleep(0.5)",
+                f"            step_results.append({{'step': {i}, 'action': 'hover', 'status': 'success', 'message': {msg_r}}})",
+                f"        except Exception as e:",
+                f"            step_results.append({{'step': {i}, 'action': 'hover', 'status': 'error', 'message': str(e)}})",
+                f"            raise",
+                f"        finally:",
+                f"            _save_har({i})",
+            ])
+
+        elif action == 'double_click':
+            selector_type = step.get('selectorType', 'css')
+            selector = step.get('selector', '')
+            by_type = get_by_type(selector_type)
+            selector_r = repr(selector)
+            msg_r = repr(f'Double-clicked {selector}')
+            script_lines.extend([
+                f"        # Step {i}: Double-click element",
+                f"        try:",
+                f"            element = WebDriverWait(driver, 10).until(",
+                f"                EC.element_to_be_clickable(({by_type}, {selector_r}))",
+                f"            )",
+                f"            ActionChains(driver).double_click(element).perform()",
+                f"            time.sleep(0.5)",
+                f"            step_results.append({{'step': {i}, 'action': 'double_click', 'status': 'success', 'message': {msg_r}}})",
+                f"        except Exception as e:",
+                f"            step_results.append({{'step': {i}, 'action': 'double_click', 'status': 'error', 'message': str(e)}})",
+                f"            raise",
+                f"        finally:",
+                f"            _save_har({i})",
+            ])
+
+        elif action == 'wait_for_element':
+            selector_type = step.get('selectorType', 'css')
+            selector = step.get('selector', '')
+            timeout = step.get('value', '10')
+            by_type = get_by_type(selector_type)
+            selector_r = repr(selector)
+            msg_r = repr(f'Element {selector} appeared')
+            try:
+                timeout_val = float(timeout)
+            except (ValueError, TypeError):
+                timeout_val = 10.0
+            script_lines.extend([
+                f"        # Step {i}: Wait for element",
+                f"        try:",
+                f"            WebDriverWait(driver, {timeout_val}).until(",
+                f"                EC.visibility_of_element_located(({by_type}, {selector_r}))",
+                f"            )",
+                f"            step_results.append({{'step': {i}, 'action': 'wait_for_element', 'status': 'success', 'message': {msg_r}}})",
+                f"        except Exception as e:",
+                f"            step_results.append({{'step': {i}, 'action': 'wait_for_element', 'status': 'error', 'message': str(e)}})",
+                f"            raise",
+                f"        finally:",
+                f"            _save_har({i})",
+            ])
+
+        elif action == 'clear':
+            selector_type = step.get('selectorType', 'css')
+            selector = step.get('selector', '')
+            by_type = get_by_type(selector_type)
+            selector_r = repr(selector)
+            msg_r = repr(f'Cleared {selector}')
+            script_lines.extend([
+                f"        # Step {i}: Clear input",
+                f"        try:",
+                f"            element = WebDriverWait(driver, 10).until(",
+                f"                EC.presence_of_element_located(({by_type}, {selector_r}))",
+                f"            )",
+                f"            element.clear()",
+                f"            time.sleep(0.3)",
+                f"            step_results.append({{'step': {i}, 'action': 'clear', 'status': 'success', 'message': {msg_r}}})",
+                f"        except Exception as e:",
+                f"            step_results.append({{'step': {i}, 'action': 'clear', 'status': 'error', 'message': str(e)}})",
                 f"            raise",
                 f"        finally:",
                 f"            _save_har({i})",
