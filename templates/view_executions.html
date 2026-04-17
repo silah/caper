@@ -144,6 +144,14 @@
                 </div>`;
             }
 
+            // Screenshots
+            if (dir) {
+                html += `<details class="screenshots-details" data-artefact-dir="${dir}">
+                    <summary>Screenshots</summary>
+                    <div class="screenshots-gallery"></div>
+                </details>`;
+            }
+
             // Step results
             let steps = [];
             try { steps = JSON.parse(data.step_results || '[]'); } catch(e) {}

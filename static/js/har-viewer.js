@@ -3,6 +3,35 @@
  * Included in test_detail.html and view_executions.html.
  */
 
+// Lazy-load screenshots when a .screenshots-details element is opened.
+document.addEventListener('toggle', function (e) {
+    const details = e.target;
+    if (!details.classList.contains('screenshots-details') || !details.open) return;
+    if (details.dataset.loaded) return;
+    details.dataset.loaded = 'true';
+
+    const gallery = details.querySelector('.screenshots-gallery');
+    gallery.innerHTML = '<p class="gallery-loading">Loading\u2026</p>';
+
+    fetch(`/api/artefacts/${details.dataset.artefactDir}/screenshots`)
+        .then(r => r.json())
+        .then(urls => {
+            if (!urls.length) {
+                gallery.innerHTML = '<p class="gallery-empty">No screenshots available.</p>';
+                return;
+            }
+            gallery.innerHTML = urls.map((url, i) =>
+                `<div class="screenshot-frame">
+                    <span class="screenshot-label">${i + 1}</span>
+                    <img src="${url}" loading="lazy" class="screenshot-img">
+                </div>`
+            ).join('');
+        })
+        .catch(() => {
+            gallery.innerHTML = '<p class="gallery-empty">Failed to load screenshots.</p>';
+        });
+}, true);
+
 // Fetch and render HAR when a .har-details element is opened.
 // Uses event delegation so it works for dynamically-injected content too.
 document.addEventListener('toggle', function (e) {
