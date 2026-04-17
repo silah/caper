@@ -140,7 +140,14 @@ def health_dashboard():
         flash('You must be part of a team to view the health dashboard', 'error')
         return redirect(url_for('index'))
     tests = db.get_health_dashboard(team_id=team['id'])
-    return render_template('health.html', tests=tests, team=team)
+    stats = {
+        'passing': sum(1 for t in tests if t.get('last_status') == 'success'),
+        'failing': sum(1 for t in tests if t.get('last_status') in ('error', 'timeout')),
+        'running': sum(1 for t in tests if t.get('last_status') == 'running'),
+        'never': sum(1 for t in tests if t.get('last_status') is None),
+        'total': len(tests),
+    }
+    return render_template('health.html', tests=tests, stats=stats, team=team)
 
 @app.route('/compare/<int:exec_a>/<int:exec_b>')
 @login_required
@@ -154,8 +161,8 @@ def compare_executions(exec_a, exec_b):
         if (a.get('team_id') and a['team_id'] != team['id']) or \
            (b.get('team_id') and b['team_id'] != team['id']):
             return "Not found", 404
-    test_a = db.get_test(a['test_id'])
-    test_b = db.get_test(b['test_id'])
+    test_a = db.get_test(a['test_id'], team_id=team['id'] if team else None)
+    test_b = db.get_test(b['test_id'], team_id=team['id'] if team else None)
     return render_template('compare.html', exec_a=a, exec_b=b,
                            test_a=test_a, test_b=test_b, team=team)
 
@@ -478,9 +485,15 @@ def update_test(test_id):
 
     script = generate_selenium_script(steps, test_name=name, base_artefacts_dir=BASE_ARTEFACTS_DIR)
 
-    retry_count = int(data.get('retry_count') or 0)
-    sla_seconds_raw = data.get('sla_seconds')
-    sla_seconds = int(sla_seconds_raw) if sla_seconds_raw else None
+    try:
+        retry_count = max(0, int(data.get('retry_count') or 0))
+    except (ValueError, TypeError):
+        retry_count = 0
+    try:
+        sla_seconds_raw = data.get('sla_seconds')
+        sla_seconds = int(sla_seconds_raw) if sla_seconds_raw else None
+    except (ValueError, TypeError):
+        sla_seconds = None
 
     db.update_test(test_id, name, description, steps, script, team['id'],
                    retry_count=retry_count, sla_seconds=sla_seconds)

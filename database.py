@@ -133,18 +133,36 @@ class Database:
                 if alter_sql:
                     cursor.execute(alter_sql)
                 elif 'schedule_interval' in check_sql:
-                    cursor.execute("ALTER TABLE tests ADD COLUMN schedule_interval INTEGER DEFAULT NULL")
-                    cursor.execute("ALTER TABLE tests ADD COLUMN schedule_enabled INTEGER DEFAULT 0")
-                    cursor.execute("ALTER TABLE tests ADD COLUMN schedule_next_run TIMESTAMP DEFAULT NULL")
+                    for col_sql in [
+                        "ALTER TABLE tests ADD COLUMN schedule_interval INTEGER DEFAULT NULL",
+                        "ALTER TABLE tests ADD COLUMN schedule_enabled INTEGER DEFAULT 0",
+                        "ALTER TABLE tests ADD COLUMN schedule_next_run TIMESTAMP DEFAULT NULL",
+                    ]:
+                        try:
+                            cursor.execute(col_sql)
+                        except sqlite3.OperationalError:
+                            pass
                 elif 'webhook_url' in check_sql:
-                    cursor.execute("ALTER TABLE tests ADD COLUMN webhook_enabled INTEGER DEFAULT 0")
-                    cursor.execute("ALTER TABLE tests ADD COLUMN webhook_url TEXT DEFAULT NULL")
-                    cursor.execute("ALTER TABLE tests ADD COLUMN webhook_method TEXT DEFAULT 'POST'")
-                    cursor.execute("ALTER TABLE tests ADD COLUMN webhook_payload_success TEXT DEFAULT NULL")
-                    cursor.execute("ALTER TABLE tests ADD COLUMN webhook_payload_failure TEXT DEFAULT NULL")
+                    for col_sql in [
+                        "ALTER TABLE tests ADD COLUMN webhook_enabled INTEGER DEFAULT 0",
+                        "ALTER TABLE tests ADD COLUMN webhook_url TEXT DEFAULT NULL",
+                        "ALTER TABLE tests ADD COLUMN webhook_method TEXT DEFAULT 'POST'",
+                        "ALTER TABLE tests ADD COLUMN webhook_payload_success TEXT DEFAULT NULL",
+                        "ALTER TABLE tests ADD COLUMN webhook_payload_failure TEXT DEFAULT NULL",
+                    ]:
+                        try:
+                            cursor.execute(col_sql)
+                        except sqlite3.OperationalError:
+                            pass
                 elif 'duration_seconds' in check_sql:
-                    cursor.execute("ALTER TABLE executions ADD COLUMN duration_seconds REAL DEFAULT NULL")
-                    cursor.execute("ALTER TABLE executions ADD COLUMN sla_violated INTEGER DEFAULT 0")
+                    try:
+                        cursor.execute("ALTER TABLE executions ADD COLUMN duration_seconds REAL DEFAULT NULL")
+                    except sqlite3.OperationalError:
+                        pass
+                    try:
+                        cursor.execute("ALTER TABLE executions ADD COLUMN sla_violated INTEGER DEFAULT 0")
+                    except sqlite3.OperationalError:
+                        pass
 
         conn.commit()
         conn.close()

@@ -27,30 +27,25 @@
             <h2 class="health-title">Health Dashboard</h2>
         </div>
 
-        {% set passing = tests | selectattr('last_status', 'equalto', 'success') | list | length %}
-        {% set failing = tests | selectattr('last_status', 'in', ['error', 'timeout']) | list | length %}
-        {% set running = tests | selectattr('last_status', 'equalto', 'running') | list | length %}
-        {% set never = tests | selectattr('last_status', 'none') | list | length %}
-
         <div class="health-summary">
             <div class="health-stat hs-green">
-                <div class="health-stat-num">{{ passing }}</div>
+                <div class="health-stat-num">{{ stats.passing }}</div>
                 <div class="health-stat-label">Passing</div>
             </div>
             <div class="health-stat hs-red">
-                <div class="health-stat-num">{{ failing }}</div>
+                <div class="health-stat-num">{{ stats.failing }}</div>
                 <div class="health-stat-label">Failing</div>
             </div>
-            <div class="health-stat hs-blue" style="--c:#3498db">
-                <div class="health-stat-num" style="color:#3498db">{{ running }}</div>
+            <div class="health-stat" style="border-color:#e8e8e8">
+                <div class="health-stat-num" style="color:#3498db">{{ stats.running }}</div>
                 <div class="health-stat-label">Running</div>
             </div>
             <div class="health-stat hs-grey">
-                <div class="health-stat-num">{{ never }}</div>
+                <div class="health-stat-num">{{ stats.never }}</div>
                 <div class="health-stat-label">Never run</div>
             </div>
             <div class="health-stat" style="border-color:#e8e8e8">
-                <div class="health-stat-num" style="color:#333">{{ tests | length }}</div>
+                <div class="health-stat-num" style="color:#333">{{ stats.total }}</div>
                 <div class="health-stat-label">Total tests</div>
             </div>
         </div>

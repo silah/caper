@@ -70,8 +70,8 @@
 
     <script>
         const executions = [
-            { id: {{ exec_a.id }}, stepResults: {{ (exec_a.step_results or '[]') | safe }} },
-            { id: {{ exec_b.id }}, stepResults: {{ (exec_b.step_results or '[]') | safe }} },
+            { id: {{ exec_a.id }}, stepResults: {{ (exec_a.step_results or '[]') | tojson }} },
+            { id: {{ exec_b.id }}, stepResults: {{ (exec_b.step_results or '[]') | tojson }} },
         ];
 
         executions.forEach(ex => {
