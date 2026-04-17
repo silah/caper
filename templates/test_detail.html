@@ -3,17 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ test.name }} - Selenium Test Builder</title>
+    <title>{{ test.name }} - Caper</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
     <nav class="navbar">
         <div class="container">
-            <h1 class="logo">🧪 Selenium Test Builder</h1>
+            <h1 class="logo">Caper</h1>
             <ul class="nav-links">
                 <li><a href="/">Home</a></li>
                 <li><a href="/create">Create Test</a></li>
-                <li><a href="/tests">View Tests</a></li>
+                <li><a href="/tests" class="active">View Tests</a></li>
                 <li><a href="/executions">Executions</a></li>
             </ul>
         </div>
@@ -28,9 +28,9 @@
                     <button class="btn btn-success" onclick="executeTest()">Run Test</button>
                 </div>
             </div>
-            
+
             <p class="test-description">{{ test.description or 'No description' }}</p>
-            
+
             <div class="test-meta">
                 <div class="meta-item">
                     <strong>Created:</strong> {{ test.created_at }}
@@ -83,37 +83,46 @@
             <div class="section">
                 <h3>Execution History</h3>
                 {% if executions %}
-                <table class="executions-table">
-                    <thead>
-                        <tr>
-                            <th>Time</th>
-                            <th>Status</th>
-                            <th>Output</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for execution in executions %}
-                        <tr>
-                            <td>{{ execution.executed_at }}</td>
-                            <td>
-                                <span class="status-badge status-{{ execution.status }}">
-                                    {{ execution.status }}
-                                </span>
-                            </td>
-                            <td>
-                                {% if execution.error %}
-                                <details>
-                                    <summary>Error (click to expand)</summary>
-                                    <pre class="error-output">{{ execution.error }}</pre>
-                                </details>
-                                {% else %}
-                                <pre class="output">{{ execution.output }}</pre>
-                                {% endif %}
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+                <div class="executions-history">
+                    {% for execution in executions %}
+                    <div class="execution-row">
+                        <div class="execution-row-header">
+                            <span class="execution-time">{{ execution.executed_at }}</span>
+                            <span class="status-badge status-{{ execution.status }}">{{ execution.status }}</span>
+                        </div>
+
+                        {% if execution.artefact_dir %}
+                        <div class="execution-video">
+                            <video
+                                controls
+                                preload="none"
+                                class="run-video"
+                                poster=""
+                                onerror="this.closest('.execution-video').style.display='none'">
+                                <source src="/artefacts/{{ execution.artefact_dir }}/video/recording.mp4" type="video/mp4">
+                            </video>
+                            <div class="artefact-links">
+                                <a href="/artefacts/{{ execution.artefact_dir }}/video/recording.mp4" download class="btn btn-sm btn-secondary">Download MP4</a>
+                            </div>
+                        </div>
+                        {% endif %}
+
+                        {% if execution.step_results %}
+                        <details class="execution-steps">
+                            <summary>Step results</summary>
+                            <div class="steps-results-list" data-steps="{{ execution.step_results }}"></div>
+                        </details>
+                        {% endif %}
+
+                        {% if execution.error %}
+                        <details class="execution-error">
+                            <summary>Error</summary>
+                            <pre class="error-output">{{ execution.error }}</pre>
+                        </details>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
                 {% else %}
                 <p>No execution history yet.</p>
                 {% endif %}
@@ -170,6 +179,26 @@
             .catch(() => {
                 setTimeout(() => pollStatus(executionId, btn, startTime), 2000);
             });
+        }
+
+        // Render step results for each execution row on page load
+        document.querySelectorAll('.steps-results-list[data-steps]').forEach(el => {
+            const steps = JSON.parse(el.dataset.steps || '[]');
+            el.innerHTML = steps.map(s => `
+                <div class="step-result step-result-${s.status}">
+                    <div class="step-result-header">
+                        <span class="step-number">Step ${s.step}</span>
+                        <span class="step-action">${s.action.toUpperCase()}</span>
+                        <span class="status-badge status-${s.status}">${s.status}</span>
+                    </div>
+                    <div class="step-result-message">${escapeHtml(s.message || '')}</div>
+                </div>`).join('');
+        });
+
+        function escapeHtml(text) {
+            const d = document.createElement('div');
+            d.textContent = text;
+            return d.innerHTML;
         }
     </script>
 </body>

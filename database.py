@@ -96,7 +96,12 @@ class Database:
             cursor.execute("SELECT team_id FROM executions LIMIT 1")
         except sqlite3.OperationalError:
             cursor.execute("ALTER TABLE executions ADD COLUMN team_id INTEGER")
-        
+
+        try:
+            cursor.execute("SELECT artefact_dir FROM executions LIMIT 1")
+        except sqlite3.OperationalError:
+            cursor.execute("ALTER TABLE executions ADD COLUMN artefact_dir TEXT")
+
         conn.commit()
         conn.close()
     
@@ -329,14 +334,14 @@ class Database:
         conn.close()
         return execution_id
 
-    def update_execution(self, execution_id, status, output='', error='', step_results=''):
+    def update_execution(self, execution_id, status, output='', error='', step_results='', artefact_dir=''):
         conn = self.get_connection()
         cursor = conn.cursor()
         cursor.execute('''
             UPDATE executions
-            SET status = ?, output = ?, error = ?, step_results = ?
+            SET status = ?, output = ?, error = ?, step_results = ?, artefact_dir = ?
             WHERE id = ?
-        ''', (status, output, error, step_results, execution_id))
+        ''', (status, output, error, step_results, artefact_dir, execution_id))
         conn.commit()
         conn.close()
 
@@ -344,7 +349,7 @@ class Database:
         conn = self.get_connection()
         cursor = conn.cursor()
         cursor.execute('''
-            SELECT id, test_id, status, output, error, step_results, executed_at, team_id
+            SELECT id, test_id, status, output, error, step_results, executed_at, team_id, artefact_dir
             FROM executions WHERE id = ?
         ''', (execution_id,))
         row = cursor.fetchone()
@@ -369,7 +374,7 @@ class Database:
         
         if team_id:
             cursor.execute('''
-                SELECT id, status, output, error, step_results, executed_at
+                SELECT id, status, output, error, step_results, executed_at, artefact_dir
                 FROM executions
                 WHERE test_id = ? AND team_id = ?
                 ORDER BY executed_at DESC
@@ -377,7 +382,7 @@ class Database:
             ''', (test_id, team_id, limit))
         else:
             cursor.execute('''
-                SELECT id, status, output, error, step_results, executed_at
+                SELECT id, status, output, error, step_results, executed_at, artefact_dir
                 FROM executions
                 WHERE test_id = ?
                 ORDER BY executed_at DESC
@@ -396,7 +401,7 @@ class Database:
         if team_id:
             cursor.execute('''
                 SELECT e.id, e.test_id, e.status, e.output, e.error, e.step_results, e.executed_at,
-                       t.name as test_name
+                       e.artefact_dir, t.name as test_name
                 FROM executions e
                 JOIN tests t ON e.test_id = t.id
                 WHERE e.team_id = ?
@@ -406,7 +411,7 @@ class Database:
         else:
             cursor.execute('''
                 SELECT e.id, e.test_id, e.status, e.output, e.error, e.step_results, e.executed_at,
-                       t.name as test_name
+                       e.artefact_dir, t.name as test_name
                 FROM executions e
                 JOIN tests t ON e.test_id = t.id
                 ORDER BY e.executed_at DESC

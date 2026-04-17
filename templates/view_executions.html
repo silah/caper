@@ -3,13 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Test Executions - Selenium Test Builder</title>
+    <title>Executions - Caper</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
     <nav class="navbar">
         <div class="container">
-            <h1 class="logo">🧪 Selenium Test Builder</h1>
+            <h1 class="logo">Caper</h1>
             <ul class="nav-links">
                 <li><a href="/">Home</a></li>
                 <li><a href="/create">Create Test</a></li>
@@ -21,27 +21,25 @@
 
     <div class="container">
         <h2>Test Execution History</h2>
-        
+
         {% if executions %}
         <div class="executions-list">
             {% for execution in executions %}
-            <div class="execution-card" 
+            <div class="execution-card"
                  data-execution-id="{{ execution.id }}"
                  data-test-name="{{ execution.test_name }}"
                  data-executed-at="{{ execution.executed_at }}"
                  data-status="{{ execution.status }}"
                  data-step-results="{{ execution.step_results or '[]' }}"
                  data-output="{{ execution.output or '' }}"
-                 data-error="{{ execution.error or '' }}">
+                 data-error="{{ execution.error or '' }}"
+                 data-artefact-dir="{{ execution.artefact_dir or '' }}">
                 <div class="execution-header">
                     <h3>{{ execution.test_name }} <span style="color: #666; font-size: 0.9em;">#{{ execution.id }}</span></h3>
                     <span class="status-badge status-{{ execution.status }}">{{ execution.status }}</span>
                 </div>
                 <div class="execution-meta">
-                    <span class="meta-label">Execution ID:</span>
-                    <span class="meta-value">{{ execution.id }}</span>
-                    <span class="meta-label" style="margin-left: 20px;">Executed:</span>
-                    <span class="meta-value">{{ execution.executed_at }}</span>
+                    <span><span class="meta-label">Executed:</span> {{ execution.executed_at }}</span>
                 </div>
             </div>
             {% endfor %}
@@ -66,16 +64,24 @@
                     <span><strong>Executed:</strong> <span id="modalTime"></span></span>
                     <span><strong>Status:</strong> <span id="modalStatus"></span></span>
                 </div>
-                
+
+                <div id="videoSection" style="display:none;">
+                    <h3>Recording</h3>
+                    <video id="modalVideo" controls preload="none" class="run-video"></video>
+                    <div style="margin-top: 0.5rem;">
+                        <a id="modalVideoDownload" href="#" download class="btn btn-sm btn-secondary">Download MP4</a>
+                    </div>
+                </div>
+
                 <h3>Step Results</h3>
                 <div id="stepResultsContainer"></div>
-                
-                <div id="outputSection" style="display: none;">
+
+                <div id="outputSection" style="display:none;">
                     <h3>Full Output</h3>
                     <pre id="modalOutput" class="output"></pre>
                 </div>
-                
-                <div id="errorSection" style="display: none;">
+
+                <div id="errorSection" style="display:none;">
                     <h3>Error Details</h3>
                     <pre id="modalError" class="error-output"></pre>
                 </div>
@@ -84,120 +90,93 @@
     </div>
 
     <script>
-        // Add click event listeners when DOM is loaded
         document.addEventListener('DOMContentLoaded', function() {
-            const executionCards = document.querySelectorAll('.execution-card');
-            executionCards.forEach(card => {
+            document.querySelectorAll('.execution-card').forEach(card => {
                 card.addEventListener('click', function() {
-                    const id = this.dataset.executionId;
-                    const testName = this.dataset.testName;
-                    const executedAt = this.dataset.executedAt;
-                    const status = this.dataset.status;
-                    const stepResults = this.dataset.stepResults;
-                    const output = this.dataset.output;
-                    const error = this.dataset.error;
-                    
-                    showExecutionDetails(id, testName, executedAt, status, stepResults, output, error);
+                    showExecutionDetails(
+                        this.dataset.executionId,
+                        this.dataset.testName,
+                        this.dataset.executedAt,
+                        this.dataset.status,
+                        this.dataset.stepResults,
+                        this.dataset.output,
+                        this.dataset.error,
+                        this.dataset.artefactDir
+                    );
                 });
             });
         });
-        
-        function showExecutionDetails(id, testName, executedAt, status, stepResults, output, error) {
+
+        function showExecutionDetails(id, testName, executedAt, status, stepResults, output, error, artefactDir) {
             document.getElementById('modalTitle').textContent = testName;
             document.getElementById('modalTime').textContent = executedAt;
-            
+
             const statusBadge = document.createElement('span');
             statusBadge.className = 'status-badge status-' + status;
             statusBadge.textContent = status;
             const modalStatus = document.getElementById('modalStatus');
             modalStatus.innerHTML = '';
             modalStatus.appendChild(statusBadge);
-            
-            // Parse and display step results
-            const stepResultsContainer = document.getElementById('stepResultsContainer');
-            stepResultsContainer.innerHTML = '';
-            
+
+            // Video
+            const videoSection = document.getElementById('videoSection');
+            if (artefactDir) {
+                const videoUrl = `/artefacts/${artefactDir}/video/recording.mp4`;
+                const video = document.getElementById('modalVideo');
+                video.src = videoUrl;
+                video.onerror = () => { videoSection.style.display = 'none'; };
+                document.getElementById('modalVideoDownload').href = videoUrl;
+                videoSection.style.display = 'block';
+            } else {
+                videoSection.style.display = 'none';
+            }
+
+            // Step results
+            const container = document.getElementById('stepResultsContainer');
             let steps = [];
-            if (stepResults && typeof stepResults === 'string' && stepResults.trim()) {
-                try {
-                    steps = JSON.parse(stepResults);
-                    console.log('Parsed step results:', steps);
-                } catch (e) {
-                    console.error('Error parsing step results:', e, stepResults);
-                }
-            } else if (Array.isArray(stepResults)) {
-                steps = stepResults;
-            }
-            
+            try { steps = JSON.parse(stepResults || '[]'); } catch(e) {}
+
             if (steps.length > 0) {
-                const stepsList = document.createElement('div');
-                stepsList.className = 'steps-results-list';
-                
-                steps.forEach(step => {
-                    console.log('Processing step:', step);
-                    const stepDiv = document.createElement('div');
-                    stepDiv.className = 'step-result step-result-' + step.status;
-                    
-                    let stepHtml = '<div class="step-result-header">' +
-                        '<span class="step-number">Step ' + step.step + '</span>' +
-                        '<span class="step-action">' + step.action.toUpperCase() + '</span>' +
-                        '<span class="status-badge status-' + step.status + '">' + step.status + '</span>' +
-                        '</div>' +
-                        '<div class="step-result-message">' + escapeHtml(step.message) + '</div>';
-                    
-                    // Add screenshot if available
-                    if (step.screenshot) {
-                        console.log('Adding screenshot:', step.screenshot);
-                        stepHtml += '<div class="screenshot-container">' +
-                            '<img src="/static/screenshots/' + step.screenshot + '" alt="Screenshot" class="step-screenshot" onclick="window.open(this.src, \'_blank\')">' +
-                            '</div>';
-                    }
-                    
-                    stepDiv.innerHTML = stepHtml;
-                    stepsList.appendChild(stepDiv);
-                });
-                
-                stepResultsContainer.appendChild(stepsList);
+                container.innerHTML = '<div class="steps-results-list">' +
+                    steps.map(s => `
+                        <div class="step-result step-result-${s.status}">
+                            <div class="step-result-header">
+                                <span class="step-number">Step ${s.step}</span>
+                                <span class="step-action">${s.action.toUpperCase()}</span>
+                                <span class="status-badge status-${s.status}">${s.status}</span>
+                            </div>
+                            <div class="step-result-message">${escapeHtml(s.message || '')}</div>
+                        </div>`).join('') +
+                    '</div>';
             } else {
-                stepResultsContainer.innerHTML = '<p class="no-steps">No step-by-step results available.</p>';
+                container.innerHTML = '<p class="no-steps">No step results available.</p>';
             }
-            
-            // Show output if available
-            if (output && output.trim()) {
-                document.getElementById('outputSection').style.display = 'block';
-                document.getElementById('modalOutput').textContent = output;
-            } else {
-                document.getElementById('outputSection').style.display = 'none';
-            }
-            
-            // Show error if available
-            if (error && error.trim()) {
-                document.getElementById('errorSection').style.display = 'block';
-                document.getElementById('modalError').textContent = error;
-            } else {
-                document.getElementById('errorSection').style.display = 'none';
-            }
-            
+
+            document.getElementById('outputSection').style.display = output && output.trim() ? 'block' : 'none';
+            document.getElementById('modalOutput').textContent = output || '';
+
+            document.getElementById('errorSection').style.display = error && error.trim() ? 'block' : 'none';
+            document.getElementById('modalError').textContent = error || '';
+
             document.getElementById('executionModal').style.display = 'block';
         }
-        
+
         function escapeHtml(text) {
-            const div = document.createElement('div');
-            div.textContent = text;
-            return div.innerHTML;
+            const d = document.createElement('div');
+            d.textContent = text;
+            return d.innerHTML;
         }
-        
+
         function closeModal() {
+            const video = document.getElementById('modalVideo');
+            video.pause();
+            video.src = '';
             document.getElementById('executionModal').style.display = 'none';
         }
-        
-        // Close modal when clicking outside
-        window.onclick = function(event) {
-            const modal = document.getElementById('executionModal');
-            if (event.target == modal) {
-                closeModal();
-            }
-        }
+
+        window.onclick = function(e) {
+            if (e.target === document.getElementById('executionModal')) closeModal();
+        };
     </script>
 </body>
 </html>

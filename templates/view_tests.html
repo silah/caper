@@ -3,13 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>All Tests - Selenium Test Builder</title>
+    <title>All Tests - Caper</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
     <nav class="navbar">
         <div class="container">
-            <h1 class="logo">🧪 Selenium Test Builder</h1>
+            <h1 class="logo">Caper</h1>
             <ul class="nav-links">
                 <li><a href="/">Home</a></li>
                 <li><a href="/create">Create Test</a></li>
@@ -65,33 +65,52 @@
 
     <script>
         function executeTest(testId) {
-            if (!confirm('Are you sure you want to run this test?')) {
-                return;
-            }
-            
+            if (!confirm('Are you sure you want to run this test?')) return;
+
             const btn = event.target;
             btn.disabled = true;
-            btn.textContent = 'Running...';
-            
-            fetch(`/api/tests/${testId}/execute`, {
-                method: 'POST'
-            })
-            .then(response => response.json())
+            btn.textContent = 'Starting...';
+
+            fetch(`/api/tests/${testId}/execute`, { method: 'POST' })
+            .then(r => r.json())
             .then(data => {
+                if (!data.execution_id) {
+                    btn.disabled = false;
+                    btn.textContent = 'Run Test';
+                    alert('Error starting test: ' + (data.error || 'Unknown error'));
+                    return;
+                }
+                pollStatus(data.execution_id, btn, Date.now());
+            })
+            .catch(err => {
                 btn.disabled = false;
                 btn.textContent = 'Run Test';
-                
-                if (data.status === 'success') {
-                    alert('Test executed successfully!');
-                    window.location.reload();
+                alert('Error starting test: ' + err);
+            });
+        }
+
+        function pollStatus(executionId, btn, startTime) {
+            const elapsed = Math.round((Date.now() - startTime) / 1000);
+            btn.textContent = `Running... (${elapsed}s)`;
+
+            fetch(`/api/executions/${executionId}/status`)
+            .then(r => r.json())
+            .then(data => {
+                if (data.status === 'running') {
+                    setTimeout(() => pollStatus(executionId, btn, startTime), 2000);
                 } else {
-                    alert(`Test failed: ${data.error || 'Unknown error'}`);
+                    btn.disabled = false;
+                    btn.textContent = 'Run Test';
+                    if (data.status === 'success') {
+                        alert('Test executed successfully!');
+                        window.location.reload();
+                    } else {
+                        alert(`Test ${data.status}: ${data.error || 'Unknown error'}`);
+                    }
                 }
             })
-            .catch(error => {
-                btn.disabled = false;
-                btn.textContent = 'Run Test';
-                alert('Error executing test: ' + error);
+            .catch(() => {
+                setTimeout(() => pollStatus(executionId, btn, startTime), 2000);
             });
         }
         

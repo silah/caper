@@ -104,6 +104,7 @@ def generate_selenium_script(steps, test_name='test', base_artefacts_dir=None):
         "    os.makedirs(screenshots_dir, exist_ok=True)",
         "    os.makedirs(hars_dir, exist_ok=True)",
         "    os.makedirs(video_dir, exist_ok=True)",
+        "    print('ARTEFACT_DIR:', os.path.join(_name, _ts))",
         "",
         "    firefox_options = Options()",
         "    firefox_options.add_argument('--headless')",

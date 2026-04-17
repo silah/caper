@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, jsonify, redirect, url_for, flash
+from flask import Flask, render_template, request, jsonify, redirect, url_for, flash, send_from_directory
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 import json
 import subprocess
@@ -208,8 +208,14 @@ def _run_test_subprocess(test_id, script, execution_id):
             lines = rest.split('\n')
             step_results = lines[0].strip() if lines else ''
 
+        artefact_dir = ''
+        for line in output.splitlines():
+            if line.startswith('ARTEFACT_DIR:'):
+                artefact_dir = line[len('ARTEFACT_DIR:'):].strip()
+                break
+
         status = 'success' if result.returncode == 0 else 'error'
-        db.update_execution(execution_id, status, output, error, step_results)
+        db.update_execution(execution_id, status, output, error, step_results, artefact_dir)
         db.update_execution_stats(test_id)
 
     except subprocess.TimeoutExpired:
@@ -264,7 +270,14 @@ def get_execution_status(execution_id):
         'output': execution['output'],
         'error': execution['error'],
         'step_results': execution['step_results'],
+        'artefact_dir': execution['artefact_dir'],
     })
+
+
+@app.route('/artefacts/<path:filename>')
+@login_required
+def serve_artefact(filename):
+    return send_from_directory(BASE_ARTEFACTS_DIR, filename)
 
 @app.route('/api/tests/<int:test_id>/executions')
 @login_required
