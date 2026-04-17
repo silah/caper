@@ -87,6 +87,25 @@
             sq.addEventListener('click', () => openExecution(sq));
         });
 
+        // Poll any running squares until they finish
+        function pollRunningSq(sq) {
+            fetch(`/api/executions/${sq.dataset.id}/status`)
+                .then(r => r.json())
+                .then(data => {
+                    if (data.status === 'running') {
+                        setTimeout(() => pollRunningSq(sq), 2000);
+                    } else {
+                        sq.dataset.status = data.status;
+                        sq.classList.remove('sq-running');
+                        sq.classList.add('sq-' + data.status);
+                        sq.title = sq.dataset.at + ' — ' + data.status;
+                    }
+                })
+                .catch(() => setTimeout(() => pollRunningSq(sq), 4000));
+        }
+
+        document.querySelectorAll('.eo-sq.sq-running').forEach(pollRunningSq);
+
         function openExecution(sq) {
             document.getElementById('modalTitle').textContent = sq.dataset.testName;
             document.getElementById('modalTime').textContent = sq.dataset.at + ' — ' + sq.dataset.status;
