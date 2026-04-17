@@ -3,13 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Edit Test - Selenium Test Builder</title>
+    <title>Edit — {{ test.name }} - Caper</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
     <nav class="navbar">
         <div class="container">
-            <h1 class="logo">🧪 Selenium Test Builder</h1>
+            <h1 class="logo">Caper</h1>
             <ul class="nav-links">
                 <li><a href="/">Home</a></li>
                 <li><a href="/create">Create Test</a></li>
@@ -21,65 +21,257 @@
     </nav>
 
     <div class="container">
-        <div class="test-builder">
-            <h2>Edit Test</h2>
-            
-            <div class="test-info">
-                <div class="form-group">
-                    <label for="testName">Test Name *</label>
-                    <input type="text" id="testName" placeholder="e.g., Login Test" value="{{ test.name }}" required>
+        <div class="ed-page">
+
+            <!-- Top bar -->
+            <div class="ed-topbar">
+                <div class="ed-title-wrap">
+                    <input type="text" id="testName" class="ed-title-input"
+                           value="{{ test.name }}" placeholder="Test name" required>
                 </div>
-                
-                <div class="form-group">
-                    <label for="testDescription">Description</label>
-                    <textarea id="testDescription" placeholder="Describe what this test does..." rows="3">{{ test.description }}</textarea>
+                <div class="ed-topbar-actions">
+                    <button class="btn btn-secondary" onclick="openWebhookModal()">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px;margin-right:4px"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>Send result to
+                        {% if test.webhook_enabled %}<span class="ed-badge-active"></span>{% endif %}
+                    </button>
+                    <button class="btn btn-primary" onclick="updateTest()">Save changes</button>
+                    <a href="/test/{{ test.id }}" class="btn btn-ghost">Cancel</a>
                 </div>
             </div>
 
-            <div class="steps-section">
-                <h3>Test Steps</h3>
-                <div id="stepsList"></div>
-                
-                <div class="add-step-section">
-                    <h4>Add Step</h4>
-                    
-                    <div class="form-group">
-                        <label for="actionType">Action Type *</label>
-                        <select id="actionType">
-                            <option value="navigate">Navigate to URL</option>
-                            <option value="click">Click Element</option>
-                            <option value="type">Type Text</option>
-                            <option value="wait">Wait</option>
-                            <option value="execute_js">Execute JavaScript</option>
-                            <option value="screenshot">Take Screenshot</option>
-                            <option value="assert_title">Assert Title</option>
-                            <option value="assert_text">Assert Element Text</option>
-                            <option value="scroll_to">Scroll To Element</option>
-                        </select>
+            <!-- Description -->
+            <div class="ed-desc-wrap">
+                <textarea id="testDescription" class="ed-desc-input"
+                          placeholder="Description (optional)" rows="2">{{ test.description or '' }}</textarea>
+            </div>
+
+            <!-- Schedule -->
+            <div class="ed-card ed-schedule-card">
+                <div class="ed-card-label">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px;margin-right:5px"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>Schedule
+                </div>
+                <div class="ed-schedule-row">
+                    <label class="ed-toggle-label">
+                        <input type="checkbox" id="schedEnabled" class="ed-toggle-check"
+                               {% if test.schedule_enabled %}checked{% endif %}>
+                        <span class="ed-toggle-track"></span>
+                        <span class="ed-toggle-text">Run automatically</span>
+                    </label>
+                    <div class="ed-schedule-interval">
+                        <span>every</span>
+                        <input type="number" id="schedInterval" class="ed-interval-input"
+                               min="1" value="{{ test.schedule_interval or '' }}" placeholder="60">
+                        <span>minutes</span>
                     </div>
-                    
-                    <div id="stepConfig"></div>
-                    
-                    <button class="btn btn-primary" onclick="addStep()">Add Step</button>
+                    {% if test.schedule_next_run and test.schedule_enabled %}
+                    <span class="ed-next-run">Next: {{ test.schedule_next_run }}</span>
+                    {% endif %}
                 </div>
             </div>
 
-            <div class="actions">
-                <button class="btn btn-success btn-lg" onclick="updateTest()">Update Test</button>
-                <a href="/test/{{ test.id }}" class="btn btn-secondary">Cancel</a>
+            <!-- Steps -->
+            <div class="ed-card">
+                <div class="ed-card-label">Steps</div>
+                <div id="stepsList"></div>
+
+                <!-- Add step -->
+                <div class="ed-add-step">
+                    <div class="ed-add-step-header">Add step</div>
+                    <div class="ed-add-step-body">
+                        <div class="ed-field-row">
+                            <div class="ed-field">
+                                <label>Action</label>
+                                <select id="actionType" class="ed-select" onchange="updateStepConfig()">
+                                    <option value="navigate">Navigate to URL</option>
+                                    <option value="click">Click Element</option>
+                                    <option value="type">Type Text</option>
+                                    <option value="wait">Wait</option>
+                                    <option value="execute_js">Execute JavaScript</option>
+                                    <option value="screenshot">Take Screenshot</option>
+                                    <option value="assert_title">Assert Title</option>
+                                    <option value="assert_text">Assert Element Text</option>
+                                    <option value="scroll_to">Scroll To Element</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div id="stepConfig" class="ed-step-config"></div>
+                        <button class="btn btn-primary btn-sm" onclick="addStep()">Add step</button>
+                    </div>
+                </div>
+            </div>
+
+        </div><!-- /ed-page -->
+    </div>
+
+    <!-- Webhook modal -->
+    <div id="webhookModal" class="modal">
+        <div class="modal-content" style="max-width:560px">
+            <div class="modal-header">
+                <h2>Send result to</h2>
+                <span class="modal-close" onclick="closeWebhookModal()">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div class="ed-wh-enabled-row">
+                    <label class="ed-toggle-label">
+                        <input type="checkbox" id="whEnabled" class="ed-toggle-check"
+                               {% if test.webhook_enabled %}checked{% endif %}>
+                        <span class="ed-toggle-track"></span>
+                        <span class="ed-toggle-text">Enable webhook</span>
+                    </label>
+                </div>
+
+                <div class="ed-field" style="margin-top:1rem">
+                    <label>Method</label>
+                    <div class="ed-method-group">
+                        <label class="ed-method-opt">
+                            <input type="radio" name="whMethod" value="POST"
+                                   {% if not test.webhook_method or test.webhook_method == 'POST' %}checked{% endif %}>
+                            <span>POST</span>
+                        </label>
+                        <label class="ed-method-opt">
+                            <input type="radio" name="whMethod" value="GET"
+                                   {% if test.webhook_method == 'GET' %}checked{% endif %}>
+                            <span>GET</span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="ed-field" style="margin-top:1rem">
+                    <label for="whUrl">Endpoint URL</label>
+                    <input type="url" id="whUrl" class="ed-input"
+                           placeholder="https://example.com/hook"
+                           value="{{ test.webhook_url or '' }}">
+                    <p class="ed-field-hint">HTTP and HTTPS supported. Self-signed certificates accepted.</p>
+                </div>
+
+                <div id="whPayloads">
+                    <div class="ed-field" style="margin-top:1rem">
+                        <label for="whPayloadSuccess">Payload on success</label>
+                        <textarea id="whPayloadSuccess" class="ed-input ed-textarea" rows="4"
+                                  placeholder='{"status":"success","test":"my test"}'
+                                  >{{ test.webhook_payload_success or '' }}</textarea>
+                    </div>
+                    <div class="ed-field" style="margin-top:1rem">
+                        <label for="whPayloadFail">Payload on failure</label>
+                        <textarea id="whPayloadFail" class="ed-input ed-textarea" rows="4"
+                                  placeholder='{"status":"failure","test":"my test"}'
+                                  >{{ test.webhook_payload_failure or '' }}</textarea>
+                    </div>
+                </div>
+
+                <div style="display:flex;gap:.75rem;margin-top:1.5rem">
+                    <button class="btn btn-primary" onclick="saveWebhook()">Save</button>
+                    <button class="btn btn-ghost" onclick="closeWebhookModal()">Cancel</button>
+                </div>
             </div>
         </div>
     </div>
 
     <script src="{{ url_for('static', filename='js/app.js') }}"></script>
     <script>
-        // Load existing test data
         const testId = {{ test.id }};
-        const existingSteps = {{ test.steps | tojson }};
-        
-        // Initialize with existing steps
-        testSteps = existingSteps;
+        testSteps = {{ test.steps | tojson }};
         renderSteps();
+
+        // Override updateStepConfig to use ed-field styling
+        function updateStepConfig() {
+            const actionType = document.getElementById('actionType').value;
+            const config = actionConfigs[actionType];
+            const stepConfig = document.getElementById('stepConfig');
+            if (!config) { stepConfig.innerHTML = ''; return; }
+            let html = '';
+            config.fields.forEach(field => {
+                html += `<div class="ed-field-row"><div class="ed-field">`;
+                html += `<label>${field.label}${field.required ? ' *' : ''}</label>`;
+                if (field.type === 'select') {
+                    html += `<select id="step_${field.name}" class="ed-select">`;
+                    field.options.forEach(o => html += `<option value="${o}">${o}</option>`);
+                    html += `</select>`;
+                } else if (field.type === 'textarea') {
+                    html += `<textarea id="step_${field.name}" class="ed-input ed-textarea" rows="4" placeholder="${field.placeholder || ''}"></textarea>`;
+                } else {
+                    html += `<input type="${field.type}" id="step_${field.name}" class="ed-input" placeholder="${field.placeholder || ''}">`;
+                }
+                html += `</div></div>`;
+            });
+            stepConfig.innerHTML = html;
+        }
+        updateStepConfig();
+
+        // Show/hide payload fields based on method
+        document.querySelectorAll('input[name="whMethod"]').forEach(r => {
+            r.addEventListener('change', () => {
+                document.getElementById('whPayloads').style.display =
+                    r.value === 'GET' && r.checked ? 'none' : '';
+            });
+        });
+        const initMethod = document.querySelector('input[name="whMethod"]:checked');
+        if (initMethod && initMethod.value === 'GET') {
+            document.getElementById('whPayloads').style.display = 'none';
+        }
+
+        function openWebhookModal() {
+            document.getElementById('webhookModal').style.display = 'block';
+        }
+
+        function closeWebhookModal() {
+            document.getElementById('webhookModal').style.display = 'none';
+        }
+
+        window.addEventListener('click', e => {
+            if (e.target === document.getElementById('webhookModal')) closeWebhookModal();
+        });
+
+        // Stash webhook data when saved in modal
+        let _webhookData = {
+            enabled: {{ 'true' if test.webhook_enabled else 'false' }},
+            method:  '{{ test.webhook_method or "POST" }}',
+            url:     {{ (test.webhook_url or '') | tojson }},
+            payload_success: {{ (test.webhook_payload_success or '') | tojson }},
+            payload_failure: {{ (test.webhook_payload_failure or '') | tojson }},
+        };
+
+        function saveWebhook() {
+            _webhookData = {
+                enabled: document.getElementById('whEnabled').checked,
+                method:  document.querySelector('input[name="whMethod"]:checked').value,
+                url:     document.getElementById('whUrl').value.trim(),
+                payload_success: document.getElementById('whPayloadSuccess').value,
+                payload_failure: document.getElementById('whPayloadFail').value,
+            };
+            closeWebhookModal();
+        }
+
+        // Override updateTest to include schedule + webhook
+        function updateTest() {
+            const name = document.getElementById('testName').value.trim();
+            const description = document.getElementById('testDescription').value.trim();
+
+            if (!name) { alert('Please enter a test name'); return; }
+            if (testSteps.length === 0) { alert('Please add at least one step'); return; }
+
+            const schedEnabled = document.getElementById('schedEnabled').checked;
+            const schedInterval = parseInt(document.getElementById('schedInterval').value, 10) || null;
+
+            fetch(`/api/tests/${testId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    name, description, steps: testSteps,
+                    schedule: { enabled: schedEnabled, interval: schedInterval },
+                    webhook: _webhookData,
+                })
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    window.location.href = `/test/${testId}`;
+                } else {
+                    alert('Error: ' + (data.error || 'Unknown error'));
+                }
+            })
+            .catch(err => alert('Error: ' + err));
+        }
     </script>
 </body>
 </html>

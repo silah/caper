@@ -2,11 +2,13 @@ from flask import Flask, render_template, request, jsonify, redirect, url_for, f
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 import json
 import re
+import ssl
 import subprocess
 import tempfile
 import os
 import threading
 import time
+import urllib.request
 from database import Database
 from test_generator import generate_selenium_script
 from models import User
@@ -192,6 +194,30 @@ def get_test(test_id):
     
     return jsonify(test)
 
+def _send_webhook(test_id, status):
+    test = db.get_test(test_id)
+    if not test or not test.get('webhook_enabled') or not test.get('webhook_url'):
+        return
+    url = test['webhook_url']
+    method = (test.get('webhook_method') or 'POST').upper()
+    payload_str = test['webhook_payload_success'] if status == 'success' else test['webhook_payload_failure']
+    ctx = ssl.create_default_context()
+    ctx.check_hostname = False
+    ctx.verify_mode = ssl.CERT_NONE
+    try:
+        if method == 'GET':
+            req = urllib.request.Request(url)
+        else:
+            body = (payload_str or '').encode('utf-8')
+            req = urllib.request.Request(url, data=body,
+                                         headers={'Content-Type': 'application/json'})
+        with urllib.request.urlopen(req, context=ctx, timeout=10) as resp:
+            db.log_event('info', f'Webhook sent ({status}): {method} {url}',
+                         f'HTTP {resp.status}')
+    except Exception as e:
+        db.log_event('error', f'Webhook failed ({status}): {method} {url}', str(e))
+
+
 def _run_test_subprocess(test_id, script, execution_id):
     with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as f:
         f.write(script)
@@ -236,6 +262,7 @@ def _run_test_subprocess(test_id, script, execution_id):
 
         db.update_execution(execution_id, status, output, error, step_results, artefact_dir)
         db.update_execution_stats(test_id)
+        _send_webhook(test_id, status)
 
     except subprocess.TimeoutExpired:
         db.update_execution(execution_id, 'timeout', '', 'Test execution timed out after 60 seconds', '')
@@ -373,9 +400,26 @@ def update_test(test_id):
     # Generate Selenium script
     script = generate_selenium_script(steps, test_name=name, base_artefacts_dir=BASE_ARTEFACTS_DIR)
 
-    # Update in database
+    # Update core test
     db.update_test(test_id, name, description, steps, script, team['id'])
-    
+
+    # Schedule
+    sched = data.get('schedule', {})
+    if sched:
+        db.set_test_schedule(test_id, sched.get('interval'), bool(sched.get('enabled')))
+
+    # Webhook
+    wh = data.get('webhook', {})
+    if wh is not None:
+        db.set_test_webhook(
+            test_id,
+            bool(wh.get('enabled')),
+            wh.get('url', ''),
+            wh.get('method', 'POST'),
+            wh.get('payload_success', ''),
+            wh.get('payload_failure', '')
+        )
+
     return jsonify({
         'success': True,
         'test_id': test_id,

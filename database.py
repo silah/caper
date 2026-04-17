@@ -112,6 +112,15 @@ class Database:
             cursor.execute("ALTER TABLE tests ADD COLUMN schedule_enabled INTEGER DEFAULT 0")
             cursor.execute("ALTER TABLE tests ADD COLUMN schedule_next_run TIMESTAMP DEFAULT NULL")
 
+        try:
+            cursor.execute("SELECT webhook_url FROM tests LIMIT 1")
+        except sqlite3.OperationalError:
+            cursor.execute("ALTER TABLE tests ADD COLUMN webhook_enabled INTEGER DEFAULT 0")
+            cursor.execute("ALTER TABLE tests ADD COLUMN webhook_url TEXT DEFAULT NULL")
+            cursor.execute("ALTER TABLE tests ADD COLUMN webhook_method TEXT DEFAULT 'POST'")
+            cursor.execute("ALTER TABLE tests ADD COLUMN webhook_payload_success TEXT DEFAULT NULL")
+            cursor.execute("ALTER TABLE tests ADD COLUMN webhook_payload_failure TEXT DEFAULT NULL")
+
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS logs (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -332,14 +341,18 @@ class Database:
         if team_id:
             cursor.execute('''
                 SELECT id, name, description, steps, script, created_at, last_executed, execution_count,
-                       schedule_interval, schedule_enabled, schedule_next_run
+                       schedule_interval, schedule_enabled, schedule_next_run,
+                       webhook_enabled, webhook_url, webhook_method,
+                       webhook_payload_success, webhook_payload_failure
                 FROM tests
                 WHERE id = ? AND team_id = ?
             ''', (test_id, team_id))
         else:
             cursor.execute('''
                 SELECT id, name, description, steps, script, created_at, last_executed, execution_count,
-                       schedule_interval, schedule_enabled, schedule_next_run
+                       schedule_interval, schedule_enabled, schedule_next_run,
+                       webhook_enabled, webhook_url, webhook_method,
+                       webhook_payload_success, webhook_payload_failure
                 FROM tests
                 WHERE id = ?
             ''', (test_id,))
@@ -526,6 +539,18 @@ class Database:
                 SET schedule_interval = ?, schedule_enabled = 0, schedule_next_run = NULL
                 WHERE id = ?
             ''', (interval_minutes, test_id))
+        conn.commit()
+        conn.close()
+
+    def set_test_webhook(self, test_id, enabled, url, method, payload_success, payload_failure):
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        cursor.execute('''
+            UPDATE tests
+            SET webhook_enabled = ?, webhook_url = ?, webhook_method = ?,
+                webhook_payload_success = ?, webhook_payload_failure = ?
+            WHERE id = ?
+        ''', (1 if enabled else 0, url, method, payload_success, payload_failure, test_id))
         conn.commit()
         conn.close()
 
