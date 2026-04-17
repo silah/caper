@@ -192,7 +192,7 @@ def _run_test_subprocess(test_id, script, execution_id):
 
     try:
         result = subprocess.run(
-            ['python', temp_script_path],
+            ['python3', temp_script_path],
             capture_output=True,
             text=True,
             timeout=60
