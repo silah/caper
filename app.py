@@ -141,8 +141,8 @@ def view_executions():
     if not team:
         flash('You must be part of a team to view executions', 'error')
         return redirect(url_for('index'))
-    executions = db.get_all_executions(team_id=team['id'])
-    return render_template('view_executions.html', executions=executions, team=team)
+    tests = db.get_executions_grouped_by_test(team_id=team['id'])
+    return render_template('view_executions.html', tests=tests, team=team)
 
 @app.route('/api/tests', methods=['POST'])
 @login_required

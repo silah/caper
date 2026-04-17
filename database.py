@@ -426,6 +426,38 @@ class Database:
         
         return executions
     
+    def get_executions_grouped_by_test(self, team_id=None, limit_per_test=100):
+        conn = self.get_connection()
+        cursor = conn.cursor()
+
+        if team_id:
+            cursor.execute('SELECT id, name FROM tests WHERE team_id = ? ORDER BY name', (team_id,))
+        else:
+            cursor.execute('SELECT id, name FROM tests ORDER BY name')
+        tests = [dict(row) for row in cursor.fetchall()]
+
+        for test in tests:
+            if team_id:
+                cursor.execute('''
+                    SELECT id, status, executed_at, artefact_dir, step_results, error, output
+                    FROM executions
+                    WHERE test_id = ? AND team_id = ?
+                    ORDER BY executed_at DESC
+                    LIMIT ?
+                ''', (test['id'], team_id, limit_per_test))
+            else:
+                cursor.execute('''
+                    SELECT id, status, executed_at, artefact_dir, step_results, error, output
+                    FROM executions
+                    WHERE test_id = ?
+                    ORDER BY executed_at DESC
+                    LIMIT ?
+                ''', (test['id'], limit_per_test))
+            test['executions'] = [dict(row) for row in cursor.fetchall()]
+
+        conn.close()
+        return tests
+
     def update_test(self, test_id, name, description, steps, script, team_id=None):
         conn = self.get_connection()
         cursor = conn.cursor()

@@ -110,7 +110,9 @@
                         {% if execution.step_results %}
                         <details class="execution-steps">
                             <summary>Step results</summary>
-                            <div class="steps-results-list" data-steps="{{ execution.step_results }}"></div>
+                            <div class="steps-results-list"
+                                 data-steps="{{ execution.step_results }}"
+                                 data-artefact-dir="{{ execution.artefact_dir or '' }}"></div>
                         </details>
                         {% endif %}
 
@@ -181,25 +183,12 @@
             });
         }
 
-        // Render step results for each execution row on page load
         document.querySelectorAll('.steps-results-list[data-steps]').forEach(el => {
             const steps = JSON.parse(el.dataset.steps || '[]');
-            el.innerHTML = steps.map(s => `
-                <div class="step-result step-result-${s.status}">
-                    <div class="step-result-header">
-                        <span class="step-number">Step ${s.step}</span>
-                        <span class="step-action">${s.action.toUpperCase()}</span>
-                        <span class="status-badge status-${s.status}">${s.status}</span>
-                    </div>
-                    <div class="step-result-message">${escapeHtml(s.message || '')}</div>
-                </div>`).join('');
+            const artefactDir = el.dataset.artefactDir || '';
+            el.innerHTML = renderStepResults(steps, artefactDir);
         });
-
-        function escapeHtml(text) {
-            const d = document.createElement('div');
-            d.textContent = text;
-            return d.innerHTML;
-        }
     </script>
+    <script src="{{ url_for('static', filename='js/har-viewer.js') }}"></script>
 </body>
 </html>

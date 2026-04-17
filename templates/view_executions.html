@@ -19,164 +19,140 @@
         </div>
     </nav>
 
-    <div class="container">
-        <h2>Test Execution History</h2>
+    <div class="eo-page">
+        <div class="eo-header">
+            <h2>Execution Overview</h2>
+            <p class="eo-subtitle">Last 100 runs per test &mdash; newest on the right</p>
+        </div>
 
-        {% if executions %}
-        <div class="executions-list">
-            {% for execution in executions %}
-            <div class="execution-card"
-                 data-execution-id="{{ execution.id }}"
-                 data-test-name="{{ execution.test_name }}"
-                 data-executed-at="{{ execution.executed_at }}"
-                 data-status="{{ execution.status }}"
-                 data-step-results="{{ execution.step_results or '[]' }}"
-                 data-output="{{ execution.output or '' }}"
-                 data-error="{{ execution.error or '' }}"
-                 data-artefact-dir="{{ execution.artefact_dir or '' }}">
-                <div class="execution-header">
-                    <h3>{{ execution.test_name }} <span style="color: #666; font-size: 0.9em;">#{{ execution.id }}</span></h3>
-                    <span class="status-badge status-{{ execution.status }}">{{ execution.status }}</span>
-                </div>
-                <div class="execution-meta">
-                    <span><span class="meta-label">Executed:</span> {{ execution.executed_at }}</span>
-                </div>
+        {% if tests %}
+        <div class="eo-grid">
+            <div class="eo-legend">
+                <span class="eo-legend-dot sq-success"></span>Pass
+                <span class="eo-legend-dot sq-error"></span>Fail
+                <span class="eo-legend-dot sq-timeout"></span>Timeout
+                <span class="eo-legend-dot sq-running"></span>Running
             </div>
-            {% endfor %}
+
+            <div class="eo-rows">
+                {% for test in tests %}
+                <div class="eo-row">
+                    <a href="/test/{{ test.id }}" class="eo-test-name" title="{{ test.name }}">{{ test.name }}</a>
+                    <div class="eo-squares">
+                        {% if test.executions %}
+                            {% for ex in test.executions|reverse %}
+                            <div class="eo-sq sq-{{ ex.status }}"
+                                 data-id="{{ ex.id }}"
+                                 data-test-name="{{ test.name }}"
+                                 data-at="{{ ex.executed_at }}"
+                                 data-status="{{ ex.status }}"
+                                 data-artefact-dir="{{ ex.artefact_dir or '' }}"
+                                 title="{{ ex.executed_at }} &mdash; {{ ex.status }}"></div>
+                            {% endfor %}
+                        {% else %}
+                            <span class="eo-no-runs">no runs yet</span>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
         </div>
         {% else %}
         <div class="empty-state">
-            <p>No test executions yet.</p>
-            <a href="/tests" class="btn btn-primary">Run a Test</a>
+            <p>No tests found.</p>
+            <a href="/create" class="btn btn-primary">Create a Test</a>
         </div>
         {% endif %}
     </div>
 
-    <!-- Modal -->
-    <div id="executionModal" class="modal">
+    <!-- Detail modal -->
+    <div id="execModal" class="modal">
         <div class="modal-content">
             <div class="modal-header">
-                <h2 id="modalTitle"></h2>
+                <div>
+                    <h2 id="modalTitle"></h2>
+                    <span id="modalTime" class="modal-subtitle"></span>
+                </div>
                 <span class="modal-close" onclick="closeModal()">&times;</span>
             </div>
-            <div class="modal-body">
-                <div class="modal-meta">
-                    <span><strong>Executed:</strong> <span id="modalTime"></span></span>
-                    <span><strong>Status:</strong> <span id="modalStatus"></span></span>
-                </div>
-
-                <div id="videoSection" style="display:none;">
-                    <h3>Recording</h3>
-                    <video id="modalVideo" controls preload="none" class="run-video"></video>
-                    <div style="margin-top: 0.5rem;">
-                        <a id="modalVideoDownload" href="#" download class="btn btn-sm btn-secondary">Download MP4</a>
-                    </div>
-                </div>
-
-                <h3>Step Results</h3>
-                <div id="stepResultsContainer"></div>
-
-                <div id="outputSection" style="display:none;">
-                    <h3>Full Output</h3>
-                    <pre id="modalOutput" class="output"></pre>
-                </div>
-
-                <div id="errorSection" style="display:none;">
-                    <h3>Error Details</h3>
-                    <pre id="modalError" class="error-output"></pre>
-                </div>
+            <div class="modal-body" id="modalBody">
+                <div class="modal-loading">Loading&hellip;</div>
             </div>
         </div>
     </div>
 
+    <script src="{{ url_for('static', filename='js/har-viewer.js') }}"></script>
     <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            document.querySelectorAll('.execution-card').forEach(card => {
-                card.addEventListener('click', function() {
-                    showExecutionDetails(
-                        this.dataset.executionId,
-                        this.dataset.testName,
-                        this.dataset.executedAt,
-                        this.dataset.status,
-                        this.dataset.stepResults,
-                        this.dataset.output,
-                        this.dataset.error,
-                        this.dataset.artefactDir
-                    );
-                });
-            });
+        document.querySelectorAll('.eo-sq').forEach(sq => {
+            sq.addEventListener('click', () => openExecution(sq));
         });
 
-        function showExecutionDetails(id, testName, executedAt, status, stepResults, output, error, artefactDir) {
-            document.getElementById('modalTitle').textContent = testName;
-            document.getElementById('modalTime').textContent = executedAt;
+        function openExecution(sq) {
+            document.getElementById('modalTitle').textContent = sq.dataset.testName;
+            document.getElementById('modalTime').textContent = sq.dataset.at + ' — ' + sq.dataset.status;
+            document.getElementById('modalBody').innerHTML = '<div class="modal-loading">Loading\u2026</div>';
+            document.getElementById('execModal').style.display = 'block';
 
-            const statusBadge = document.createElement('span');
-            statusBadge.className = 'status-badge status-' + status;
-            statusBadge.textContent = status;
-            const modalStatus = document.getElementById('modalStatus');
-            modalStatus.innerHTML = '';
-            modalStatus.appendChild(statusBadge);
+            fetch(`/api/executions/${sq.dataset.id}/status`)
+                .then(r => r.json())
+                .then(data => renderModal(data, sq.dataset.testName, sq.dataset.at, sq.dataset.artefactDir))
+                .catch(() => {
+                    document.getElementById('modalBody').innerHTML = '<p class="har-empty">Failed to load execution details.</p>';
+                });
+        }
+
+        function renderModal(data, testName, executedAt, artefactDir) {
+            const dir = artefactDir || data.artefact_dir || '';
+            let html = '';
+
+            // Status badge
+            html += `<div class="modal-meta">
+                <span><strong>Executed:</strong> ${executedAt}</span>
+                <span><strong>Status:</strong> <span class="status-badge status-${data.status}">${data.status}</span></span>
+            </div>`;
 
             // Video
-            const videoSection = document.getElementById('videoSection');
-            if (artefactDir) {
-                const videoUrl = `/artefacts/${artefactDir}/video/recording.mp4`;
-                const video = document.getElementById('modalVideo');
-                video.src = videoUrl;
-                video.onerror = () => { videoSection.style.display = 'none'; };
-                document.getElementById('modalVideoDownload').href = videoUrl;
-                videoSection.style.display = 'block';
-            } else {
-                videoSection.style.display = 'none';
+            if (dir) {
+                const videoUrl = `/artefacts/${dir}/video/recording.mp4`;
+                html += `<div id="videoSection">
+                    <h3>Recording</h3>
+                    <video controls preload="none" class="run-video" onerror="this.closest('#videoSection').style.display='none'">
+                        <source src="${videoUrl}" type="video/mp4">
+                    </video>
+                    <div style="margin-top:0.5rem;">
+                        <a href="${videoUrl}" download class="btn btn-sm btn-secondary">Download MP4</a>
+                    </div>
+                </div>`;
             }
 
             // Step results
-            const container = document.getElementById('stepResultsContainer');
             let steps = [];
-            try { steps = JSON.parse(stepResults || '[]'); } catch(e) {}
+            try { steps = JSON.parse(data.step_results || '[]'); } catch(e) {}
+            html += `<h3>Step Results</h3><div class="steps-results-list">${renderStepResults(steps, dir)}</div>`;
 
-            if (steps.length > 0) {
-                container.innerHTML = '<div class="steps-results-list">' +
-                    steps.map(s => `
-                        <div class="step-result step-result-${s.status}">
-                            <div class="step-result-header">
-                                <span class="step-number">Step ${s.step}</span>
-                                <span class="step-action">${s.action.toUpperCase()}</span>
-                                <span class="status-badge status-${s.status}">${s.status}</span>
-                            </div>
-                            <div class="step-result-message">${escapeHtml(s.message || '')}</div>
-                        </div>`).join('') +
-                    '</div>';
-            } else {
-                container.innerHTML = '<p class="no-steps">No step results available.</p>';
+            // Error
+            if (data.error && data.error.trim()) {
+                html += `<h3>Error</h3><pre class="error-output">${escHtml(data.error)}</pre>`;
             }
 
-            document.getElementById('outputSection').style.display = output && output.trim() ? 'block' : 'none';
-            document.getElementById('modalOutput').textContent = output || '';
-
-            document.getElementById('errorSection').style.display = error && error.trim() ? 'block' : 'none';
-            document.getElementById('modalError').textContent = error || '';
-
-            document.getElementById('executionModal').style.display = 'block';
+            document.getElementById('modalBody').innerHTML = html;
         }
 
-        function escapeHtml(text) {
+        function escHtml(str) {
             const d = document.createElement('div');
-            d.textContent = text;
+            d.textContent = str;
             return d.innerHTML;
         }
 
         function closeModal() {
-            const video = document.getElementById('modalVideo');
-            video.pause();
-            video.src = '';
-            document.getElementById('executionModal').style.display = 'none';
+            const video = document.querySelector('#execModal video');
+            if (video) { video.pause(); video.src = ''; }
+            document.getElementById('execModal').style.display = 'none';
         }
 
-        window.onclick = function(e) {
-            if (e.target === document.getElementById('executionModal')) closeModal();
-        };
+        window.addEventListener('click', e => {
+            if (e.target === document.getElementById('execModal')) closeModal();
+        });
     </script>
 </body>
 </html>
