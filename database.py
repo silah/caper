@@ -1004,12 +1004,12 @@ class Database:
             return None
         ex = dict(row)
         cursor.execute('''
-            SELECT set.*, e.error, e.step_results, e.output,
+            SELECT sxt.*, e.error, e.step_results, e.output,
                    e.duration_seconds as exec_duration, e.artefact_dir, e.sla_violated
-            FROM suite_execution_tests set
-            LEFT JOIN executions e ON e.id = set.execution_id
-            WHERE set.suite_execution_id = ?
-            ORDER BY set.position
+            FROM suite_execution_tests sxt
+            LEFT JOIN executions e ON e.id = sxt.execution_id
+            WHERE sxt.suite_execution_id = ?
+            ORDER BY sxt.position
         ''', (suite_execution_id,))
         ex['tests'] = [dict(r) for r in cursor.fetchall()]
         conn.close()
@@ -1020,11 +1020,11 @@ class Database:
         cursor = conn.cursor()
         cursor.execute('''
             SELECT se.*, s.name as suite_name,
-                COUNT(set.id) as test_count,
-                SUM(CASE WHEN set.status = 'success' THEN 1 ELSE 0 END) as pass_count
+                COUNT(sxt.id) as test_count,
+                SUM(CASE WHEN sxt.status = 'success' THEN 1 ELSE 0 END) as pass_count
             FROM suite_executions se
             JOIN suites s ON s.id = se.suite_id
-            LEFT JOIN suite_execution_tests set ON set.suite_execution_id = se.id
+            LEFT JOIN suite_execution_tests sxt ON sxt.suite_execution_id = se.id
             WHERE se.team_id = ?
             GROUP BY se.id
             ORDER BY se.started_at DESC
