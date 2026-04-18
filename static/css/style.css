@@ -2251,6 +2251,221 @@ summary {
     .main-content { margin-left: 0; padding: 20px 16px 48px; }
 }
 
+/* =============================================
+   TAG PILLS
+   ============================================= */
+
+.tag-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 0.68rem;
+    font-weight: 600;
+    white-space: nowrap;
+    letter-spacing: 0.02em;
+    line-height: 1.6;
+}
+
+.tag-status      { background: #dbeafe; color: #1d4ed8; }
+.tag-environment { background: #d1fae5; color: #065f46; }
+.tag-application { background: #ede9fe; color: #5b21b6; }
+.tag-suite       { background: #fef3c7; color: #92400e; }
+
+.tag-pill-del {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 0.75rem;
+    line-height: 1;
+    opacity: 0.55;
+    padding: 0;
+    margin-left: 2px;
+    color: inherit;
+    display: inline-flex;
+    align-items: center;
+}
+.tag-pill-del:hover { opacity: 1; }
+
+.tags-cell { display: flex; flex-wrap: wrap; gap: 3px; }
+
+/* Tag filter bar */
+.tag-filter-bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 1rem;
+    padding: 10px 14px;
+    background: #fff;
+    border-radius: 8px;
+    border: 1px solid #e8eaed;
+    font-size: 0.8rem;
+}
+
+.tag-filter-label {
+    color: #94a3b8;
+    font-weight: 600;
+    font-size: 0.72rem;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    margin-right: 2px;
+}
+
+.tag-filter-pill {
+    cursor: pointer;
+    opacity: 0.6;
+    transition: opacity 0.12s, transform 0.1s;
+    user-select: none;
+}
+
+.tag-filter-pill:hover { opacity: 0.85; }
+.tag-filter-pill.active { opacity: 1; transform: scale(1.05); }
+
+.tag-filter-clear {
+    background: none;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    padding: 2px 8px;
+    font-size: 0.72rem;
+    color: #6b7280;
+    cursor: pointer;
+    margin-left: auto;
+}
+.tag-filter-clear:hover { background: #f3f4f6; }
+
+/* Tags management page */
+.tags-page { max-width: 860px; }
+
+.tags-category-card {
+    background: #fff;
+    border-radius: 10px;
+    border: 1px solid #e8eaed;
+    margin-bottom: 16px;
+    overflow: hidden;
+}
+
+.tags-category-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 18px;
+    border-bottom: 1px solid #f0f2f5;
+}
+
+.tags-category-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.tcd-status      { background: #3b82f6; }
+.tcd-environment { background: #059669; }
+.tcd-application { background: #7c3aed; }
+.tcd-suite       { background: #d97706; }
+
+.tags-category-name {
+    font-size: 0.875rem;
+    font-weight: 700;
+    color: #1e293b;
+    flex: 1;
+}
+
+.tags-category-count {
+    font-size: 0.75rem;
+    color: #94a3b8;
+}
+
+.tags-category-body {
+    padding: 14px 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.tags-existing {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    min-height: 24px;
+}
+
+.tags-empty-msg {
+    font-size: 0.78rem;
+    color: #c5ccd6;
+    font-style: italic;
+}
+
+.tags-add-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.tags-add-input {
+    flex: 1;
+    padding: 6px 10px;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    font-size: 0.83rem;
+    outline: none;
+    transition: border-color 0.15s;
+    font-family: inherit;
+}
+
+.tags-add-input:focus { border-color: #3b82f6; }
+
+/* Tag checkboxes in edit page */
+.ed-tags-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.ed-tags-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+}
+
+.ed-tags-row-label {
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: #94a3b8;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    width: 90px;
+    padding-top: 3px;
+    flex-shrink: 0;
+}
+
+.ed-tags-options {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+}
+
+.ed-tag-check { display: none; }
+
+.ed-tag-label {
+    cursor: pointer;
+    opacity: 0.45;
+    transition: opacity 0.12s;
+}
+
+.ed-tag-label:hover { opacity: 0.75; }
+.ed-tag-check:checked + .ed-tag-label { opacity: 1; }
+
+/* Tag pills under test name in list */
+.tov-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 3px;
+    margin-top: 4px;
+}
+
 /* Flakiness badge */
 .tov-flaky-badge {
     display: inline-block;

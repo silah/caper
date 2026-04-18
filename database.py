@@ -104,6 +104,28 @@ class Database:
             )
         ''')
 
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS tags (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                team_id INTEGER NOT NULL,
+                name TEXT NOT NULL,
+                category TEXT NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(team_id, category, name),
+                FOREIGN KEY (team_id) REFERENCES teams (id)
+            )
+        ''')
+
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS test_tags (
+                test_id INTEGER NOT NULL,
+                tag_id INTEGER NOT NULL,
+                PRIMARY KEY (test_id, tag_id),
+                FOREIGN KEY (test_id) REFERENCES tests (id) ON DELETE CASCADE,
+                FOREIGN KEY (tag_id) REFERENCES tags (id) ON DELETE CASCADE
+            )
+        ''')
+
         # Migrations
         migrations = [
             ("SELECT step_results FROM executions LIMIT 1",
@@ -365,6 +387,12 @@ class Database:
                 any(s == 'success' for s in terminal) and
                 any(s in ('error', 'timeout') for s in terminal)
             )
+            cursor.execute('''
+                SELECT t.id, t.name, t.category FROM tags t
+                JOIN test_tags tt ON tt.tag_id = t.id
+                WHERE tt.test_id = ? ORDER BY t.category, t.name
+            ''', (test['id'],))
+            test['tags'] = [dict(r) for r in cursor.fetchall()]
 
         conn.close()
         return tests
@@ -684,3 +712,65 @@ class Database:
         tests = [dict(row) for row in cursor.fetchall()]
         conn.close()
         return tests
+
+    def get_tags(self, team_id):
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        cursor.execute(
+            'SELECT * FROM tags WHERE team_id = ? ORDER BY category, name',
+            (team_id,)
+        )
+        tags = [dict(row) for row in cursor.fetchall()]
+        conn.close()
+        return tags
+
+    def create_tag(self, team_id, name, category):
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        try:
+            cursor.execute(
+                'INSERT INTO tags (team_id, name, category) VALUES (?, ?, ?)',
+                (team_id, name, category)
+            )
+            tag_id = cursor.lastrowid
+            conn.commit()
+            conn.close()
+            return tag_id
+        except sqlite3.IntegrityError:
+            conn.close()
+            return None
+
+    def delete_tag(self, tag_id, team_id):
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        cursor.execute('DELETE FROM test_tags WHERE tag_id = ?', (tag_id,))
+        cursor.execute('DELETE FROM tags WHERE id = ? AND team_id = ?', (tag_id, team_id))
+        conn.commit()
+        conn.close()
+
+    def get_test_tags(self, test_id):
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        cursor.execute('''
+            SELECT t.id, t.name, t.category FROM tags t
+            JOIN test_tags tt ON tt.tag_id = t.id
+            WHERE tt.test_id = ? ORDER BY t.category, t.name
+        ''', (test_id,))
+        tags = [dict(row) for row in cursor.fetchall()]
+        conn.close()
+        return tags
+
+    def set_test_tags(self, test_id, tag_ids):
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        cursor.execute('DELETE FROM test_tags WHERE test_id = ?', (test_id,))
+        for tag_id in tag_ids:
+            try:
+                cursor.execute(
+                    'INSERT INTO test_tags (test_id, tag_id) VALUES (?, ?)',
+                    (test_id, int(tag_id))
+                )
+            except (sqlite3.IntegrityError, ValueError):
+                pass
+        conn.commit()
+        conn.close()

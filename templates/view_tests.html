@@ -20,6 +20,7 @@
             <a href="/tests" class="sidebar-link active">Tests</a>
             <a href="/executions" class="sidebar-link">Executions</a>
             <a href="/health" class="sidebar-link">Health</a>
+            <a href="/tags" class="sidebar-link">Tags</a>
             <div class="sidebar-divider"></div>
             <a href="/create" class="sidebar-link">Create Test</a>
             <a href="/variables" class="sidebar-link">Variables</a>
@@ -53,6 +54,18 @@
         <div id="importStatus" class="import-status" style="display:none"></div>
 
         {% if tests %}
+        {% set all_tags = [] %}
+        {% for test in tests %}{% for tag in test.tags %}{% if tag not in all_tags %}{% set _ = all_tags.append(tag) %}{% endif %}{% endfor %}{% endfor %}
+        {% if all_tags %}
+        <div class="tag-filter-bar" id="tagFilterBar">
+            <span class="tag-filter-label">Filter:</span>
+            {% for tag in all_tags|sort(attribute='category') %}
+            <span class="tag-filter-pill tag-{{ tag.category }}" data-tag-id="{{ tag.id }}" onclick="toggleTagFilter({{ tag.id }}, this)">{{ tag.name }}</span>
+            {% endfor %}
+            <button class="tag-filter-clear" id="tagFilterClear" onclick="clearTagFilter()" style="display:none">Clear</button>
+        </div>
+        {% endif %}
+
         <div class="tov-table-wrap">
             <table class="tov-table">
                 <thead>
@@ -68,10 +81,17 @@
                 </thead>
                 <tbody>
                     {% for test in tests %}
-                    <tr class="tov-row" data-test-id="{{ test.id }}">
+                    <tr class="tov-row" data-test-id="{{ test.id }}" data-tag-ids="{{ test.tags | map(attribute='id') | list | tojson }}">
                         <td class="tov-name">
                             <a href="/test/{{ test.id }}" class="tov-name-link">{{ test.name }}</a>
                             {% if test.flaky %}<span class="tov-flaky-badge" title="This test has inconsistent results">Flaky</span>{% endif %}
+                            {% if test.tags %}
+                            <div class="tov-tags">
+                                {% for tag in test.tags %}
+                                <span class="tag-pill tag-{{ tag.category }}">{{ tag.name }}</span>
+                                {% endfor %}
+                            </div>
+                            {% endif %}
                         </td>
                         <td class="tov-desc">{{ test.description or '—' }}</td>
                         <td class="tov-schedule">
@@ -185,6 +205,32 @@
                 .then(r => r.json())
                 .then(() => window.location.reload())
                 .catch(err => alert('Error: ' + err));
+            }
+
+            const activeTagFilters = new Set();
+            function toggleTagFilter(tagId, pill) {
+                if (activeTagFilters.has(tagId)) {
+                    activeTagFilters.delete(tagId);
+                    pill.classList.remove('active');
+                } else {
+                    activeTagFilters.add(tagId);
+                    pill.classList.add('active');
+                }
+                applyTagFilter();
+            }
+            function clearTagFilter() {
+                activeTagFilters.clear();
+                document.querySelectorAll('.tag-filter-pill.active').forEach(p => p.classList.remove('active'));
+                applyTagFilter();
+            }
+            function applyTagFilter() {
+                const clearBtn = document.getElementById('tagFilterClear');
+                if (clearBtn) clearBtn.style.display = activeTagFilters.size ? '' : 'none';
+                document.querySelectorAll('.tov-row').forEach(row => {
+                    if (!activeTagFilters.size) { row.style.display = ''; return; }
+                    const ids = JSON.parse(row.dataset.tagIds || '[]');
+                    row.style.display = [...activeTagFilters].every(id => ids.includes(id)) ? '' : 'none';
+                });
             }
         </script>
     </main>

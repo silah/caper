@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tags - Caper</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+<div class="app-shell">
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <div class="sidebar-brand">
+                <span class="sidebar-brand-name">Caper</span>
+                <span class="sidebar-brand-dot"></span>
+            </div>
+        </div>
+        <nav class="sidebar-nav">
+            <a href="/" class="sidebar-link">Home</a>
+            <a href="/tests" class="sidebar-link">Tests</a>
+            <a href="/executions" class="sidebar-link">Executions</a>
+            <a href="/health" class="sidebar-link">Health</a>
+            <a href="/tags" class="sidebar-link active">Tags</a>
+            <div class="sidebar-divider"></div>
+            <a href="/create" class="sidebar-link">Create Test</a>
+            <a href="/variables" class="sidebar-link">Variables</a>
+            <a href="/logs" class="sidebar-link">Log</a>
+        </nav>
+        <div class="sidebar-footer">
+            {% if current_user.is_authenticated %}
+            <span class="sidebar-user">{{ current_user.username }}</span>
+            {% endif %}
+            <a href="/logout" class="sidebar-link sidebar-link-danger">Sign out</a>
+        </div>
+    </aside>
+
+    <main class="main-content">
+        <div class="pg-header">
+            <div class="pg-header-left">
+                <h1 class="pg-title">Tags</h1>
+                <p class="pg-subtitle">Organise tests by status, environment, application, and suite</p>
+            </div>
+        </div>
+
+        <div class="tags-page">
+            {% set cat_meta = {
+                'status':      ('Status',      'tcd-status',      'tag-status'),
+                'environment': ('Environment', 'tcd-environment', 'tag-environment'),
+                'application': ('Application', 'tcd-application', 'tag-application'),
+                'suite':       ('Test Suite',  'tcd-suite',       'tag-suite'),
+            } %}
+
+            {% for cat_key, cat_label in categories %}
+            {% set meta = cat_meta[cat_key] %}
+            {% set cat_tags = grouped[cat_key] %}
+            <div class="tags-category-card" id="card-{{ cat_key }}">
+                <div class="tags-category-header">
+                    <span class="tags-category-dot {{ meta[1] }}"></span>
+                    <span class="tags-category-name">{{ meta[0] }}</span>
+                    <span class="tags-category-count" id="count-{{ cat_key }}">{{ cat_tags|length }} tag{% if cat_tags|length != 1 %}s{% endif %}</span>
+                </div>
+                <div class="tags-category-body">
+                    <div class="tags-existing" id="tags-{{ cat_key }}">
+                        {% if cat_tags %}
+                            {% for tag in cat_tags %}
+                            <span class="tag-pill {{ meta[2] }}" id="tag-{{ tag.id }}">
+                                {{ tag.name }}
+                                <button class="tag-pill-del" onclick="deleteTag({{ tag.id }}, '{{ cat_key }}')" title="Remove tag">&times;</button>
+                            </span>
+                            {% endfor %}
+                        {% else %}
+                            <span class="tags-empty-msg" id="empty-{{ cat_key }}">No tags yet</span>
+                        {% endif %}
+                    </div>
+                    <div class="tags-add-row">
+                        <input type="text" class="tags-add-input" id="input-{{ cat_key }}"
+                               placeholder="Add a {{ meta[0]|lower }} tag…"
+                               onkeydown="if(event.key==='Enter') addTag('{{ cat_key }}', '{{ meta[2] }}')">
+                        <button class="btn btn-primary btn-sm" onclick="addTag('{{ cat_key }}', '{{ meta[2] }}')">Add</button>
+                    </div>
+                    <div id="status-{{ cat_key }}" style="font-size:.78rem;min-height:1em"></div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <script>
+            function addTag(category, pillClass) {
+                const input = document.getElementById('input-' + category);
+                const name = input.value.trim();
+                const statusEl = document.getElementById('status-' + category);
+                if (!name) return;
+
+                fetch('/api/tags', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, category })
+                })
+                .then(r => r.json())
+                .then(data => {
+                    if (!data.success) {
+                        statusEl.style.color = '#c62828';
+                        statusEl.textContent = data.error || 'Error';
+                        return;
+                    }
+                    statusEl.textContent = '';
+                    input.value = '';
+
+                    // Remove empty msg if present
+                    const emptyEl = document.getElementById('empty-' + category);
+                    if (emptyEl) emptyEl.remove();
+
+                    // Append new pill
+                    const container = document.getElementById('tags-' + category);
+                    const span = document.createElement('span');
+                    span.className = 'tag-pill ' + pillClass;
+                    span.id = 'tag-' + data.id;
+                    span.innerHTML = escHtml(data.name) +
+                        `<button class="tag-pill-del" onclick="deleteTag(${data.id},'${category}')" title="Remove tag">&times;</button>`;
+                    container.appendChild(span);
+                    updateCount(category);
+                })
+                .catch(err => { statusEl.style.color = '#c62828'; statusEl.textContent = 'Error: ' + err; });
+            }
+
+            function deleteTag(tagId, category) {
+                if (!confirm('Remove this tag? It will be unlinked from all tests.')) return;
+                fetch('/api/tags/' + tagId, { method: 'DELETE' })
+                .then(r => r.json())
+                .then(data => {
+                    if (!data.success) return;
+                    const el = document.getElementById('tag-' + tagId);
+                    if (el) el.remove();
+                    // Show empty msg if no tags left
+                    const container = document.getElementById('tags-' + category);
+                    if (!container.querySelector('.tag-pill')) {
+                        const msg = document.createElement('span');
+                        msg.className = 'tags-empty-msg';
+                        msg.id = 'empty-' + category;
+                        msg.textContent = 'No tags yet';
+                        container.appendChild(msg);
+                    }
+                    updateCount(category);
+                });
+            }
+
+            function updateCount(category) {
+                const container = document.getElementById('tags-' + category);
+                const n = container.querySelectorAll('.tag-pill').length;
+                document.getElementById('count-' + category).textContent = n + ' tag' + (n !== 1 ? 's' : '');
+            }
+
+            function escHtml(str) {
+                const d = document.createElement('div');
+                d.textContent = str;
+                return d.innerHTML;
+            }
+        </script>
+    </main>
+</div>
+</body>
+</html>

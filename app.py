@@ -219,6 +219,72 @@ def api_delete_variable(key):
     return jsonify({'success': True})
 
 
+@app.route('/tags')
+@login_required
+def tags_page():
+    team = get_current_team()
+    if not team:
+        flash('You must be part of a team to manage tags', 'error')
+        return redirect(url_for('index'))
+    all_tags = db.get_tags(team['id'])
+    categories = [
+        ('status',      'Status'),
+        ('environment', 'Environment'),
+        ('application', 'Application'),
+        ('suite',       'Test Suite'),
+    ]
+    grouped = {cat: [] for cat, _ in categories}
+    for tag in all_tags:
+        if tag['category'] in grouped:
+            grouped[tag['category']].append(tag)
+    return render_template('tags.html', grouped=grouped, categories=categories, team=team)
+
+
+@app.route('/api/tags', methods=['GET'])
+@login_required
+def api_get_tags():
+    team = get_current_team()
+    if not team:
+        return jsonify({'error': 'No team'}), 403
+    return jsonify(db.get_tags(team['id']))
+
+
+@app.route('/api/tags', methods=['POST'])
+@login_required
+def api_create_tag():
+    team = get_current_team()
+    if not team:
+        return jsonify({'error': 'No team'}), 403
+    data = request.json
+    name = (data.get('name') or '').strip()
+    category = (data.get('category') or '').strip()
+    if not name or category not in ('status', 'environment', 'application', 'suite'):
+        return jsonify({'error': 'Invalid name or category'}), 400
+    tag_id = db.create_tag(team['id'], name, category)
+    if tag_id is None:
+        return jsonify({'error': 'Tag already exists in this category'}), 409
+    return jsonify({'success': True, 'id': tag_id, 'name': name, 'category': category})
+
+
+@app.route('/api/tags/<int:tag_id>', methods=['DELETE'])
+@login_required
+def api_delete_tag(tag_id):
+    team = get_current_team()
+    if not team:
+        return jsonify({'error': 'No team'}), 403
+    db.delete_tag(tag_id, team['id'])
+    return jsonify({'success': True})
+
+
+@app.route('/api/tests/<int:test_id>/tags', methods=['GET'])
+@login_required
+def api_get_test_tags(test_id):
+    team = get_current_team()
+    if not team:
+        return jsonify({'error': 'No team'}), 403
+    return jsonify(db.get_test_tags(test_id))
+
+
 def _send_webhook(test_id, status):
     test = db.get_test(test_id)
     if not test or not test.get('webhook_enabled') or not test.get('webhook_url'):
@@ -468,7 +534,8 @@ def edit_test(test_id):
     test = db.get_test(test_id, team_id=team['id'] if team else None)
     if not test:
         return "Test not found", 404
-    return render_template('edit_test.html', test=test, team=team)
+    test_tags = db.get_test_tags(test_id)
+    return render_template('edit_test.html', test=test, team=team, test_tags=test_tags)
 
 @app.route('/api/tests/<int:test_id>', methods=['PUT'])
 @login_required
@@ -512,6 +579,10 @@ def update_test(test_id):
             wh.get('payload_success', ''),
             wh.get('payload_failure', '')
         )
+
+    tag_ids = data.get('tag_ids', [])
+    if isinstance(tag_ids, list):
+        db.set_test_tags(test_id, tag_ids)
 
     return jsonify({'success': True, 'test_id': test_id,
                     'message': f'Test "{name}" updated successfully'})

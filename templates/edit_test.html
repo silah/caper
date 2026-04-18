@@ -20,6 +20,7 @@
             <a href="/tests" class="sidebar-link active">Tests</a>
             <a href="/executions" class="sidebar-link">Executions</a>
             <a href="/health" class="sidebar-link">Health</a>
+            <a href="/tags" class="sidebar-link">Tags</a>
             <div class="sidebar-divider"></div>
             <a href="/create" class="sidebar-link">Create Test</a>
             <a href="/variables" class="sidebar-link">Variables</a>
@@ -101,6 +102,16 @@
                         <span>seconds</span>
                         <span style="font-size:.75rem;color:#999;margin-left:.25rem">(flag if slower)</span>
                     </div>
+                </div>
+            </div>
+
+            <!-- Tags -->
+            <div class="ed-card" id="tagsCard">
+                <div class="ed-card-label">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px;margin-right:5px"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>Tags
+                </div>
+                <div id="tagsBody" class="ed-tags-grid">
+                    <span style="color:#aaa;font-size:.82rem">Loading tags…</span>
                 </div>
             </div>
 
@@ -213,6 +224,7 @@
     <script>
         const testId = {{ test.id }};
         testSteps = {{ test.steps | tojson }};
+        const _currentTagIds = new Set({{ test_tags | map(attribute='id') | list | tojson }});
 
         /* ── Step table rendering ── */
         let _editingIndex = null;
@@ -444,6 +456,45 @@
             closeWebhookModal();
         }
 
+        // Load tags for the tags card
+        const _catMeta = {
+            status:      { label: 'Status',       cls: 'tag-status' },
+            environment: { label: 'Environment',   cls: 'tag-environment' },
+            application: { label: 'Application',   cls: 'tag-application' },
+            suite:       { label: 'Test Suite',    cls: 'tag-suite' },
+        };
+        fetch('/api/tags')
+        .then(r => r.json())
+        .then(data => {
+            const tagsBody = document.getElementById('tagsBody');
+            const tags = Array.isArray(data) ? data : (data.tags || []);
+            if (!tags.length) {
+                tagsBody.innerHTML = '<span style="color:#aaa;font-size:.82rem">No tags yet. <a href="/tags">Create tags</a> first.</span>';
+                return;
+            }
+            const byCategory = {};
+            tags.forEach(t => { (byCategory[t.category] = byCategory[t.category] || []).push(t); });
+            let html = '';
+            ['status','environment','application','suite'].forEach(cat => {
+                if (!byCategory[cat]) return;
+                const meta = _catMeta[cat];
+                html += `<div class="ed-tags-row"><span class="ed-tags-row-label">${meta.label}</span><div class="ed-tags-options">`;
+                byCategory[cat].forEach(tag => {
+                    const checked = _currentTagIds.has(tag.id) ? ' checked' : '';
+                    const uid = 'tc_' + tag.id;
+                    html += `<input type="checkbox" class="ed-tag-check" id="${uid}" value="${tag.id}"${checked}>` +
+                            `<label class="ed-tag-label" for="${uid}"><span class="tag-pill ${meta.cls}">${tag.name}</span></label>`;
+                });
+                html += `</div></div>`;
+            });
+            tagsBody.innerHTML = html;
+        })
+        .catch(() => { document.getElementById('tagsBody').innerHTML = ''; });
+
+        function _getSelectedTagIds() {
+            return [...document.querySelectorAll('.ed-tag-check:checked')].map(el => parseInt(el.value));
+        }
+
         // Override updateTest to include schedule + webhook
         function updateTest() {
             const name = document.getElementById('testName').value.trim();
@@ -466,6 +517,7 @@
                     webhook: _webhookData,
                     retry_count: retryCount,
                     sla_seconds: slaSecondsVal,
+                    tag_ids: _getSelectedTagIds(),
                 })
             })
             .then(r => r.json())
