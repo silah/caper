@@ -55,7 +55,7 @@
           {"type": "scroll_to",          "selectorType": "xpath",            "selector": "//div[@id='it-scroll-anchor']"},
           {"type": "wait",               "value": "1"},
 
-          {"type": "hover",              "selectorType": "text",             "selector": "Hover over me"},
+          {"type": "hover",              "selectorType": "text",             "selector": "it_hover_target"},
           {"type": "wait",               "value": "1"},
 
           {"type": "select",             "selectorType": "label",            "selector": "Select Country",         "selectBy": "text", "value": "United Kingdom"},
