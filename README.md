@@ -2,28 +2,35 @@
 
 Caper is a self-hosted synthetic browser testing platform. Write tests once through a web UI, schedule them to run on a cadence, and get instant visibility into whether your web application is behaving correctly — without managing test infrastructure or writing boilerplate code.
 
-Tests run in headless Firefox via Selenium. Every execution produces a video recording, screenshots, step-by-step results, and a HAR of network activity.
+Tests run in headless Firefox or Chrome via Playwright. Every execution produces a video recording, per-step screenshots, step-by-step results, and a full HAR of network activity.
 
 ---
 
 ## Features
 
 ### Test Authoring
-- **Visual step builder** — compose tests from a library of actions: navigate, click, type, wait, assert title, assert text, scroll, execute JavaScript, screenshot
+- **Visual step builder** — compose tests from a library of 25 actions: navigate, click, type, assert, scroll, drag-and-drop, file upload, and more
 - **Inline step editing** — edit any step in the table without leaving the page; drag to reorder
-- **Import from Splunk Synthetics** — paste a Splunk Synthetics JSON export and Caper maps the steps automatically
+- **Import from Splunk Synthetics** — paste a Splunk Synthetics JSON export and Caper maps the steps automatically; native Caper step JSON is also accepted directly
 - **Variables** — parameterise tests with `{{BASE_URL}}`, `{{PASSWORD}}` etc., stored per team and substituted at run time
+- **Tags** — label tests by status, environment, application, or suite for filtering and grouping
 
 ### Execution
-- **Headless Firefox** — tests run in an isolated Firefox process via GeckoDriver
-- **Video recording** — every run produces an MP4 assembled from screenshots captured at 4fps
-- **HAR capture** — network activity per step recorded using `window.performance`, no proxy required
+- **Multi-browser** — choose Firefox or Chrome per test; both run headless via Playwright's managed browser installs
+- **Video recording** — every run produces an MP4 via Playwright's native `record_video_dir`; no ffmpeg screen capture required for recording, only for final .webm → .mp4 conversion
+- **HAR capture** — full network trace recorded natively by Playwright (`record_har_path`); captures real status codes, headers, and timings without a proxy
+- **Per-step screenshots** — `page.screenshot()` called in the `finally` block of every step
 - **Retry on failure** — configure N automatic retries before a run is marked as failed
 - **SLA tracking** — flag runs that exceed a configured duration threshold
 
 ### Scheduling
 - **Automatic runs** — enable a schedule on any test and set an interval in minutes
-- **Scheduler heartbeat** — background thread logs a heartbeat every 5 minutes so you can confirm it's alive
+- **Scheduler heartbeat** — background thread logs a heartbeat every 10 ticks so you can confirm it's alive
+
+### Test Suites
+- **Suites** — group tests into an ordered collection and run them as a unit
+- **Stop on failure** — optionally halt a suite run when a test fails
+- **Suite execution history** — per-run view showing per-test pass/fail, duration, and error detail
 
 ### Observability
 - **Health dashboard** — one page showing the current pass/fail state of every test, with last run time, duration, SLA status, and next scheduled run; auto-refreshes every 30 seconds
@@ -49,14 +56,17 @@ docker compose up --build
 
 The app listens on port `5098`. Artefacts (videos, screenshots, HARs) and the SQLite database are persisted via volumes.
 
+Playwright browsers (Firefox and Chromium) are installed inside the image at build time via `playwright install --with-deps`. No separate browser or driver installation is needed.
+
 ## Running locally
 
 ```bash
 pip install -r requirements.txt
+playwright install --with-deps chromium firefox
 python app.py
 ```
 
-Requires Firefox and GeckoDriver on your `PATH`, and `ffmpeg` for video assembly.
+Requires `ffmpeg` on your `PATH` for .webm → .mp4 video conversion.
 
 ---
 
@@ -64,12 +74,13 @@ Requires Firefox and GeckoDriver on your `PATH`, and `ffmpeg` for video assembly
 
 ```
 caper/
-├── app.py                  # Flask routes, scheduler, subprocess runner
-├── database.py             # SQLite schema, migrations, all DB methods
-├── test_generator.py       # Generates Python/Selenium scripts from step JSON
-├── models.py               # Flask-Login user model
+├── app.py                      # Flask routes, scheduler, subprocess runner
+├── database.py                 # SQLite schema, migrations, all DB methods
+├── test_generator.py           # Generates Playwright scripts from step JSON
+├── models.py                   # Flask-Login user model
 ├── requirements.txt
 ├── Dockerfile
+├── internal_test_seed.json     # Importable test covering all actions and selectors
 ├── templates/
 │   ├── index.html
 │   ├── create_test.html
@@ -80,14 +91,21 @@ caper/
 │   ├── health.html
 │   ├── compare.html
 │   ├── variables.html
+│   ├── tags.html
+│   ├── suites.html
+│   ├── suite_detail.html
+│   ├── suite_executions.html
+│   ├── suite_execution_detail.html
+│   ├── internal_testing.html   # /internal-testing test-bed page
+│   ├── internal_testing_p2.html
 │   ├── log.html
 │   ├── login.html
 │   └── register.html
 └── static/
     ├── css/style.css
     └── js/
-        ├── app.js          # Step builder, create/edit form logic
-        └── har-viewer.js   # Screenshot gallery, HAR renderer, modal
+        ├── app.js              # Step builder, create/edit form logic
+        └── har-viewer.js       # Screenshot gallery, HAR renderer, modal
 ```
 
 ---
@@ -99,26 +117,59 @@ caper/
 | `navigate` | Load a URL |
 | `click` | Click an element |
 | `double_click` | Double-click an element |
-| `type` | Type text into an input |
+| `right_click` | Right-click an element |
+| `type` | Fill an input (replaces existing value atomically) |
 | `clear` | Clear an input field |
-| `select` | Choose an option from a `<select>` dropdown (by visible text, value, or index) |
-| `key_press` | Send a key (Enter, Tab, Escape, Arrow keys, etc.) to an element or the focused element |
+| `check` | Check a checkbox or radio button |
+| `uncheck` | Uncheck a checkbox |
+| `select` | Choose an option from a `<select>` dropdown (by text, value, or index) |
+| `key_press` | Send a key (Enter, Tab, Escape, Arrow keys, etc.) to an element or focused element |
 | `hover` | Move the mouse over an element |
+| `drag_and_drop` | Drag a source element onto a target element |
+| `upload_file` | Set a file on a file input (`<input type="file">`) |
 | `wait` | Pause for N seconds |
 | `wait_for_element` | Wait up to N seconds for an element to become visible |
-| `execute_js` | Run arbitrary JavaScript |
-| `screenshot` | Mark a screenshot point (continuous capture always active) |
+| `wait_for_load_state` | Wait for the page to reach `load`, `domcontentloaded`, or `networkidle` |
+| `execute_js` | Run arbitrary JavaScript via `page.evaluate()` |
+| `screenshot` | Capture an explicit screenshot at this point in the test |
 | `scroll_to` | Scroll an element into view |
 | `assert_title` | Assert the page title contains a string |
-| `assert_text` | Assert an element's text contains a string |
+| `assert_text` | Assert an element's text content contains a string |
+| `assert_value` | Assert an input's current value contains a string |
 | `assert_visible` | Assert an element is present and visible |
+| `assert_hidden` | Assert an element is not visible (hidden or removed from DOM) |
 | `assert_url` | Assert the current URL contains a string |
 
-Selectors support: CSS, ID, XPath, Name, Class, Tag, Link Text, Partial Link Text, JSPath, ARIA label.
+---
 
-**JSPath** — supply a JavaScript expression that returns a DOM element (e.g. `document.querySelector('.btn')`). Caper polls the expression until it returns a non-null value (10 s default).
+## Supported Selector Types
 
-**ARIA** — supply the `aria-label` value; Caper converts it to `[aria-label="value"]` CSS at run time.
+| Type | Resolved via | Example value |
+|---|---|---|
+| `css` | `page.locator(value)` | `#submit-btn`, `.card:first-child` |
+| `id` | `page.locator('[id="value"]')` | `submit-btn` |
+| `xpath` | `page.locator('xpath=value')` | `//button[@type='submit']` |
+| `name` | `page.locator('[name="value"]')` | `email` |
+| `class` | `page.locator('.value')` | `btn-primary` |
+| `tag` | `page.locator('value')` | `button`, `meter` |
+| `link_text` | `page.locator('a:text-is("value")')` | `Sign in` |
+| `partial_link_text` | `page.locator('a:has-text("value")')` | `Sign` |
+| `aria` | `page.locator('[aria-label="value"]')` | `close-modal` |
+| `text` | `page.get_by_text(value)` | `Submit` |
+| `label` | `page.get_by_label(value)` | `Email address` |
+| `placeholder` | `page.get_by_placeholder(value)` | `Enter your email` |
+| `role` | `page.get_by_role(role, name=name)` | `button:Submit` |
+| `jspath` | `page.evaluate_handle('() => (value)')` | `document.querySelector('.btn')` |
+
+Selectors are strict by default — if a locator resolves to more than one element the step fails, which catches ambiguous selectors early.
+
+**role** format: `role:accessible-name`, e.g. `button:Submit` or `textbox:Email`.
+
+---
+
+## Internal Test Bed
+
+`/internal-testing` is a built-in page designed to validate every step action and every selector type. Import `internal_test_seed.json` via the Tests → Import button to create a ready-made test that exercises all 25 actions and all 14 selector types in a single run. Set `INT_TEST_USER` and `INT_TEST_PW` as team variables before running.
 
 ---
 
@@ -128,8 +179,6 @@ See [feature-suggestions.md](feature-suggestions.md) for the full backlog. Key i
 
 - **Email / Slack alerts** on test failure
 - **Record mode** — capture a real browser session as test steps automatically
-- **Test suites** — group tests and run them as a unit
 - **Test history charts** — pass/fail rate over time per test
-- **Tags and filtering** — organise tests with labels
 - **Audit log** — track who changed what and when
 - **Per-test environment overrides** — run the same test against staging and production
