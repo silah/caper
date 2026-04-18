@@ -879,7 +879,11 @@ class Database:
             WHERE st.suite_id = ?
             ORDER BY st.position
         ''', (suite_id,))
-        suite['tests'] = [dict(r) for r in cursor.fetchall()]
+        tests = [dict(r) for r in cursor.fetchall()]
+        for t in tests:
+            if isinstance(t.get('script'), bytes):
+                t['script'] = t['script'].decode('utf-8')
+        suite['tests'] = tests
         conn.close()
         return suite
 
