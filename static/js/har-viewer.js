@@ -172,12 +172,18 @@ function renderStepResults(steps, artefactDir) {
     if (!steps || !steps.length) {
         return '<p class="no-steps">No step results available.</p>';
     }
-    return steps.map(s => {
-        const stepNum = String(s.step).padStart(3, '0');
-        const harUrl  = artefactDir
-            ? `/artefacts/${artefactDir}/hars/step_${stepNum}.har`
-            : '';
+    const traceHarUrl = artefactDir
+        ? `/artefacts/${artefactDir}/hars/trace.har`
+        : '';
 
+    const harBlock = traceHarUrl
+        ? `<details class="har-details" data-har-url="${traceHarUrl}" style="margin-bottom:12px">
+               <summary>Network requests (full trace)</summary>
+               <div class="har-container"></div>
+           </details>`
+        : '';
+
+    const stepRows = steps.map(s => {
         return `<div class="step-result step-result-${s.status}">
             <div class="step-result-header">
                 <span class="step-number">Step ${s.step}</span>
@@ -185,10 +191,8 @@ function renderStepResults(steps, artefactDir) {
                 <span class="status-badge status-${s.status}">${s.status}</span>
             </div>
             <div class="step-result-message">${escHtml(s.message || '')}</div>
-            ${harUrl ? `<details class="har-details" data-har-url="${harUrl}">
-                <summary>Network requests</summary>
-                <div class="har-container"></div>
-            </details>` : ''}
         </div>`;
     }).join('');
+
+    return harBlock + stepRows;
 }
