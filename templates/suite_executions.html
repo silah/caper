@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Suite Runs - Caper</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+<div class="app-shell">
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <div class="sidebar-brand">
+                <span class="sidebar-brand-name">Caper</span>
+                <span class="sidebar-brand-dot"></span>
+            </div>
+        </div>
+        <nav class="sidebar-nav">
+            <a href="/" class="sidebar-link">Home</a>
+            <a href="/tests" class="sidebar-link">Tests</a>
+            <a href="/executions" class="sidebar-link">Executions</a>
+            <a href="/health" class="sidebar-link">Health</a>
+            <a href="/tags" class="sidebar-link">Tags</a>
+            <a href="/suites" class="sidebar-link">Suites</a>
+            <a href="/suite-executions" class="sidebar-link active">Suite Runs</a>
+            <div class="sidebar-divider"></div>
+            <a href="/create" class="sidebar-link">Create Test</a>
+            <a href="/variables" class="sidebar-link">Variables</a>
+            <a href="/logs" class="sidebar-link">Log</a>
+        </nav>
+        <div class="sidebar-footer">
+            {% if current_user.is_authenticated %}
+            <span class="sidebar-user">{{ current_user.username }}</span>
+            {% endif %}
+            <a href="/logout" class="sidebar-link sidebar-link-danger">Sign out</a>
+        </div>
+    </aside>
+
+    <main class="main-content">
+        <div class="pg-header">
+            <div class="pg-header-left">
+                <h1 class="pg-title">Suite Runs</h1>
+                <p class="pg-subtitle">History of all suite executions</p>
+            </div>
+        </div>
+
+        {% if executions %}
+        <div class="tov-table-wrap" style="max-width:900px">
+            <table class="tov-table">
+                <thead>
+                    <tr>
+                        <th>Suite</th>
+                        <th>Status</th>
+                        <th>Date</th>
+                        <th>Duration</th>
+                        <th>Tests</th>
+                        <th class="tov-th-actions"></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for ex in executions %}
+                    <tr class="tov-row">
+                        <td class="tov-name">
+                            <a href="/suites/{{ ex.suite_id }}" class="tov-name-link">{{ ex.suite_name }}</a>
+                        </td>
+                        <td>
+                            <span class="suite-exec-badge suite-exec-{{ ex.status }}">{{ ex.status }}</span>
+                        </td>
+                        <td class="tov-last-run">
+                            <span class="tov-date">{{ ex.started_at[:16] if ex.started_at else '—' }}</span>
+                        </td>
+                        <td class="tov-schedule">
+                            {% if ex.duration_seconds %}
+                            <span>{{ '%.1f'|format(ex.duration_seconds) }}s</span>
+                            {% else %}
+                            <span class="tov-none">—</span>
+                            {% endif %}
+                        </td>
+                        <td class="tov-count">
+                            {% if ex.test_count %}
+                            <span class="{% if ex.status == 'success' %}sre-pass{% elif ex.status == 'error' %}sre-fail{% endif %}">
+                                {{ ex.pass_count or 0 }}/{{ ex.test_count }} passed
+                            </span>
+                            {% else %}—{% endif %}
+                        </td>
+                        <td class="tov-row-actions">
+                            <a href="/suite-executions/{{ ex.id }}" class="tov-btn tov-btn-view">Details</a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="tov-empty">
+            <p>No suite runs yet</p>
+            <a href="/suites" class="btn btn-primary">Go to Suites</a>
+        </div>
+        {% endif %}
+    </main>
+</div>
+</body>
+</html>

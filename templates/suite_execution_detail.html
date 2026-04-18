@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Suite Run — {{ ex.suite_name }} - Caper</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+<div class="app-shell">
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <div class="sidebar-brand">
+                <span class="sidebar-brand-name">Caper</span>
+                <span class="sidebar-brand-dot"></span>
+            </div>
+        </div>
+        <nav class="sidebar-nav">
+            <a href="/" class="sidebar-link">Home</a>
+            <a href="/tests" class="sidebar-link">Tests</a>
+            <a href="/executions" class="sidebar-link">Executions</a>
+            <a href="/health" class="sidebar-link">Health</a>
+            <a href="/tags" class="sidebar-link">Tags</a>
+            <a href="/suites" class="sidebar-link">Suites</a>
+            <a href="/suite-executions" class="sidebar-link active">Suite Runs</a>
+            <div class="sidebar-divider"></div>
+            <a href="/create" class="sidebar-link">Create Test</a>
+            <a href="/variables" class="sidebar-link">Variables</a>
+            <a href="/logs" class="sidebar-link">Log</a>
+        </nav>
+        <div class="sidebar-footer">
+            {% if current_user.is_authenticated %}
+            <span class="sidebar-user">{{ current_user.username }}</span>
+            {% endif %}
+            <a href="/logout" class="sidebar-link sidebar-link-danger">Sign out</a>
+        </div>
+    </aside>
+
+    <main class="main-content">
+        <div class="pg-header">
+            <div class="pg-header-left">
+                <a href="/suite-executions" class="pg-back">← Suite Runs</a>
+                <h1 class="pg-title">{{ ex.suite_name }}</h1>
+                <p class="pg-subtitle">
+                    <span class="suite-exec-badge suite-exec-{{ ex.status }}">{{ ex.status }}</span>
+                    &nbsp;{{ ex.started_at[:16] if ex.started_at else '' }}
+                    {% if ex.duration_seconds %}&nbsp;&mdash;&nbsp;{{ '%.1f'|format(ex.duration_seconds) }}s total{% endif %}
+                </p>
+            </div>
+            <div class="pg-actions">
+                <a href="/suites/{{ ex.suite_id }}" class="btn btn-secondary">View Suite</a>
+            </div>
+        </div>
+
+        <div class="sed-list">
+            {% for t in ex.tests %}
+            <div class="sed-test-card sed-test-{{ t.status or 'running' }}">
+                <div class="sed-test-header">
+                    <span class="sed-test-num">{{ loop.index }}</span>
+                    <span class="sed-test-name">
+                        {% if t.test_id %}
+                        <a href="/test/{{ t.test_id }}" class="sed-test-link">{{ t.test_name or 'Unknown test' }}</a>
+                        {% else %}
+                        {{ t.test_name or 'Unknown test' }}
+                        {% endif %}
+                    </span>
+                    <span class="suite-exec-badge suite-exec-{{ t.status or 'running' }}">{{ t.status or 'running' }}</span>
+                    {% if t.exec_duration %}
+                    <span class="sed-test-dur">{{ '%.1f'|format(t.exec_duration) }}s</span>
+                    {% endif %}
+                    {% if t.execution_id %}
+                    <a href="/test/{{ t.test_id }}" class="sed-exec-link tov-btn tov-btn-view">Full execution</a>
+                    {% endif %}
+                </div>
+
+                {% if t.status != 'success' %}
+                <div class="sed-failure-body">
+
+                    {% if t.steps_parsed %}
+                    <div class="sed-steps">
+                        {% for step in t.steps_parsed %}
+                        <div class="sed-step sed-step-{{ step.status }}">
+                            <div class="sed-step-header">
+                                <span class="sed-step-num">Step {{ step.step }}</span>
+                                <span class="sed-step-action">{{ step.action | upper }}</span>
+                                <span class="status-badge status-{{ step.status }}">{{ step.status }}</span>
+                            </div>
+                            {% if step.message %}
+                            <div class="sed-step-msg">{{ step.message }}</div>
+                            {% endif %}
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+
+                    {% if t.error and t.error.strip() %}
+                    <details class="sed-error-details" {% if not t.steps_parsed %}open{% endif %}>
+                        <summary>Error output</summary>
+                        <pre class="sed-error-pre">{{ t.error }}</pre>
+                    </details>
+                    {% endif %}
+
+                </div>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+    </main>
+</div>
+</body>
+</html>

@@ -992,16 +992,44 @@ class Database:
     def get_suite_execution(self, suite_execution_id):
         conn = self.get_connection()
         cursor = conn.cursor()
-        cursor.execute('SELECT * FROM suite_executions WHERE id = ?', (suite_execution_id,))
+        cursor.execute('''
+            SELECT se.*, s.name as suite_name, s.id as suite_id_ref
+            FROM suite_executions se
+            LEFT JOIN suites s ON s.id = se.suite_id
+            WHERE se.id = ?
+        ''', (suite_execution_id,))
         row = cursor.fetchone()
         if not row:
             conn.close()
             return None
         ex = dict(row)
-        cursor.execute(
-            'SELECT * FROM suite_execution_tests WHERE suite_execution_id = ? ORDER BY position',
-            (suite_execution_id,)
-        )
+        cursor.execute('''
+            SELECT set.*, e.error, e.step_results, e.output,
+                   e.duration_seconds as exec_duration, e.artefact_dir, e.sla_violated
+            FROM suite_execution_tests set
+            LEFT JOIN executions e ON e.id = set.execution_id
+            WHERE set.suite_execution_id = ?
+            ORDER BY set.position
+        ''', (suite_execution_id,))
         ex['tests'] = [dict(r) for r in cursor.fetchall()]
         conn.close()
         return ex
+
+    def get_all_suite_executions(self, team_id, limit=50):
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        cursor.execute('''
+            SELECT se.*, s.name as suite_name,
+                COUNT(set.id) as test_count,
+                SUM(CASE WHEN set.status = 'success' THEN 1 ELSE 0 END) as pass_count
+            FROM suite_executions se
+            JOIN suites s ON s.id = se.suite_id
+            LEFT JOIN suite_execution_tests set ON set.suite_execution_id = se.id
+            WHERE se.team_id = ?
+            GROUP BY se.id
+            ORDER BY se.started_at DESC
+            LIMIT ?
+        ''', (team_id, limit))
+        executions = [dict(row) for row in cursor.fetchall()]
+        conn.close()
+        return executions

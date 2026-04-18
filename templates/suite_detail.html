@@ -104,7 +104,7 @@
             </div>
             <div class="suite-exec-history">
                 {% for ex in executions %}
-                <div class="suite-exec-row suite-exec-row-{{ ex.status }}">
+                <a href="/suite-executions/{{ ex.id }}" class="suite-exec-row suite-exec-row-{{ ex.status }} suite-exec-row-link">
                     <div class="suite-exec-row-left">
                         <span class="suite-exec-badge suite-exec-{{ ex.status }}">{{ ex.status }}</span>
                         <span class="suite-exec-time">{{ ex.started_at[:16] if ex.started_at else '—' }}</span>
@@ -118,15 +118,7 @@
                               title="{{ t.test_name or 'Unknown' }}: {{ t.status or 'running' }}"></span>
                         {% endfor %}
                     </div>
-                    <div class="suite-exec-row-links">
-                        {% for t in ex.tests %}
-                        {% if t.execution_id %}
-                        <a href="/test/{{ t.test_id }}#exec-{{ t.execution_id }}" class="suite-exec-test-link"
-                           title="{{ t.test_name }}">{{ t.test_name }}</a>
-                        {% endif %}
-                        {% endfor %}
-                    </div>
-                </div>
+                </a>
                 {% endfor %}
             </div>
         </div>

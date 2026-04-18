@@ -415,6 +415,34 @@ def api_suite_execution_status(suite_execution_id):
                     'tests': ex['tests']})
 
 
+@app.route('/suite-executions')
+@login_required
+def suite_executions_page():
+    team = get_current_team()
+    if not team:
+        return redirect(url_for('index'))
+    executions = db.get_all_suite_executions(team['id'])
+    return render_template('suite_executions.html', executions=executions, team=team)
+
+
+@app.route('/suite-executions/<int:suite_execution_id>')
+@login_required
+def suite_execution_detail(suite_execution_id):
+    team = get_current_team()
+    ex = db.get_suite_execution(suite_execution_id)
+    if not ex:
+        return "Suite execution not found", 404
+    for t in ex['tests']:
+        if t.get('step_results'):
+            try:
+                t['steps_parsed'] = json.loads(t['step_results'])
+            except Exception:
+                t['steps_parsed'] = []
+        else:
+            t['steps_parsed'] = []
+    return render_template('suite_execution_detail.html', ex=ex, team=team)
+
+
 def _send_webhook(test_id, status):
     test = db.get_test(test_id)
     if not test or not test.get('webhook_enabled') or not test.get('webhook_url'):
