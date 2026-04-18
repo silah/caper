@@ -354,12 +354,14 @@ function saveTest() {
         return;
     }
     
+    const browserEl = document.querySelector('input[name="browserChoice"]:checked');
     const data = {
         name: name,
         description: description,
-        steps: testSteps
+        steps: testSteps,
+        browser: browserEl ? browserEl.value : 'firefox',
     };
-    
+
     fetch('/api/tests', {
         method: 'POST',
         headers: {

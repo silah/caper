@@ -107,6 +107,25 @@
                 </div>
             </div>
 
+            <!-- Browser -->
+            <div class="ed-card">
+                <div class="ed-card-label">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px;margin-right:5px"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>Browser
+                </div>
+                <div class="ed-schedule-row">
+                    <label class="ed-method-opt">
+                        <input type="radio" name="browserChoice" value="firefox"
+                               {% if not test.browser or test.browser == 'firefox' %}checked{% endif %}>
+                        <span>Firefox</span>
+                    </label>
+                    <label class="ed-method-opt">
+                        <input type="radio" name="browserChoice" value="chrome"
+                               {% if test.browser == 'chrome' %}checked{% endif %}>
+                        <span>Chrome</span>
+                    </label>
+                </div>
+            </div>
+
             <!-- Tags -->
             <div class="ed-card" id="tagsCard">
                 <div class="ed-card-label">
@@ -520,6 +539,7 @@
                     retry_count: retryCount,
                     sla_seconds: slaSecondsVal,
                     tag_ids: _getSelectedTagIds(),
+                    browser: document.querySelector('input[name="browserChoice"]:checked')?.value || 'firefox',
                 })
             })
             .then(r => r.json())

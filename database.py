@@ -194,6 +194,8 @@ class Database:
              "ALTER TABLE tests ADD COLUMN retry_count INTEGER DEFAULT 0"),
             ("SELECT sla_seconds FROM tests LIMIT 1",
              "ALTER TABLE tests ADD COLUMN sla_seconds INTEGER DEFAULT NULL"),
+            ("SELECT browser FROM tests LIMIT 1",
+             "ALTER TABLE tests ADD COLUMN browser TEXT DEFAULT 'firefox'"),
             ("SELECT duration_seconds FROM executions LIMIT 1",
              None),  # multi-column, handled below
         ]
@@ -392,14 +394,15 @@ class Database:
         conn.commit()
         conn.close()
 
-    def create_test(self, name, description, steps, script, team_id, retry_count=0, sla_seconds=None):
+    def create_test(self, name, description, steps, script, team_id, retry_count=0,
+                    sla_seconds=None, browser='firefox'):
         conn = self.get_connection()
         cursor = conn.cursor()
         cursor.execute('''
-            INSERT INTO tests (name, description, steps, script, team_id, retry_count, sla_seconds)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO tests (name, description, steps, script, team_id, retry_count, sla_seconds, browser)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         ''', (name, description, json.dumps(steps), script.encode('utf-8'), team_id,
-              retry_count or 0, sla_seconds))
+              retry_count or 0, sla_seconds, browser or 'firefox'))
         test_id = cursor.lastrowid
         conn.commit()
         conn.close()
@@ -456,7 +459,7 @@ class Database:
                        schedule_interval, schedule_enabled, schedule_next_run,
                        webhook_enabled, webhook_url, webhook_method,
                        webhook_payload_success, webhook_payload_failure,
-                       retry_count, sla_seconds
+                       retry_count, sla_seconds, browser
                 FROM tests WHERE id = ? AND team_id = ?
             ''', (test_id, team_id))
         else:
@@ -465,7 +468,7 @@ class Database:
                        schedule_interval, schedule_enabled, schedule_next_run,
                        webhook_enabled, webhook_url, webhook_method,
                        webhook_payload_success, webhook_payload_failure,
-                       retry_count, sla_seconds
+                       retry_count, sla_seconds, browser
                 FROM tests WHERE id = ?
             ''', (test_id,))
         row = cursor.fetchone()
@@ -697,23 +700,23 @@ class Database:
         return tests
 
     def update_test(self, test_id, name, description, steps, script, team_id=None,
-                    retry_count=0, sla_seconds=None):
+                    retry_count=0, sla_seconds=None, browser='firefox'):
         conn = self.get_connection()
         cursor = conn.cursor()
         if team_id:
             cursor.execute('''
                 UPDATE tests SET name = ?, description = ?, steps = ?, script = ?,
-                    retry_count = ?, sla_seconds = ?
+                    retry_count = ?, sla_seconds = ?, browser = ?
                 WHERE id = ? AND team_id = ?
             ''', (name, description, json.dumps(steps), script.encode('utf-8'),
-                  retry_count or 0, sla_seconds, test_id, team_id))
+                  retry_count or 0, sla_seconds, browser or 'firefox', test_id, team_id))
         else:
             cursor.execute('''
                 UPDATE tests SET name = ?, description = ?, steps = ?, script = ?,
-                    retry_count = ?, sla_seconds = ?
+                    retry_count = ?, sla_seconds = ?, browser = ?
                 WHERE id = ?
             ''', (name, description, json.dumps(steps), script.encode('utf-8'),
-                  retry_count or 0, sla_seconds, test_id))
+                  retry_count or 0, sla_seconds, browser or 'firefox', test_id))
         conn.commit()
         conn.close()
 

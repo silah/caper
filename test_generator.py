@@ -70,7 +70,7 @@ _JSPATH_HELPER = [
 ]
 
 
-def generate_selenium_script(steps, test_name='test', base_artefacts_dir=None):
+def generate_selenium_script(steps, test_name='test', base_artefacts_dir=None, browser='firefox'):
     if base_artefacts_dir is None:
         base_artefacts_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'artefacts')
 
@@ -83,8 +83,13 @@ def generate_selenium_script(steps, test_name='test', base_artefacts_dir=None):
         "from selenium.webdriver.support.ui import WebDriverWait, Select",
         "from selenium.webdriver.support import expected_conditions as EC",
         "from selenium.webdriver.common.action_chains import ActionChains",
-        "from selenium.webdriver.firefox.options import Options",
-        "from selenium.webdriver.firefox.service import Service",
+        *( [
+            "from selenium.webdriver.firefox.options import Options",
+            "from selenium.webdriver.firefox.service import Service",
+        ] if browser != 'chrome' else [
+            "from selenium.webdriver.chrome.options import Options",
+            "from selenium.webdriver.chrome.service import Service",
+        ] ),
         "import shutil",
         "import time",
         "import json",
@@ -147,15 +152,32 @@ def generate_selenium_script(steps, test_name='test', base_artefacts_dir=None):
         "    os.makedirs(video_dir, exist_ok=True)",
         "    print('ARTEFACT_DIR:', os.path.join(_name, _ts))",
         "",
-        "    firefox_options = Options()",
-        "    firefox_options.add_argument('--headless')",
-        "    _gecko = shutil.which('geckodriver')",
-        "    if _gecko:",
-        "        service = Service(_gecko)",
-        "    else:",
-        "        from webdriver_manager.firefox import GeckoDriverManager",
-        "        service = Service(GeckoDriverManager().install())",
-        "    driver = webdriver.Firefox(service=service, options=firefox_options)",
+        *( [
+            "    firefox_options = Options()",
+            "    firefox_options.add_argument('--headless')",
+            "    _gecko = shutil.which('geckodriver')",
+            "    if _gecko:",
+            "        service = Service(_gecko)",
+            "    else:",
+            "        from webdriver_manager.firefox import GeckoDriverManager",
+            "        service = Service(GeckoDriverManager().install())",
+            "    driver = webdriver.Firefox(service=service, options=firefox_options)",
+        ] if browser != 'chrome' else [
+            "    chrome_options = Options()",
+            "    chrome_options.add_argument('--headless=new')",
+            "    chrome_options.add_argument('--no-sandbox')",
+            "    chrome_options.add_argument('--disable-dev-shm-usage')",
+            "    _chrome = shutil.which('google-chrome-stable') or shutil.which('google-chrome') or shutil.which('chromium-browser') or shutil.which('chromium')",
+            "    if _chrome:",
+            "        chrome_options.binary_location = _chrome",
+            "    _chromedriver = shutil.which('chromedriver')",
+            "    if _chromedriver:",
+            "        service = Service(_chromedriver)",
+            "    else:",
+            "        from webdriver_manager.chrome import ChromeDriverManager",
+            "        service = Service(ChromeDriverManager().install())",
+            "    driver = webdriver.Chrome(service=service, options=chrome_options)",
+        ] ),
         "    step_results = []",
         "",
         "    _ss_counter = [0]",

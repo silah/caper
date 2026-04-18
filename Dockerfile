@@ -35,6 +35,17 @@ RUN wget -qO /tmp/geckodriver.tar.gz \
     && chmod +x /usr/local/bin/geckodriver \
     && rm /tmp/geckodriver.tar.gz
 
+# Chrome + ChromeDriver — use Google's stable .deb (avoids Ubuntu 22.04 snap redirect)
+RUN apt-get update && apt-get install -y \
+    libglib2.0-0 libgbm1 libxshmfence1 libatk1.0-0 libatk-bridge2.0-0 \
+    libcups2 libdrm2 libxkbcommon0 libxcomposite1 libxdamage1 libxfixes3 \
+    libxrandr2 libpango-1.0-0 libcairo2 libasound2 libatspi2.0-0 \
+    && wget -qO /tmp/chrome.deb \
+        "https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb" \
+    && apt-get install -y /tmp/chrome.deb \
+    && rm /tmp/chrome.deb \
+    && rm -rf /var/lib/apt/lists/*
+
 WORKDIR /app
 
 COPY requirements.txt .

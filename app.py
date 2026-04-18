@@ -592,8 +592,10 @@ def create_test():
     steps = data.get('steps', [])
     if not name or not steps:
         return jsonify({'error': 'Name and steps are required'}), 400
-    script = generate_selenium_script(steps, test_name=name, base_artefacts_dir=BASE_ARTEFACTS_DIR)
-    test_id = db.create_test(name, description, steps, script, team['id'])
+    browser = data.get('browser', 'firefox') if data.get('browser') in ('firefox', 'chrome') else 'firefox'
+    script = generate_selenium_script(steps, test_name=name, base_artefacts_dir=BASE_ARTEFACTS_DIR,
+                                      browser=browser)
+    test_id = db.create_test(name, description, steps, script, team['id'], browser=browser)
     return jsonify({'success': True, 'test_id': test_id,
                     'message': f'Test "{name}" created successfully'})
 
@@ -708,7 +710,9 @@ def update_test(test_id):
     if not name or not steps:
         return jsonify({'error': 'Name and steps are required'}), 400
 
-    script = generate_selenium_script(steps, test_name=name, base_artefacts_dir=BASE_ARTEFACTS_DIR)
+    browser = data.get('browser', 'firefox') if data.get('browser') in ('firefox', 'chrome') else 'firefox'
+    script = generate_selenium_script(steps, test_name=name, base_artefacts_dir=BASE_ARTEFACTS_DIR,
+                                      browser=browser)
 
     try:
         retry_count = max(0, int(data.get('retry_count') or 0))
@@ -721,7 +725,7 @@ def update_test(test_id):
         sla_seconds = None
 
     db.update_test(test_id, name, description, steps, script, team['id'],
-                   retry_count=retry_count, sla_seconds=sla_seconds)
+                   retry_count=retry_count, sla_seconds=sla_seconds, browser=browser)
 
     sched = data.get('schedule', {})
     if sched:
