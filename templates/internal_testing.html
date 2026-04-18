@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Internal Testing - Caper</title>
+    <style>
+        body { font-family: monospace; margin: 20px; background: #fff; color: #111; }
+        h1 { margin: 0 0 4px 0; }
+        .it-section { border: 1px solid #999; margin: 6px 0; padding: 8px; }
+        .it-section h3 { margin: 0 0 5px 0; font-size: 0.9em; background: #f0f0f0; padding: 3px 6px; }
+        .it-status { font-size: 0.8em; color: #888; margin-left: 8px; }
+        .it-status.pass { color: green; font-weight: bold; }
+        /* hover tooltip */
+        .it-tooltip { display: none; border: 1px solid #333; padding: 2px 6px; background: #ffffd0; }
+        .it-hover-el:hover .it-tooltip { display: inline; }
+        /* drag */
+        .it-drag-item { border: 2px dashed blue; padding: 6px; display: inline-block; cursor: grab; margin-right: 8px; background: #e8f0ff; }
+        .it-drop-zone { border: 2px dashed green; padding: 12px; min-width: 100px; display: inline-block; vertical-align: top; }
+        .it-drop-zone.it-drag-over { background: #e0ffe0; }
+        /* context menu */
+        #it-context-menu { position: fixed; background: white; border: 1px solid #999; padding: 4px 8px; z-index: 9999; display: none; font-family: monospace; }
+        /* status summary */
+        #it-summary { font-size: 0.8em; border: 2px solid #333; padding: 8px; margin-bottom: 10px; }
+        #it-summary .pass { color: green; } #it-summary .fail { color: red; }
+    </style>
+</head>
+<body>
+<h1>Caper Internal Testing Ground — Page 1</h1>
+<p>
+    <strong>assert_title target:</strong> <code>Internal Testing - Caper</code> &nbsp;|&nbsp;
+    <strong>assert_url target:</strong> <code>internal-testing</code>
+</p>
+
+<!-- Nav links — link_text, partial_link_text targets -->
+<p id="it-nav-links">
+    <a id="it-home-link"     class="it-link-text-el"    name="it-home-link"     aria-label="home-link"     href="#top">Internal Testing Home</a>
+    &nbsp;|&nbsp;
+    <a id="it-docs-link"     class="it-partial-link-el" name="it-docs-link"     aria-label="docs-link"     href="#s-scroll-to">View Documentation Section</a>
+    &nbsp;|&nbsp;
+    <a id="it-dblclick-link" class="it-dblclick-link"   name="it-dblclick-link" aria-label="dblclick-link" href="javascript:void(0)">Double Click Here</a>
+    &nbsp;|&nbsp;
+    <a href="/internal-testing/p2" id="it-p2-link" aria-label="p2-link">Go to Page 2 &rarr;</a>
+</p>
+
+<!-- Meter — only <meter> element on page; targeted by `tag:meter` selector -->
+<p>
+    <meter id="it-meter-el" class="it-meter" name="it-meter" aria-label="progress-meter"
+           value="0.6" min="0" max="1">60%</meter>
+    <span style="font-size:0.8em">(targeted by tag selector: <code>meter</code>)</span>
+</p>
+
+<!-- Status summary + reset -->
+<div id="it-summary">
+    <strong>Step status:</strong>
+    <span id="sum-click">click:?</span> |
+    <span id="sum-type">type:?</span> |
+    <span id="sum-select">select:?</span> |
+    <span id="sum-keypress">keypress:?</span> |
+    <span id="sum-dblclick">dblclick:?</span> |
+    <span id="sum-rightclick">rightclick:?</span> |
+    <span id="sum-check">check:?</span> |
+    <span id="sum-uncheck">uncheck:?</span> |
+    <span id="sum-clear">clear:?</span> |
+    <span id="sum-upload">upload:?</span> |
+    <span id="sum-drag">drag:?</span> |
+    <span id="sum-delayed">delayed:?</span>
+    &nbsp;&nbsp;
+    <button onclick="resetAll()">Reset All</button>
+</div>
+
+<hr>
+
+<!-- ════ CLICK ════ -->
+<div id="s-click" class="it-section">
+    <h3>click — selector: <code>id → it-click-btn</code></h3>
+    <button id="it-click-btn" class="it-btn it-click-btn" name="it-click-btn" aria-label="click-button">Click Me</button>
+    <span class="it-status" id="status-click">not clicked</span>
+</div>
+
+<!-- ════ TYPE ════ -->
+<div id="s-type" class="it-section">
+    <h3>type — selector: <code>placeholder → "Type something here"</code></h3>
+    <input type="text" id="it-type-input" class="it-type-input" name="it-type-name"
+           aria-label="type-input-field" placeholder="Type something here">
+    <span class="it-status" id="status-type">waiting for input</span>
+</div>
+
+<!-- ════ ASSERT TEXT ════ -->
+<div id="s-assert-text" class="it-section">
+    <h3>assert_text — selector: <code>class → it-text-content</code> — expect: <code>assert_text_target_value_xyz</code></h3>
+    <p id="it-text-el" class="it-text-content" name="it-text-el" aria-label="text-content-element">assert_text_target_value_xyz</p>
+</div>
+
+<!-- ════ ASSERT VALUE ════ -->
+<div id="s-assert-value" class="it-section">
+    <h3>assert_value — selector: <code>name → it-value-name</code> — expect value contains: <code>expected_value_abc</code></h3>
+    <input type="text" id="it-value-input" class="it-value-input" name="it-value-name"
+           aria-label="value-input" placeholder="value-placeholder" value="expected_value_abc">
+</div>
+
+<!-- ════ ASSERT VISIBLE ════ -->
+<div id="s-assert-visible" class="it-section">
+    <h3>assert_visible — selector: <code>aria → visible-element</code></h3>
+    <span id="it-visible-el" class="it-visible-el" name="it-visible-name"
+          aria-label="visible-element" role="status">I am visible</span>
+</div>
+
+<!-- ════ ASSERT HIDDEN ════ -->
+<div id="s-assert-hidden" class="it-section">
+    <h3>assert_hidden — selector: <code>css → #it-hidden-el</code></h3>
+    <div id="it-hidden-el" class="it-hidden-el" name="it-hidden-name"
+         aria-label="hidden-element" style="display:none">I am hidden</div>
+    <button onclick="document.getElementById('it-hidden-el').style.display='none';
+                     document.getElementById('status-hidden').textContent='hidden (correct)';">
+        Re-hide
+    </button>
+    <span class="it-status" id="status-hidden">display:none (correct for assert_hidden)</span>
+</div>
+
+<!-- ════ EXECUTE JS ════ -->
+<div id="s-execute-js" class="it-section">
+    <h3>execute_js — JS code: <code>document.getElementById('it-js-target').textContent='JS_OK'</code></h3>
+    <div id="it-js-target" class="it-js-target" name="it-js-target" aria-label="js-target">js_target_initial_state</div>
+</div>
+
+<!-- ════ SCREENSHOT ════ -->
+<div id="s-screenshot" class="it-section">
+    <h3>screenshot — captures current viewport, no interaction needed</h3>
+    <div id="it-screenshot-zone" class="it-screenshot-zone" aria-label="screenshot-zone">[screenshot zone]</div>
+</div>
+
+<!-- ════ ASSERT TITLE ════ -->
+<div id="s-assert-title" class="it-section">
+    <h3>assert_title — expected partial match: <code>Internal Testing</code></h3>
+    <p>Document title: <code id="it-title-display"></code></p>
+</div>
+
+<!-- ════ ASSERT URL ════ -->
+<div id="s-assert-url" class="it-section">
+    <h3>assert_url — expected substring: <code>internal-testing</code></h3>
+    <p>Current URL: <code id="it-url-display"></code></p>
+</div>
+
+<!-- ════ SCROLL TO ════ -->
+<div id="s-scroll-to" class="it-section">
+    <h3>scroll_to — selector: <code>xpath → //div[@id='it-scroll-anchor']</code></h3>
+    <div style="height:50px;background:#f9f9f9;padding:4px">(scroll padding)</div>
+    <div id="it-scroll-anchor" class="it-scroll-anchor" name="it-scroll-name"
+         aria-label="scroll-anchor" data-section="scroll-target">
+        [scroll anchor reached]
+    </div>
+</div>
+
+<!-- ════ HOVER ════ -->
+<div id="s-hover" class="it-section">
+    <h3>hover — selector: <code>text → "Hover over me"</code></h3>
+    <div id="it-hover-el" class="it-hover-el" name="it-hover-name" aria-label="hover-element">
+        Hover over me
+        <span class="it-tooltip">tooltip visible ✓</span>
+    </div>
+</div>
+
+<!-- ════ SELECT ════ -->
+<div id="s-select" class="it-section">
+    <h3>select — selector: <code>label → "Select Country"</code> — select by text: <code>United Kingdom</code></h3>
+    <label for="it-select-el">Select Country</label>
+    <select id="it-select-el" class="it-select-el" name="it-select-name" aria-label="country-select">
+        <option value="">-- choose --</option>
+        <option value="uk">United Kingdom</option>
+        <option value="us">United States</option>
+        <option value="de">Germany</option>
+    </select>
+    <span class="it-status" id="status-select">not selected</span>
+</div>
+
+<!-- ════ KEY PRESS ════ -->
+<div id="s-key-press" class="it-section">
+    <h3>key_press — selector: <code>role → textbox:Key Press Input</code> — key: <code>Enter</code></h3>
+    <input type="text" id="it-keypress-input" class="it-keypress-input" name="it-keypress-name"
+           aria-label="Key Press Input" placeholder="Press Enter here" role="textbox">
+    <span class="it-status" id="status-keypress">waiting for key</span>
+</div>
+
+<!-- ════ DOUBLE CLICK ════ -->
+<div id="s-double-click" class="it-section">
+    <h3>double_click — selector: <code>partial_link_text → "Double Click"</code> (the nav link above)</h3>
+    <span class="it-status" id="status-dblclick">not double-clicked</span>
+</div>
+
+<!-- ════ RIGHT CLICK ════ -->
+<div id="s-right-click" class="it-section">
+    <h3>right_click — selector: <code>jspath → document.getElementById('it-rightclick-area')</code></h3>
+    <div id="it-rightclick-area" class="it-rightclick-area" name="it-rightclick-name"
+         aria-label="rightclick-area">[right-click zone — custom context menu]</div>
+    <span class="it-status" id="status-rightclick">not right-clicked</span>
+</div>
+<div id="it-context-menu">
+    <div>Menu Item 1</div>
+    <div>Menu Item 2</div>
+    <div onclick="document.getElementById('it-context-menu').style.display='none'">× Close</div>
+</div>
+
+<!-- ════ CHECK ════ -->
+<div id="s-check" class="it-section">
+    <h3>check — selector: <code>id → it-check-input</code> (starts unchecked)</h3>
+    <input type="checkbox" id="it-check-input" class="it-check-el" name="it-check-name" aria-label="check-input">
+    <label for="it-check-input">Check me</label>
+    <span class="it-status" id="status-check">unchecked</span>
+</div>
+
+<!-- ════ UNCHECK ════ -->
+<div id="s-uncheck" class="it-section">
+    <h3>uncheck — selector: <code>name → it-uncheck-name</code> (starts checked)</h3>
+    <input type="checkbox" id="it-uncheck-input" class="it-uncheck-el" name="it-uncheck-name" aria-label="uncheck-input" checked>
+    <label for="it-uncheck-input">Uncheck me</label>
+    <span class="it-status" id="status-uncheck">checked</span>
+</div>
+
+<!-- ════ CLEAR ════ -->
+<div id="s-clear" class="it-section">
+    <h3>clear — selector: <code>label → "Clear This Input"</code></h3>
+    <label for="it-clear-input">Clear This Input</label>
+    <input type="text" id="it-clear-input" class="it-clear-input" name="it-clear-name"
+           aria-label="clear-input" value="text to be cleared" placeholder="cleared-placeholder">
+    <span class="it-status" id="status-clear">has value</span>
+</div>
+
+<!-- ════ UPLOAD FILE ════ -->
+<div id="s-upload-file" class="it-section">
+    <h3>upload_file — selector: <code>css → #it-file-input</code></h3>
+    <input type="file" id="it-file-input" class="it-file-input" name="it-file-name" aria-label="file-input">
+    <span class="it-status" id="status-upload">no file chosen</span>
+</div>
+
+<!-- ════ WAIT FOR ELEMENT ════ -->
+<div id="s-wait-for-element" class="it-section">
+    <h3>wait_for_element — selector: <code>css → #it-delayed-el</code> (5s timeout) — trigger via execute_js: <code>window.triggerDelayed()</code></h3>
+    <button id="it-trigger-delayed" aria-label="trigger-delayed" onclick="window.triggerDelayed()">Trigger (1.5s delay)</button>
+    <div id="it-delayed-el" class="it-delayed-el" name="it-delayed-name"
+         aria-label="delayed-element" style="display:none">[delayed element appeared ✓]</div>
+    <span class="it-status" id="status-delayed">element hidden</span>
+</div>
+
+<!-- ════ WAIT FOR LOAD STATE ════ -->
+<div id="s-wait-for-load-state" class="it-section">
+    <h3>wait_for_load_state — navigate to <code>/internal-testing/p2</code> then <code>wait_for_load_state → networkidle</code></h3>
+    <p>Page 2 fires a fetch request on load, so networkidle fires only after that request completes.</p>
+    <a href="/internal-testing/p2">Go to Page 2</a>
+</div>
+
+<!-- ════ DRAG AND DROP ════ -->
+<div id="s-drag-and-drop" class="it-section">
+    <h3>drag_and_drop — source: <code>class → it-drag-item</code> — target: <code>aria → drop-zone</code></h3>
+    <div id="it-drag-source" class="it-drag-item" name="it-drag-name" aria-label="drag-source" draggable="true">Drag me</div>
+    <div id="it-drop-target" class="it-drop-zone" name="it-drop-name" aria-label="drop-zone">Drop here</div>
+    <span class="it-status" id="status-drag">not dropped</span>
+</div>
+
+<!-- ════ EXTRAS: link_text, partial_link_text, tag ════ -->
+<div id="s-extras" class="it-section">
+    <h3>Extra selector targets</h3>
+    <p>
+        <code>link_text</code>: <a id="it-home-link2" class="it-link-text-el2" aria-label="home-link-2" href="#top">Internal Testing Home</a>
+        — use assert_visible with link_text "Internal Testing Home"
+    </p>
+    <p>
+        <code>partial_link_text</code>: "Double Click Here" link in nav bar above — double_click with partial_link_text "Double Click"
+    </p>
+    <p>
+        <code>tag</code>: <code>&lt;meter&gt;</code> element at top (id=it-meter-el) — use assert_visible with tag "meter"
+    </p>
+</div>
+
+<!-- Custom context menu -->
+<script>
+(function() {
+    // ── init displays ──
+    document.getElementById('it-title-display').textContent = document.title;
+    document.getElementById('it-url-display').textContent   = location.href;
+
+    // helper: set status
+    function setStatus(id, sumId, text, pass) {
+        const el = document.getElementById(id);
+        if (el) { el.textContent = text; el.className = pass ? 'it-status pass' : 'it-status'; }
+        const su = document.getElementById(sumId);
+        if (su) { su.textContent = su.textContent.split(':')[0] + ':' + (pass ? '✓' : '?');
+                  su.className   = pass ? 'pass' : ''; }
+    }
+
+    // ── Click ──
+    document.getElementById('it-click-btn').addEventListener('click', function() {
+        setStatus('status-click', 'sum-click', 'clicked ✓', true);
+    });
+
+    // ── Type ──
+    document.getElementById('it-type-input').addEventListener('input', function() {
+        setStatus('status-type', 'sum-type', 'value: "' + this.value + '" ✓', !!this.value);
+    });
+
+    // ── Select ──
+    document.getElementById('it-select-el').addEventListener('change', function() {
+        setStatus('status-select', 'sum-select', 'selected: ' + (this.options[this.selectedIndex].text) + ' ✓', !!this.value);
+    });
+
+    // ── Key press ──
+    document.getElementById('it-keypress-input').addEventListener('keydown', function(e) {
+        setStatus('status-keypress', 'sum-keypress', 'key: ' + e.key + ' ✓', true);
+    });
+
+    // ── Double click ──
+    document.getElementById('it-dblclick-link').addEventListener('dblclick', function(e) {
+        e.preventDefault();
+        setStatus('status-dblclick', 'sum-dblclick', 'double-clicked ✓', true);
+    });
+
+    // ── Right click ──
+    document.getElementById('it-rightclick-area').addEventListener('contextmenu', function(e) {
+        e.preventDefault();
+        const menu = document.getElementById('it-context-menu');
+        menu.style.display = 'block';
+        menu.style.left = e.pageX + 'px';
+        menu.style.top  = e.pageY + 'px';
+        setStatus('status-rightclick', 'sum-rightclick', 'right-clicked ✓', true);
+    });
+    document.addEventListener('click', function(e) {
+        if (!e.target.closest('#it-context-menu'))
+            document.getElementById('it-context-menu').style.display = 'none';
+    });
+
+    // ── Check ──
+    document.getElementById('it-check-input').addEventListener('change', function() {
+        setStatus('status-check', 'sum-check', this.checked ? 'checked ✓' : 'unchecked', this.checked);
+    });
+
+    // ── Uncheck ──
+    document.getElementById('it-uncheck-input').addEventListener('change', function() {
+        setStatus('status-uncheck', 'sum-uncheck', !this.checked ? 'unchecked ✓' : 'checked', !this.checked);
+    });
+
+    // ── Clear ──
+    document.getElementById('it-clear-input').addEventListener('input', function() {
+        setStatus('status-clear', 'sum-clear', this.value === '' ? 'cleared ✓' : 'value: "' + this.value + '"', this.value === '');
+    });
+
+    // ── Upload ──
+    document.getElementById('it-file-input').addEventListener('change', function() {
+        const ok = this.files.length > 0;
+        setStatus('status-upload', 'sum-upload', ok ? 'file: ' + this.files[0].name + ' ✓' : 'no file', ok);
+    });
+
+    // ── Delayed element ──
+    window.triggerDelayed = function() {
+        document.getElementById('status-delayed').textContent = 'waiting 1.5s…';
+        setTimeout(function() {
+            const el = document.getElementById('it-delayed-el');
+            el.style.display = 'block';
+            setStatus('status-delayed', 'sum-delayed', 'appeared ✓', true);
+        }, 1500);
+    };
+
+    // ── Drag and drop ──
+    var src  = document.getElementById('it-drag-source');
+    var zone = document.getElementById('it-drop-target');
+    src.addEventListener('dragstart', function(e) { e.dataTransfer.setData('text/plain', 'it-drag-source'); });
+    zone.addEventListener('dragover',  function(e) { e.preventDefault(); zone.classList.add('it-drag-over'); });
+    zone.addEventListener('dragleave', function()  { zone.classList.remove('it-drag-over'); });
+    zone.addEventListener('drop', function(e) {
+        e.preventDefault();
+        zone.classList.remove('it-drag-over');
+        zone.textContent = 'Dropped ✓';
+        setStatus('status-drag', 'sum-drag', 'dropped ✓', true);
+    });
+
+    // ── Reset All ──
+    window.resetAll = function() {
+        // click
+        document.getElementById('status-click').textContent = 'not clicked';
+        document.getElementById('status-click').className = 'it-status';
+        // type
+        document.getElementById('it-type-input').value = '';
+        document.getElementById('status-type').textContent = 'waiting for input';
+        document.getElementById('status-type').className = 'it-status';
+        // assert value (restore default)
+        document.getElementById('it-value-input').value = 'expected_value_abc';
+        // hidden el
+        document.getElementById('it-hidden-el').style.display = 'none';
+        // js target
+        document.getElementById('it-js-target').textContent = 'js_target_initial_state';
+        // select
+        document.getElementById('it-select-el').selectedIndex = 0;
+        document.getElementById('status-select').textContent = 'not selected';
+        document.getElementById('status-select').className = 'it-status';
+        // keypress
+        document.getElementById('it-keypress-input').value = '';
+        document.getElementById('status-keypress').textContent = 'waiting for key';
+        document.getElementById('status-keypress').className = 'it-status';
+        // dblclick
+        document.getElementById('status-dblclick').textContent = 'not double-clicked';
+        document.getElementById('status-dblclick').className = 'it-status';
+        // rightclick
+        document.getElementById('status-rightclick').textContent = 'not right-clicked';
+        document.getElementById('status-rightclick').className = 'it-status';
+        // check/uncheck
+        document.getElementById('it-check-input').checked = false;
+        document.getElementById('status-check').textContent = 'unchecked';
+        document.getElementById('status-check').className = 'it-status';
+        document.getElementById('it-uncheck-input').checked = true;
+        document.getElementById('status-uncheck').textContent = 'checked';
+        document.getElementById('status-uncheck').className = 'it-status';
+        // clear
+        document.getElementById('it-clear-input').value = 'text to be cleared';
+        document.getElementById('status-clear').textContent = 'has value';
+        document.getElementById('status-clear').className = 'it-status';
+        // upload
+        document.getElementById('it-file-input').value = '';
+        document.getElementById('status-upload').textContent = 'no file chosen';
+        document.getElementById('status-upload').className = 'it-status';
+        // delayed
+        document.getElementById('it-delayed-el').style.display = 'none';
+        document.getElementById('status-delayed').textContent = 'element hidden';
+        document.getElementById('status-delayed').className = 'it-status';
+        // drag
+        document.getElementById('it-drop-target').textContent = 'Drop here';
+        document.getElementById('status-drag').textContent = 'not dropped';
+        document.getElementById('status-drag').className = 'it-status';
+        // summary reset
+        ['sum-click','sum-type','sum-select','sum-keypress','sum-dblclick','sum-rightclick',
+         'sum-check','sum-uncheck','sum-clear','sum-upload','sum-drag','sum-delayed'].forEach(function(id) {
+            var el = document.getElementById(id);
+            if (el) { el.textContent = el.textContent.split(':')[0] + ':?'; el.className = ''; }
+        });
+    };
+})();
+</script>
+</body>
+</html>

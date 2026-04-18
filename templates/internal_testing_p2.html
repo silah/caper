@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Internal Testing Page 2 - Caper</title>
+</head>
+<body>
+<h1>Internal Testing — Page 2</h1>
+<p>
+    <strong>assert_url target:</strong> <code>internal-testing/p2</code> &nbsp;|&nbsp;
+    <strong>assert_title target:</strong> <code>Internal Testing Page 2</code>
+    &nbsp;|&nbsp;
+    <a href="/internal-testing">← Back to Page 1</a>
+</p>
+<p id="it-load-status">Loading… (firing async request to simulate networkidle delay)</p>
+
+<hr>
+
+<!-- Form — for navigate + interact + assert flow on p2 -->
+<div id="s-form">
+    <h2>Form Submission Test</h2>
+    <label for="p2-username">Username</label><br>
+    <input type="text" id="p2-username" name="p2-username" aria-label="p2-username" placeholder="Enter username"><br><br>
+
+    <label for="p2-password">Password</label><br>
+    <input type="password" id="p2-password" name="p2-password" aria-label="p2-password" placeholder="Enter password"><br><br>
+
+    <button id="p2-submit" name="p2-submit" aria-label="p2-submit-button" onclick="submitForm()">Submit</button>
+    <div id="p2-result" name="p2-result" aria-label="p2-form-result" style="margin-top:8px;font-weight:bold"></div>
+</div>
+
+<hr>
+
+<!-- Visible/hidden toggle — tests assert_visible / assert_hidden in sequence -->
+<div id="s-toggle">
+    <h2>Visibility Toggle</h2>
+    <button onclick="document.getElementById('p2-toggle-el').style.display='block'">Show element</button>
+    <button onclick="document.getElementById('p2-toggle-el').style.display='none'">Hide element</button>
+    <div id="p2-toggle-el" name="p2-toggle-el" aria-label="p2-toggle-element" style="display:none">
+        [toggle target visible]
+    </div>
+</div>
+
+<hr>
+
+<!-- Counter — tests assert_text on changing value -->
+<div id="s-counter">
+    <h2>Counter (assert_text on dynamic value)</h2>
+    <button id="p2-increment-btn" aria-label="increment-button" onclick="incrementCounter()">Increment</button>
+    <span id="p2-counter" class="p2-counter" aria-label="counter-value" name="p2-counter">0</span>
+</div>
+
+<hr>
+
+<!-- Long list — tests scroll_to on a deep element -->
+<div id="s-list">
+    <h2>Long List (scroll_to deep element)</h2>
+    <ul id="p2-list">
+        <li>Item 1</li><li>Item 2</li><li>Item 3</li><li>Item 4</li><li>Item 5</li>
+        <li>Item 6</li><li>Item 7</li><li>Item 8</li><li>Item 9</li><li>Item 10</li>
+    </ul>
+    <div id="p2-list-end" name="p2-list-end" aria-label="list-end-marker" style="border:1px solid red;padding:4px">
+        [list end — scroll target]
+    </div>
+</div>
+
+<script>
+// Simulate network activity so Playwright networkidle fires after this resolves
+fetch('/health').then(function() {
+    document.getElementById('it-load-status').textContent =
+        'Ready — /health fetched, networkidle should fire now.';
+}).catch(function() {
+    document.getElementById('it-load-status').textContent =
+        'Ready (health fetch failed — networkidle may still fire).';
+});
+
+function submitForm() {
+    var u = document.getElementById('p2-username').value.trim();
+    var p = document.getElementById('p2-password').value.trim();
+    var r = document.getElementById('p2-result');
+    if (!u || !p) {
+        r.textContent = 'form_error: username and password required';
+        r.style.color = 'red';
+    } else {
+        r.textContent = 'form_success: logged_in_as_' + u;
+        r.style.color = 'green';
+    }
+}
+
+var _count = 0;
+function incrementCounter() {
+    _count++;
+    document.getElementById('p2-counter').textContent = String(_count);
+}
+</script>
+</body>
+</html>
