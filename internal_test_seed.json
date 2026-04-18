@@ -7,6 +7,15 @@
         "name": "Full coverage — all actions, all selectors",
         "steps": [
 
+          {"type": "navigate",           "value": "http://localhost:5098/login"},
+          {"type": "wait",               "value": "1"},
+
+          {"type": "type",               "selectorType": "id",               "selector": "username",               "value": "{{INT_TEST_USER}}"},
+          {"type": "type",               "selectorType": "id",               "selector": "password",               "value": "{{INT_TEST_PW}}"},
+          {"type": "click",              "selectorType": "css",              "selector": "button[type=\"submit\"]"},
+          {"type": "wait_for_load_state","value": "networkidle"},
+          {"type": "wait",               "value": "1"},
+
           {"type": "navigate",           "value": "http://localhost:5098/internal-testing"},
           {"type": "wait",               "value": "1"},
 
