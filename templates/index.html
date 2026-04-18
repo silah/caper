@@ -3,68 +3,84 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Caper</title>
+    <title>Home - Caper</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
-    <nav class="navbar">
-        <div class="container">
-            <h1 class="logo">Caper</h1>
-            <ul class="nav-links">
-                <li><a href="/" class="active">Home</a></li>
-                <li><a href="/create">Create Test</a></li>
-                <li><a href="/tests">Tests</a></li>
-                <li><a href="/executions">Executions</a></li>
-                <li><a href="/health">Health</a></li>
-                <li><a href="/variables">Variables</a></li>
-                <li><a href="/logs">Log</a></li>
-            </ul>
+<div class="app-shell">
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <div class="sidebar-brand">
+                <span class="sidebar-brand-name">Caper</span>
+                <span class="sidebar-brand-dot"></span>
+            </div>
         </div>
-    </nav>
+        <nav class="sidebar-nav">
+            <a href="/" class="sidebar-link active">Home</a>
+            <a href="/tests" class="sidebar-link">Tests</a>
+            <a href="/executions" class="sidebar-link">Executions</a>
+            <a href="/health" class="sidebar-link">Health</a>
+            <div class="sidebar-divider"></div>
+            <a href="/create" class="sidebar-link">Create Test</a>
+            <a href="/variables" class="sidebar-link">Variables</a>
+            <a href="/logs" class="sidebar-link">Log</a>
+        </nav>
+        <div class="sidebar-footer">
+            {% if current_user.is_authenticated %}
+            <span class="sidebar-user">{{ current_user.username }}</span>
+            {% endif %}
+            <a href="/logout" class="sidebar-link sidebar-link-danger">Sign out</a>
+        </div>
+    </aside>
 
-    <div class="container">
-        <div class="hero">
-            <h2>Welcome to Caper</h2>
-            <p>Build, store, and execute synthetic browser tests with ease</p>
-            
-            <div class="features">
-                <div class="feature-card">
-                    <div class="feature-icon">🔧</div>
-                    <h3>Build Tests</h3>
-                    <p>Create synthetic tests with common browser interactions and custom JavaScript</p>
-                    <a href="/create" class="btn btn-primary">Create New Test</a>
-                </div>
-                
-                <div class="feature-card">
-                    <div class="feature-icon">📝</div>
-                    <h3>Manage Tests</h3>
-                    <p>View all your saved tests and their execution history</p>
-                    <a href="/tests" class="btn btn-secondary">View All Tests</a>
-                </div>
-                
-                <div class="feature-card">
-                    <div class="feature-icon">▶️</div>
-                    <h3>Execute Tests</h3>
-                    <p>Run your tests in headless Firefox and view detailed results</p>
-                    <a href="/tests" class="btn btn-secondary">Run Tests</a>
-                </div>
+    <main class="main-content">
+        <div class="pg-header">
+            <div class="pg-header-left">
+                <h1 class="pg-title">Welcome to Caper</h1>
+                <p class="pg-subtitle">Self-hosted synthetic browser testing</p>
+            </div>
+            <div class="pg-actions">
+                <a href="/create" class="btn btn-primary">New Test</a>
             </div>
         </div>
 
-        <div class="info-section">
+        <div class="features">
+            <div class="feature-card">
+                <div class="feature-icon">🔧</div>
+                <h3>Build Tests</h3>
+                <p>Create synthetic tests with common browser interactions and custom JavaScript</p>
+                <a href="/create" class="btn btn-primary">Create New Test</a>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">📝</div>
+                <h3>Manage Tests</h3>
+                <p>View all your saved tests, their execution history, and schedule automatic runs</p>
+                <a href="/tests" class="btn btn-secondary">View All Tests</a>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">◎</div>
+                <h3>Health Dashboard</h3>
+                <p>Get a single-page view of every test's current pass/fail state</p>
+                <a href="/health" class="btn btn-secondary">Open Health</a>
+            </div>
+        </div>
+
+        <div class="info-section" style="margin-top:2.5rem">
             <h3>Supported Actions</h3>
             <ul class="action-list">
                 <li><strong>Navigate:</strong> Open a URL in the browser</li>
-                <li><strong>Click:</strong> Click on an element (by CSS selector, XPath, ID, etc.)</li>
-                <li><strong>Type:</strong> Enter text into input fields</li>
-                <li><strong>Wait:</strong> Pause execution for a specified duration</li>
-                <li><strong>Execute JavaScript:</strong> Run custom JavaScript code</li>
-                <li><strong>Screenshot:</strong> Capture a screenshot of the page</li>
-                <li><strong>Assert Title:</strong> Verify the page title</li>
-                <li><strong>Assert Text:</strong> Verify element text content</li>
-                <li><strong>Scroll To:</strong> Scroll to a specific element</li>
+                <li><strong>Click / Double-click:</strong> Click an element by CSS, XPath, ID, JSPath, ARIA label, and more</li>
+                <li><strong>Type / Clear:</strong> Enter or clear text in input fields</li>
+                <li><strong>Select:</strong> Choose a dropdown option by text, value, or index</li>
+                <li><strong>Key Press:</strong> Send Enter, Tab, Escape, arrows, and other keys</li>
+                <li><strong>Hover:</strong> Move the mouse over an element</li>
+                <li><strong>Wait / Wait For Element:</strong> Pause execution or wait for an element to appear</li>
+                <li><strong>Execute JavaScript:</strong> Run arbitrary JavaScript code</li>
+                <li><strong>Assert Title / Text / Visible / URL:</strong> Verify page state</li>
+                <li><strong>Screenshot / Scroll To:</strong> Capture screenshots or scroll to elements</li>
             </ul>
         </div>
-    </div>
+    </main>
+</div>
 </body>
 </html>

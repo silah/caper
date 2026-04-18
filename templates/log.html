@@ -7,26 +7,37 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
-    <nav class="navbar">
-        <div class="container">
-            <h1 class="logo">Caper</h1>
-            <ul class="nav-links">
-                <li><a href="/">Home</a></li>
-                <li><a href="/create">Create Test</a></li>
-                <li><a href="/tests">Tests</a></li>
-                <li><a href="/executions">Executions</a></li>
-                <li><a href="/health">Health</a></li>
-                <li><a href="/variables">Variables</a></li>
-                <li><a href="/logs" class="active">Log</a></li>
-            </ul>
+<div class="app-shell">
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <div class="sidebar-brand">
+                <span class="sidebar-brand-name">Caper</span>
+                <span class="sidebar-brand-dot"></span>
+            </div>
         </div>
-    </nav>
+        <nav class="sidebar-nav">
+            <a href="/" class="sidebar-link">Home</a>
+            <a href="/tests" class="sidebar-link">Tests</a>
+            <a href="/executions" class="sidebar-link">Executions</a>
+            <a href="/health" class="sidebar-link">Health</a>
+            <div class="sidebar-divider"></div>
+            <a href="/create" class="sidebar-link">Create Test</a>
+            <a href="/variables" class="sidebar-link">Variables</a>
+            <a href="/logs" class="sidebar-link active">Log</a>
+        </nav>
+        <div class="sidebar-footer">
+            {% if current_user.is_authenticated %}
+            <span class="sidebar-user">{{ current_user.username }}</span>
+            {% endif %}
+            <a href="/logout" class="sidebar-link sidebar-link-danger">Sign out</a>
+        </div>
+    </aside>
 
-    <div class="container">
-        <div class="log-page-header">
-            <div>
-                <h2>Application Log</h2>
-                <p class="log-subtitle">Last 5 hours &mdash; {{ total }} event{% if total != 1 %}s{% endif %} &mdash; newest first</p>
+    <main class="main-content">
+        <div class="pg-header">
+            <div class="pg-header-left">
+                <h1 class="pg-title">Application Log</h1>
+                <p class="pg-subtitle">Last 5 hours &mdash; {{ total }} event{% if total != 1 %}s{% endif %} &mdash; newest first</p>
             </div>
         </div>
 
@@ -77,6 +88,7 @@
             <p>No log entries in the last 5 hours.</p>
         </div>
         {% endif %}
-    </div>
+    </main>
+</div>
 </body>
 </html>

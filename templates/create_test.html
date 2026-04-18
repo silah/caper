@@ -7,31 +7,41 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
-    <nav class="navbar">
-        <div class="container">
-            <h1 class="logo">Caper</h1>
-            <ul class="nav-links">
-                <li><a href="/">Home</a></li>
-                <li><a href="/create" class="active">Create Test</a></li>
-                <li><a href="/tests">Tests</a></li>
-                <li><a href="/executions">Executions</a></li>
-                <li><a href="/health">Health</a></li>
-                <li><a href="/variables">Variables</a></li>
-                <li><a href="/logs">Log</a></li>
-            </ul>
+<div class="app-shell">
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <div class="sidebar-brand">
+                <span class="sidebar-brand-name">Caper</span>
+                <span class="sidebar-brand-dot"></span>
+            </div>
         </div>
-    </nav>
+        <nav class="sidebar-nav">
+            <a href="/" class="sidebar-link">Home</a>
+            <a href="/tests" class="sidebar-link">Tests</a>
+            <a href="/executions" class="sidebar-link">Executions</a>
+            <a href="/health" class="sidebar-link">Health</a>
+            <div class="sidebar-divider"></div>
+            <a href="/create" class="sidebar-link active">Create Test</a>
+            <a href="/variables" class="sidebar-link">Variables</a>
+            <a href="/logs" class="sidebar-link">Log</a>
+        </nav>
+        <div class="sidebar-footer">
+            {% if current_user.is_authenticated %}
+            <span class="sidebar-user">{{ current_user.username }}</span>
+            {% endif %}
+            <a href="/logout" class="sidebar-link sidebar-link-danger">Sign out</a>
+        </div>
+    </aside>
 
-    <div class="container">
-        <div class="test-builder">
+    <main class="main-content">
+        <div class="test-builder" style="max-width:800px">
             <h2>Create New Test</h2>
-            
+
             <div class="test-info">
                 <div class="form-group">
                     <label for="testName">Test Name *</label>
                     <input type="text" id="testName" placeholder="e.g., Login Test" required>
                 </div>
-                
                 <div class="form-group">
                     <label for="testDescription">Description</label>
                     <textarea id="testDescription" placeholder="Describe what this test does..." rows="3"></textarea>
@@ -41,10 +51,9 @@
             <div class="steps-section">
                 <h3>Test Steps</h3>
                 <div id="stepsList"></div>
-                
+
                 <div class="add-step-section">
                     <h4>Add Step</h4>
-                    
                     <div class="form-group">
                         <label for="actionType">Action Type *</label>
                         <select id="actionType">
@@ -67,9 +76,7 @@
                             <option value="clear">Clear Input</option>
                         </select>
                     </div>
-                    
                     <div id="stepConfig"></div>
-                    
                     <button class="btn btn-primary" onclick="addStep()">Add Step</button>
                 </div>
             </div>
@@ -79,8 +86,9 @@
                 <button class="btn btn-secondary" onclick="resetTest()">Reset</button>
             </div>
         </div>
-    </div>
 
-    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+        <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+    </main>
+</div>
 </body>
 </html>

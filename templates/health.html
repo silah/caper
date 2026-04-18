@@ -7,24 +7,38 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
-    <nav class="navbar">
-        <div class="container">
-            <h1 class="logo">Caper</h1>
-            <ul class="nav-links">
-                <li><a href="/">Home</a></li>
-                <li><a href="/create">Create Test</a></li>
-                <li><a href="/tests">Tests</a></li>
-                <li><a href="/executions">Executions</a></li>
-                <li><a href="/health" class="active">Health</a></li>
-                <li><a href="/variables">Variables</a></li>
-                <li><a href="/logs">Log</a></li>
-            </ul>
+<div class="app-shell">
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <div class="sidebar-brand">
+                <span class="sidebar-brand-name">Caper</span>
+                <span class="sidebar-brand-dot"></span>
+            </div>
         </div>
-    </nav>
+        <nav class="sidebar-nav">
+            <a href="/" class="sidebar-link">Home</a>
+            <a href="/tests" class="sidebar-link">Tests</a>
+            <a href="/executions" class="sidebar-link">Executions</a>
+            <a href="/health" class="sidebar-link active">Health</a>
+            <div class="sidebar-divider"></div>
+            <a href="/create" class="sidebar-link">Create Test</a>
+            <a href="/variables" class="sidebar-link">Variables</a>
+            <a href="/logs" class="sidebar-link">Log</a>
+        </nav>
+        <div class="sidebar-footer">
+            {% if current_user.is_authenticated %}
+            <span class="sidebar-user">{{ current_user.username }}</span>
+            {% endif %}
+            <a href="/logout" class="sidebar-link sidebar-link-danger">Sign out</a>
+        </div>
+    </aside>
 
-    <div class="health-page">
-        <div class="health-header">
-            <h2 class="health-title">Health Dashboard</h2>
+    <main class="main-content">
+        <div class="pg-header">
+            <div class="pg-header-left">
+                <h1 class="pg-title">Health</h1>
+                <p class="pg-subtitle">Auto-refreshes every 30 seconds</p>
+            </div>
         </div>
 
         <div class="health-summary">
@@ -117,11 +131,7 @@
                         {% endif %}
                     </td>
                     <td style="font-size:.82rem">
-                        {% if test.sla_seconds %}
-                        {{ test.sla_seconds }}s
-                        {% else %}
-                        <span class="health-never">—</span>
-                        {% endif %}
+                        {% if test.sla_seconds %}{{ test.sla_seconds }}s{% else %}<span class="health-never">—</span>{% endif %}
                     </td>
                 </tr>
                 {% endfor %}
@@ -133,11 +143,9 @@
             <a href="/create" class="btn btn-primary">Create a test</a>
         </div>
         {% endif %}
-    </div>
 
-    <script>
-        // Auto-refresh every 30s to keep status current
-        setTimeout(() => window.location.reload(), 30000);
-    </script>
+        <script>setTimeout(() => window.location.reload(), 30000);</script>
+    </main>
+</div>
 </body>
 </html>

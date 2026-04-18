@@ -7,25 +7,36 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
-    <nav class="navbar">
-        <div class="container">
-            <h1 class="logo">Caper</h1>
-            <ul class="nav-links">
-                <li><a href="/">Home</a></li>
-                <li><a href="/create">Create Test</a></li>
-                <li><a href="/tests">Tests</a></li>
-                <li><a href="/executions">Executions</a></li>
-                <li><a href="/health">Health</a></li>
-                <li><a href="/variables">Variables</a></li>
-                <li><a href="/logs">Log</a></li>
-            </ul>
+<div class="app-shell">
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <div class="sidebar-brand">
+                <span class="sidebar-brand-name">Caper</span>
+                <span class="sidebar-brand-dot"></span>
+            </div>
         </div>
-    </nav>
+        <nav class="sidebar-nav">
+            <a href="/" class="sidebar-link">Home</a>
+            <a href="/tests" class="sidebar-link">Tests</a>
+            <a href="/executions" class="sidebar-link active">Executions</a>
+            <a href="/health" class="sidebar-link">Health</a>
+            <div class="sidebar-divider"></div>
+            <a href="/create" class="sidebar-link">Create Test</a>
+            <a href="/variables" class="sidebar-link">Variables</a>
+            <a href="/logs" class="sidebar-link">Log</a>
+        </nav>
+        <div class="sidebar-footer">
+            {% if current_user.is_authenticated %}
+            <span class="sidebar-user">{{ current_user.username }}</span>
+            {% endif %}
+            <a href="/logout" class="sidebar-link sidebar-link-danger">Sign out</a>
+        </div>
+    </aside>
 
-    <div class="compare-page">
-        <div style="display:flex;align-items:center;gap:14px;margin-bottom:20px">
+    <main class="main-content">
+        <div style="display:flex;align-items:center;gap:14px;margin-bottom:24px">
             <a href="/executions" class="btn btn-ghost" style="padding:.3rem .7rem;font-size:.8rem">&larr; Back</a>
-            <h2 class="compare-title" style="margin:0">Compare Executions</h2>
+            <h1 class="pg-title" style="margin:0">Compare Executions</h1>
         </div>
 
         <div class="compare-grid">
@@ -66,39 +77,32 @@
             </div>
             {% endfor %}
         </div>
-    </div>
 
-    <script>
-        const executions = [
-            { id: {{ exec_a.id }}, stepResults: {{ (exec_a.step_results or '[]') | tojson }} },
-            { id: {{ exec_b.id }}, stepResults: {{ (exec_b.step_results or '[]') | tojson }} },
-        ];
+        <script>
+            const executions = [
+                { id: {{ exec_a.id }}, stepResults: {{ (exec_a.step_results or '[]') | tojson }} },
+                { id: {{ exec_b.id }}, stepResults: {{ (exec_b.step_results or '[]') | tojson }} },
+            ];
 
-        executions.forEach(ex => {
-            const el = document.getElementById('steps-' + ex.id);
-            let steps = [];
-            try { steps = JSON.parse(ex.stepResults); } catch(e) {}
-            if (!steps.length) {
-                el.innerHTML = '<span class="compare-empty">No step data</span>';
-                return;
-            }
-            const rows = steps.map(s =>
-                `<div class="compare-step-row">
-                    <span class="compare-step-num">${s.step}</span>
-                    <span class="compare-step-action">${(s.action||'').replace(/_/g,' ').toUpperCase()}</span>
-                    <span class="${s.status === 'success' ? 'compare-step-ok' : 'compare-step-err'}">
-                        ${s.status === 'success' ? '✓' : '✗'} ${escHtml(s.message || '')}
-                    </span>
-                </div>`
-            ).join('');
-            el.innerHTML = rows;
-        });
+            executions.forEach(ex => {
+                const el = document.getElementById('steps-' + ex.id);
+                let steps = [];
+                try { steps = JSON.parse(ex.stepResults); } catch(e) {}
+                if (!steps.length) { el.innerHTML = '<span class="compare-empty">No step data</span>'; return; }
+                el.innerHTML = steps.map(s =>
+                    `<div class="compare-step-row">
+                        <span class="compare-step-num">${s.step}</span>
+                        <span class="compare-step-action">${(s.action||'').replace(/_/g,' ').toUpperCase()}</span>
+                        <span class="${s.status === 'success' ? 'compare-step-ok' : 'compare-step-err'}">
+                            ${s.status === 'success' ? '✓' : '✗'} ${escHtml(s.message || '')}
+                        </span>
+                    </div>`
+                ).join('');
+            });
 
-        function escHtml(str) {
-            const d = document.createElement('div');
-            d.textContent = str;
-            return d.innerHTML;
-        }
-    </script>
+            function escHtml(str) { const d = document.createElement('div'); d.textContent = str; return d.innerHTML; }
+        </script>
+    </main>
+</div>
 </body>
 </html>

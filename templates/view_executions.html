@@ -7,28 +7,39 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
-    <nav class="navbar">
-        <div class="container">
-            <h1 class="logo">Caper</h1>
-            <ul class="nav-links">
-                <li><a href="/">Home</a></li>
-                <li><a href="/create">Create Test</a></li>
-                <li><a href="/tests">Tests</a></li>
-                <li><a href="/executions" class="active">Executions</a></li>
-                <li><a href="/health">Health</a></li>
-                <li><a href="/variables">Variables</a></li>
-                <li><a href="/logs">Log</a></li>
-            </ul>
+<div class="app-shell">
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <div class="sidebar-brand">
+                <span class="sidebar-brand-name">Caper</span>
+                <span class="sidebar-brand-dot"></span>
+            </div>
         </div>
-    </nav>
+        <nav class="sidebar-nav">
+            <a href="/" class="sidebar-link">Home</a>
+            <a href="/tests" class="sidebar-link">Tests</a>
+            <a href="/executions" class="sidebar-link active">Executions</a>
+            <a href="/health" class="sidebar-link">Health</a>
+            <div class="sidebar-divider"></div>
+            <a href="/create" class="sidebar-link">Create Test</a>
+            <a href="/variables" class="sidebar-link">Variables</a>
+            <a href="/logs" class="sidebar-link">Log</a>
+        </nav>
+        <div class="sidebar-footer">
+            {% if current_user.is_authenticated %}
+            <span class="sidebar-user">{{ current_user.username }}</span>
+            {% endif %}
+            <a href="/logout" class="sidebar-link sidebar-link-danger">Sign out</a>
+        </div>
+    </aside>
 
-    <div class="eo-page">
+    <main class="main-content">
         <div class="eo-header">
             <div>
-                <h2>Execution Overview</h2>
+                <h1 class="pg-title" style="margin-bottom:.2rem">Executions</h1>
                 <p class="eo-subtitle">Last 100 runs per test &mdash; newest on the right</p>
             </div>
-            <button class="btn btn-secondary" id="compareModeBtn" onclick="toggleCompareMode()" style="align-self:flex-start">
+            <button class="btn btn-secondary" id="compareModeBtn" onclick="toggleCompareMode()">
                 Compare two runs
             </button>
         </div>
@@ -79,179 +90,131 @@
             <a href="/create" class="btn btn-primary">Create a Test</a>
         </div>
         {% endif %}
-    </div>
 
-    <!-- Detail modal -->
-    <div id="execModal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <div>
-                    <h2 id="modalTitle"></h2>
-                    <span id="modalTime" class="modal-subtitle"></span>
+        <!-- Detail modal -->
+        <div id="execModal" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <div>
+                        <h2 id="modalTitle"></h2>
+                        <span id="modalTime" class="modal-subtitle"></span>
+                    </div>
+                    <span class="modal-close" onclick="closeModal()">&times;</span>
                 </div>
-                <span class="modal-close" onclick="closeModal()">&times;</span>
-            </div>
-            <div class="modal-body" id="modalBody">
-                <div class="modal-loading">Loading&hellip;</div>
+                <div class="modal-body" id="modalBody">
+                    <div class="modal-loading">Loading&hellip;</div>
+                </div>
             </div>
         </div>
-    </div>
 
-    <script src="{{ url_for('static', filename='js/har-viewer.js') }}"></script>
-    <script>
-        let _compareMode = false;
-        let _compareSelected = [];
+        <script src="{{ url_for('static', filename='js/har-viewer.js') }}"></script>
+        <script>
+            let _compareMode = false;
+            let _compareSelected = [];
 
-        function toggleCompareMode() {
-            _compareMode = true;
-            _compareSelected = [];
-            document.getElementById('compareBar').classList.add('active');
-            document.getElementById('compareModeBtn').style.display = 'none';
-            updateCompareBar();
-        }
-
-        function cancelCompareMode() {
-            _compareMode = false;
-            _compareSelected = [];
-            document.getElementById('compareBar').classList.remove('active');
-            document.getElementById('compareModeBtn').style.display = '';
-            document.querySelectorAll('.eo-sq.selected-for-compare').forEach(sq => {
-                sq.classList.remove('selected-for-compare');
-            });
-        }
-
-        function updateCompareBar() {
-            const n = _compareSelected.length;
-            document.getElementById('compareBarText').textContent =
-                n === 0 ? 'Select two runs to compare' :
-                n === 1 ? 'Select one more run' :
-                'Ready to compare';
-            document.getElementById('compareGoBtn').disabled = n !== 2;
-        }
-
-        function goCompare() {
-            if (_compareSelected.length === 2) {
-                window.location.href = `/compare/${_compareSelected[0]}/${_compareSelected[1]}`;
+            function toggleCompareMode() {
+                _compareMode = true; _compareSelected = [];
+                document.getElementById('compareBar').classList.add('active');
+                document.getElementById('compareModeBtn').style.display = 'none';
+                updateCompareBar();
             }
-        }
 
-        document.querySelectorAll('.eo-sq').forEach(sq => {
-            sq.addEventListener('click', () => {
-                if (_compareMode) {
-                    const id = sq.dataset.id;
-                    if (_compareSelected.includes(id)) {
-                        _compareSelected = _compareSelected.filter(x => x !== id);
-                        sq.classList.remove('selected-for-compare');
-                    } else if (_compareSelected.length < 2) {
-                        _compareSelected.push(id);
-                        sq.classList.add('selected-for-compare');
-                    }
-                    updateCompareBar();
-                } else {
-                    openExecution(sq);
-                }
+            function cancelCompareMode() {
+                _compareMode = false; _compareSelected = [];
+                document.getElementById('compareBar').classList.remove('active');
+                document.getElementById('compareModeBtn').style.display = '';
+                document.querySelectorAll('.eo-sq.selected-for-compare').forEach(sq => sq.classList.remove('selected-for-compare'));
+            }
+
+            function updateCompareBar() {
+                const n = _compareSelected.length;
+                document.getElementById('compareBarText').textContent =
+                    n === 0 ? 'Select two runs to compare' : n === 1 ? 'Select one more run' : 'Ready to compare';
+                document.getElementById('compareGoBtn').disabled = n !== 2;
+            }
+
+            function goCompare() {
+                if (_compareSelected.length === 2) window.location.href = `/compare/${_compareSelected[0]}/${_compareSelected[1]}`;
+            }
+
+            document.querySelectorAll('.eo-sq').forEach(sq => {
+                sq.addEventListener('click', () => {
+                    if (_compareMode) {
+                        const id = sq.dataset.id;
+                        if (_compareSelected.includes(id)) { _compareSelected = _compareSelected.filter(x => x !== id); sq.classList.remove('selected-for-compare'); }
+                        else if (_compareSelected.length < 2) { _compareSelected.push(id); sq.classList.add('selected-for-compare'); }
+                        updateCompareBar();
+                    } else { openExecution(sq); }
+                });
             });
-        });
 
-        // Poll any running squares until they finish
-        function pollRunningSq(sq) {
-            fetch(`/api/executions/${sq.dataset.id}/status`)
-                .then(r => r.json())
-                .then(data => {
-                    if (data.status === 'running') {
-                        setTimeout(() => pollRunningSq(sq), 2000);
-                    } else {
+            function pollRunningSq(sq) {
+                fetch(`/api/executions/${sq.dataset.id}/status`)
+                    .then(r => r.json())
+                    .then(data => {
+                        if (data.status === 'running') { setTimeout(() => pollRunningSq(sq), 2000); return; }
                         sq.dataset.status = data.status;
                         sq.classList.remove('sq-running');
                         sq.classList.add('sq-' + data.status);
                         sq.title = sq.dataset.at + ' — ' + data.status;
-                    }
-                })
-                .catch(() => setTimeout(() => pollRunningSq(sq), 4000));
-        }
-
-        document.querySelectorAll('.eo-sq.sq-running').forEach(pollRunningSq);
-
-        function openExecution(sq) {
-            document.getElementById('modalTitle').textContent = sq.dataset.testName;
-            document.getElementById('modalTime').textContent = sq.dataset.at + ' — ' + sq.dataset.status;
-            document.getElementById('modalBody').innerHTML = '<div class="modal-loading">Loading\u2026</div>';
-            document.getElementById('execModal').style.display = 'block';
-
-            fetch(`/api/executions/${sq.dataset.id}/status`)
-                .then(r => r.json())
-                .then(data => renderModal(data, sq.dataset.testName, sq.dataset.at, sq.dataset.artefactDir))
-                .catch(() => {
-                    document.getElementById('modalBody').innerHTML = '<p class="har-empty">Failed to load execution details.</p>';
-                });
-        }
-
-        function renderModal(data, testName, executedAt, artefactDir) {
-            const dir = artefactDir || data.artefact_dir || '';
-            let html = '';
-
-            // Status badge
-            let metaHtml = `<div class="modal-meta">
-                <span><strong>Executed:</strong> ${executedAt}</span>
-                <span><strong>Status:</strong> <span class="status-badge status-${data.status}">${data.status}</span></span>`;
-            if (data.duration_seconds != null) {
-                metaHtml += `<span><strong>Duration:</strong> ${parseFloat(data.duration_seconds).toFixed(1)}s`;
-                if (data.sla_violated) metaHtml += ` <span style="color:#e67e22;font-weight:600">SLA violated</span>`;
-                metaHtml += `</span>`;
+                    })
+                    .catch(() => setTimeout(() => pollRunningSq(sq), 4000));
             }
-            metaHtml += `</div>`;
-            html += metaHtml;
+            document.querySelectorAll('.eo-sq.sq-running').forEach(pollRunningSq);
 
-            // Video
-            if (dir) {
-                const videoUrl = `/artefacts/${dir}/video/recording.mp4`;
-                html += `<div id="videoSection">
-                    <h3>Recording</h3>
-                    <video controls preload="none" class="run-video" onerror="this.closest('#videoSection').style.display='none'">
-                        <source src="${videoUrl}" type="video/mp4">
-                    </video>
-                    <div style="margin-top:0.5rem;">
-                        <a href="${videoUrl}" download class="btn btn-sm btn-secondary">Download MP4</a>
-                    </div>
-                </div>`;
+            function openExecution(sq) {
+                document.getElementById('modalTitle').textContent = sq.dataset.testName;
+                document.getElementById('modalTime').textContent = sq.dataset.at + ' — ' + sq.dataset.status;
+                document.getElementById('modalBody').innerHTML = '<div class="modal-loading">Loading\u2026</div>';
+                document.getElementById('execModal').style.display = 'block';
+                fetch(`/api/executions/${sq.dataset.id}/status`)
+                    .then(r => r.json())
+                    .then(data => renderModal(data, sq.dataset.testName, sq.dataset.at, sq.dataset.artefactDir))
+                    .catch(() => { document.getElementById('modalBody').innerHTML = '<p class="har-empty">Failed to load execution details.</p>'; });
             }
 
-            // Screenshots
-            if (dir) {
-                html += `<details class="screenshots-details" data-artefact-dir="${dir}">
-                    <summary>Screenshots</summary>
-                    <div class="screenshots-gallery"></div>
-                </details>`;
+            function renderModal(data, testName, executedAt, artefactDir) {
+                const dir = artefactDir || data.artefact_dir || '';
+                let html = `<div class="modal-meta">
+                    <span><strong>Executed:</strong> ${executedAt}</span>
+                    <span><strong>Status:</strong> <span class="status-badge status-${data.status}">${data.status}</span></span>`;
+                if (data.duration_seconds != null) {
+                    html += `<span><strong>Duration:</strong> ${parseFloat(data.duration_seconds).toFixed(1)}s`;
+                    if (data.sla_violated) html += ` <span style="color:#e67e22;font-weight:600">SLA violated</span>`;
+                    html += `</span>`;
+                }
+                html += `</div>`;
+                if (dir) {
+                    const videoUrl = `/artefacts/${dir}/video/recording.mp4`;
+                    html += `<div id="videoSection"><h3>Recording</h3>
+                        <video controls preload="none" class="run-video" onerror="this.closest('#videoSection').style.display='none'">
+                            <source src="${videoUrl}" type="video/mp4">
+                        </video>
+                        <div style="margin-top:0.5rem;"><a href="${videoUrl}" download class="btn btn-sm btn-secondary">Download MP4</a></div>
+                    </div>`;
+                    html += `<details class="screenshots-details" data-artefact-dir="${dir}">
+                        <summary>Screenshots</summary>
+                        <div class="screenshots-gallery"></div>
+                    </details>`;
+                }
+                let steps = [];
+                try { steps = JSON.parse(data.step_results || '[]'); } catch(e) {}
+                html += `<h3>Step Results</h3><div class="steps-results-list">${renderStepResults(steps, dir)}</div>`;
+                if (data.error && data.error.trim()) html += `<h3>Error</h3><pre class="error-output">${escHtml(data.error)}</pre>`;
+                document.getElementById('modalBody').innerHTML = html;
             }
 
-            // Step results
-            let steps = [];
-            try { steps = JSON.parse(data.step_results || '[]'); } catch(e) {}
-            html += `<h3>Step Results</h3><div class="steps-results-list">${renderStepResults(steps, dir)}</div>`;
+            function escHtml(str) { const d = document.createElement('div'); d.textContent = str; return d.innerHTML; }
 
-            // Error
-            if (data.error && data.error.trim()) {
-                html += `<h3>Error</h3><pre class="error-output">${escHtml(data.error)}</pre>`;
+            function closeModal() {
+                const video = document.querySelector('#execModal video');
+                if (video) { video.pause(); video.src = ''; }
+                document.getElementById('execModal').style.display = 'none';
             }
 
-            document.getElementById('modalBody').innerHTML = html;
-        }
-
-        function escHtml(str) {
-            const d = document.createElement('div');
-            d.textContent = str;
-            return d.innerHTML;
-        }
-
-        function closeModal() {
-            const video = document.querySelector('#execModal video');
-            if (video) { video.pause(); video.src = ''; }
-            document.getElementById('execModal').style.display = 'none';
-        }
-
-        window.addEventListener('click', e => {
-            if (e.target === document.getElementById('execModal')) closeModal();
-        });
-    </script>
+            window.addEventListener('click', e => { if (e.target === document.getElementById('execModal')) closeModal(); });
+        </script>
+    </main>
+</div>
 </body>
 </html>

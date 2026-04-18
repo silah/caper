@@ -7,28 +7,39 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
-    <nav class="navbar">
-        <div class="container">
-            <h1 class="logo">Caper</h1>
-            <ul class="nav-links">
-                <li><a href="/">Home</a></li>
-                <li><a href="/create">Create Test</a></li>
-                <li><a href="/tests" class="active">Tests</a></li>
-                <li><a href="/executions">Executions</a></li>
-                <li><a href="/health">Health</a></li>
-                <li><a href="/variables">Variables</a></li>
-                <li><a href="/logs">Log</a></li>
-            </ul>
-        </div>
-    </nav>
-
-    <div class="container">
-        <div class="tov-header">
-            <div>
-                <h2 class="tov-title">Tests</h2>
-                <p class="tov-subtitle">{{ tests|length }} test{% if tests|length != 1 %}s{% endif %} in your workspace</p>
+<div class="app-shell">
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <div class="sidebar-brand">
+                <span class="sidebar-brand-name">Caper</span>
+                <span class="sidebar-brand-dot"></span>
             </div>
-            <div class="tov-actions">
+        </div>
+        <nav class="sidebar-nav">
+            <a href="/" class="sidebar-link">Home</a>
+            <a href="/tests" class="sidebar-link active">Tests</a>
+            <a href="/executions" class="sidebar-link">Executions</a>
+            <a href="/health" class="sidebar-link">Health</a>
+            <div class="sidebar-divider"></div>
+            <a href="/create" class="sidebar-link">Create Test</a>
+            <a href="/variables" class="sidebar-link">Variables</a>
+            <a href="/logs" class="sidebar-link">Log</a>
+        </nav>
+        <div class="sidebar-footer">
+            {% if current_user.is_authenticated %}
+            <span class="sidebar-user">{{ current_user.username }}</span>
+            {% endif %}
+            <a href="/logout" class="sidebar-link sidebar-link-danger">Sign out</a>
+        </div>
+    </aside>
+
+    <main class="main-content">
+        <div class="pg-header">
+            <div class="pg-header-left">
+                <h1 class="pg-title">Tests</h1>
+                <p class="pg-subtitle">{{ tests|length }} test{% if tests|length != 1 %}s{% endif %} in your workspace</p>
+            </div>
+            <div class="pg-actions">
                 <button class="btn btn-secondary" onclick="document.getElementById('importFile').click()">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:5px"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>Import
                 </button>
@@ -86,10 +97,10 @@
                             {% endif %}
                         </td>
                         <td class="tov-row-actions">
-                            <a href="/test/{{ test.id }}" class="tov-btn tov-btn-view" title="View">Details</a>
-                            <a href="/edit/{{ test.id }}" class="tov-btn tov-btn-edit" title="Edit">Edit</a>
-                            <button class="tov-btn tov-btn-run" onclick="executeTest({{ test.id }}, this)" title="Run">Run</button>
-                            <button class="tov-btn tov-btn-delete" onclick="deleteTest({{ test.id }})" title="Delete">Delete</button>
+                            <a href="/test/{{ test.id }}" class="tov-btn tov-btn-view">Details</a>
+                            <a href="/edit/{{ test.id }}" class="tov-btn tov-btn-edit">Edit</a>
+                            <button class="tov-btn tov-btn-run" onclick="executeTest({{ test.id }}, this)">Run</button>
+                            <button class="tov-btn tov-btn-delete" onclick="deleteTest({{ test.id }})">Delete</button>
                         </td>
                     </tr>
                     {% endfor %}
@@ -105,103 +116,78 @@
             <a href="/create" class="btn btn-primary">Create your first test</a>
         </div>
         {% endif %}
-    </div>
 
-    <script>
-        function executeTest(testId, btn) {
-            if (!confirm('Run this test now?')) return;
-            btn.disabled = true;
-            btn.textContent = '…';
-
-            fetch(`/api/tests/${testId}/execute`, { method: 'POST' })
-            .then(r => r.json())
-            .then(data => {
-                if (!data.execution_id) {
-                    btn.disabled = false;
-                    btn.textContent = 'Run';
-                    alert('Error: ' + (data.error || 'Unknown error'));
-                    return;
-                }
-                pollStatus(data.execution_id, btn, Date.now());
-            })
-            .catch(err => {
-                btn.disabled = false;
-                btn.textContent = 'Run';
-                alert('Error: ' + err);
-            });
-        }
-
-        function pollStatus(executionId, btn, startTime) {
-            const elapsed = Math.round((Date.now() - startTime) / 1000);
-            btn.textContent = `${elapsed}s`;
-
-            fetch(`/api/executions/${executionId}/status`)
-            .then(r => r.json())
-            .then(data => {
-                if (data.status === 'running') {
-                    setTimeout(() => pollStatus(executionId, btn, startTime), 2000);
-                } else {
-                    btn.disabled = false;
-                    btn.textContent = 'Run';
-                    if (data.status === 'success') {
-                        window.location.reload();
-                    } else {
-                        alert(`Test ${data.status}: ${data.error || 'Check execution log'}`);
-                        window.location.reload();
-                    }
-                }
-            })
-            .catch(() => setTimeout(() => pollStatus(executionId, btn, startTime), 2000));
-        }
-
-        document.getElementById('importFile').addEventListener('change', function() {
-            const file = this.files[0];
-            if (!file) return;
-
-            const status = document.getElementById('importStatus');
-            status.className = 'import-status import-status-loading';
-            status.textContent = 'Importing…';
-            status.style.display = 'block';
-
-            const fd = new FormData();
-            fd.append('file', file);
-            this.value = '';
-
-            fetch('/api/tests/import', { method: 'POST', body: fd })
+        <script>
+            function executeTest(testId, btn) {
+                if (!confirm('Run this test now?')) return;
+                btn.disabled = true;
+                btn.textContent = '…';
+                fetch(`/api/tests/${testId}/execute`, { method: 'POST' })
                 .then(r => r.json())
                 .then(data => {
-                    if (data.success) {
-                        let msg = data.message;
-                        if (data.skipped && data.skipped.length > 0) {
-                            msg += `\n\nSkipped ${data.skipped.length} unrecognised step(s):\n` +
-                                data.skipped.map(s => `  • ${s.name} (type: "${s.type}")`).join('\n');
-                            status.className = 'import-status import-status-warn';
-                            status.style.whiteSpace = 'pre-wrap';
-                            status.textContent = msg;
-                            setTimeout(() => window.location.reload(), 4000);
-                        } else {
-                            status.className = 'import-status import-status-ok';
-                            status.textContent = msg;
-                            setTimeout(() => window.location.reload(), 1200);
-                        }
-                    } else {
-                        status.className = 'import-status import-status-err';
-                        status.textContent = 'Import failed: ' + (data.error || 'Unknown error');
-                    }
+                    if (!data.execution_id) { btn.disabled = false; btn.textContent = 'Run'; alert('Error: ' + (data.error || 'Unknown error')); return; }
+                    pollStatus(data.execution_id, btn, Date.now());
                 })
-                .catch(err => {
-                    status.className = 'import-status import-status-err';
-                    status.textContent = 'Import failed: ' + err;
-                });
-        });
+                .catch(err => { btn.disabled = false; btn.textContent = 'Run'; alert('Error: ' + err); });
+            }
 
-        function deleteTest(testId) {
-            if (!confirm('Delete this test? This cannot be undone.')) return;
-            fetch(`/api/tests/${testId}`, { method: 'DELETE' })
-            .then(r => r.json())
-            .then(() => window.location.reload())
-            .catch(err => alert('Error: ' + err));
-        }
-    </script>
+            function pollStatus(executionId, btn, startTime) {
+                const elapsed = Math.round((Date.now() - startTime) / 1000);
+                btn.textContent = `${elapsed}s`;
+                fetch(`/api/executions/${executionId}/status`)
+                .then(r => r.json())
+                .then(data => {
+                    if (data.status === 'running') { setTimeout(() => pollStatus(executionId, btn, startTime), 2000); return; }
+                    btn.disabled = false; btn.textContent = 'Run';
+                    if (data.status !== 'success') alert(`Test ${data.status}: ${data.error || 'Check execution log'}`);
+                    window.location.reload();
+                })
+                .catch(() => setTimeout(() => pollStatus(executionId, btn, startTime), 2000));
+            }
+
+            document.getElementById('importFile').addEventListener('change', function() {
+                const file = this.files[0];
+                if (!file) return;
+                const status = document.getElementById('importStatus');
+                status.className = 'import-status import-status-loading';
+                status.textContent = 'Importing…';
+                status.style.display = 'block';
+                const fd = new FormData();
+                fd.append('file', file);
+                this.value = '';
+                fetch('/api/tests/import', { method: 'POST', body: fd })
+                    .then(r => r.json())
+                    .then(data => {
+                        if (data.success) {
+                            let msg = data.message;
+                            if (data.skipped && data.skipped.length > 0) {
+                                msg += `\n\nSkipped ${data.skipped.length} unrecognised step(s):\n` + data.skipped.map(s => `  • ${s.name} (type: "${s.type}")`).join('\n');
+                                status.className = 'import-status import-status-warn';
+                                status.style.whiteSpace = 'pre-wrap';
+                                status.textContent = msg;
+                                setTimeout(() => window.location.reload(), 4000);
+                            } else {
+                                status.className = 'import-status import-status-ok';
+                                status.textContent = msg;
+                                setTimeout(() => window.location.reload(), 1200);
+                            }
+                        } else {
+                            status.className = 'import-status import-status-err';
+                            status.textContent = 'Import failed: ' + (data.error || 'Unknown error');
+                        }
+                    })
+                    .catch(err => { status.className = 'import-status import-status-err'; status.textContent = 'Import failed: ' + err; });
+            });
+
+            function deleteTest(testId) {
+                if (!confirm('Delete this test? This cannot be undone.')) return;
+                fetch(`/api/tests/${testId}`, { method: 'DELETE' })
+                .then(r => r.json())
+                .then(() => window.location.reload())
+                .catch(err => alert('Error: ' + err));
+            }
+        </script>
+    </main>
+</div>
 </body>
 </html>
