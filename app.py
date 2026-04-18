@@ -908,5 +908,37 @@ def _scheduler_loop():
 _scheduler_thread = threading.Thread(target=_scheduler_loop, daemon=True)
 _scheduler_thread.start()
 
+
+def _migrate_selenium_scripts():
+    """Regenerate any test scripts that still use the old Selenium API."""
+    conn = db.get_connection()
+    cursor = conn.cursor()
+    cursor.execute('SELECT id, steps, browser FROM tests')
+    rows = cursor.fetchall()
+    conn.close()
+    migrated = 0
+    for row in rows:
+        test_id = row['id']
+        steps_raw = row['steps']
+        browser = row['browser'] or 'firefox'
+        if not steps_raw:
+            continue
+        try:
+            steps = json.loads(steps_raw if isinstance(steps_raw, str) else steps_raw.decode('utf-8'))
+        except Exception:
+            continue
+        new_script = generate_selenium_script(steps, browser)
+        conn2 = db.get_connection()
+        conn2.execute('UPDATE tests SET script = ? WHERE id = ?', (new_script.encode('utf-8'), test_id))
+        conn2.commit()
+        conn2.close()
+        migrated += 1
+    if migrated:
+        db.log_event('info', f'Playwright migration: regenerated scripts for {migrated} test(s)', None)
+
+
+_migrate_selenium_scripts()
+
+
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5098, use_reloader=False)

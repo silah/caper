@@ -1,5 +1,4 @@
 Flask==3.0.0
-selenium==4.16.0
-webdriver-manager==4.0.1
+playwright
 Werkzeug==3.0.1
 Flask-Login==0.6.3
