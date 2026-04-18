@@ -285,6 +285,136 @@ def api_get_test_tags(test_id):
     return jsonify(db.get_test_tags(test_id))
 
 
+def _run_suite(suite_id, suite_execution_id, team_id):
+    start_time = time.time()
+    suite = db.get_suite(suite_id)
+    if not suite:
+        db.update_suite_execution(suite_execution_id, 'error', 0)
+        return
+
+    stop_on_failure = suite.get('stop_on_failure', 0)
+    tests = suite.get('tests', [])
+    all_passed = True
+
+    for position, test in enumerate(tests):
+        test_id = test['id']
+        execution_id = db.create_execution(test_id, team_id)
+        db.add_suite_execution_test(suite_execution_id, test_id, test['name'],
+                                    execution_id, position, 'running')
+        _run_test_subprocess(test_id, test['script'], execution_id, test['name'],
+                             team_id, test.get('retry_count', 0), test.get('sla_seconds'))
+        execution = db.get_execution(execution_id)
+        status = execution['status'] if execution else 'error'
+        db.update_suite_execution_test(suite_execution_id, test_id, status)
+        if status != 'success':
+            all_passed = False
+            if stop_on_failure:
+                break
+
+    duration = time.time() - start_time
+    final_status = 'success' if all_passed else 'error'
+    db.update_suite_execution(suite_execution_id, final_status, duration)
+    db.log_event(
+        'info' if final_status == 'success' else 'error',
+        f'Suite "{suite["name"]}" finished: {final_status.upper()}',
+        f'suite_id={suite_id} suite_execution_id={suite_execution_id} '
+        f'tests={len(tests)} duration={duration:.1f}s'
+    )
+
+
+@app.route('/suites')
+@login_required
+def suites_page():
+    team = get_current_team()
+    if not team:
+        return redirect(url_for('index'))
+    suites = db.get_suites(team['id'])
+    tests = db.get_all_tests(team['id'])
+    return render_template('suites.html', suites=suites, tests=tests, team=team)
+
+
+@app.route('/suites/<int:suite_id>')
+@login_required
+def suite_detail(suite_id):
+    team = get_current_team()
+    suite = db.get_suite(suite_id, team_id=team['id'] if team else None)
+    if not suite:
+        return "Suite not found", 404
+    executions = db.get_suite_executions(suite_id)
+    all_tests = db.get_all_tests(team['id'] if team else None)
+    return render_template('suite_detail.html', suite=suite, executions=executions,
+                           all_tests=all_tests, team=team)
+
+
+@app.route('/api/suites', methods=['POST'])
+@login_required
+def api_create_suite():
+    team = get_current_team()
+    if not team:
+        return jsonify({'error': 'No team'}), 403
+    data = request.json or {}
+    name = (data.get('name') or '').strip()
+    if not name:
+        return jsonify({'error': 'Name is required'}), 400
+    suite_id = db.create_suite(team['id'], name,
+                                (data.get('description') or '').strip(),
+                                1 if data.get('stop_on_failure') else 0)
+    if data.get('test_ids'):
+        db.set_suite_tests(suite_id, data['test_ids'])
+    return jsonify({'success': True, 'suite_id': suite_id})
+
+
+@app.route('/api/suites/<int:suite_id>', methods=['PUT'])
+@login_required
+def api_update_suite(suite_id):
+    team = get_current_team()
+    data = request.json or {}
+    name = (data.get('name') or '').strip()
+    if not name:
+        return jsonify({'error': 'Name is required'}), 400
+    db.update_suite(suite_id, name, (data.get('description') or '').strip(),
+                    1 if data.get('stop_on_failure') else 0,
+                    team_id=team['id'] if team else None)
+    if 'test_ids' in data:
+        db.set_suite_tests(suite_id, data['test_ids'])
+    return jsonify({'success': True})
+
+
+@app.route('/api/suites/<int:suite_id>', methods=['DELETE'])
+@login_required
+def api_delete_suite(suite_id):
+    team = get_current_team()
+    db.delete_suite(suite_id, team_id=team['id'] if team else None)
+    return jsonify({'success': True})
+
+
+@app.route('/api/suites/<int:suite_id>/execute', methods=['POST'])
+@login_required
+def api_execute_suite(suite_id):
+    team = get_current_team()
+    suite = db.get_suite(suite_id, team_id=team['id'] if team else None)
+    if not suite:
+        return jsonify({'error': 'Suite not found'}), 404
+    if not suite.get('tests'):
+        return jsonify({'error': 'Suite has no tests'}), 400
+    team_id = team['id'] if team else None
+    suite_execution_id = db.create_suite_execution(suite_id, team_id)
+    threading.Thread(target=_run_suite,
+                     args=(suite_id, suite_execution_id, team_id),
+                     daemon=True).start()
+    return jsonify({'suite_execution_id': suite_execution_id, 'status': 'running'})
+
+
+@app.route('/api/suite-executions/<int:suite_execution_id>/status')
+@login_required
+def api_suite_execution_status(suite_execution_id):
+    ex = db.get_suite_execution(suite_execution_id)
+    if not ex:
+        return jsonify({'error': 'Not found'}), 404
+    return jsonify({'status': ex['status'], 'duration_seconds': ex['duration_seconds'],
+                    'tests': ex['tests']})
+
+
 def _send_webhook(test_id, status):
     test = db.get_test(test_id)
     if not test or not test.get('webhook_enabled') or not test.get('webhook_url'):

@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Suites - Caper</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+<div class="app-shell">
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <div class="sidebar-brand">
+                <span class="sidebar-brand-name">Caper</span>
+                <span class="sidebar-brand-dot"></span>
+            </div>
+        </div>
+        <nav class="sidebar-nav">
+            <a href="/" class="sidebar-link">Home</a>
+            <a href="/tests" class="sidebar-link">Tests</a>
+            <a href="/executions" class="sidebar-link">Executions</a>
+            <a href="/health" class="sidebar-link">Health</a>
+            <a href="/tags" class="sidebar-link">Tags</a>
+            <a href="/suites" class="sidebar-link active">Suites</a>
+            <div class="sidebar-divider"></div>
+            <a href="/create" class="sidebar-link">Create Test</a>
+            <a href="/variables" class="sidebar-link">Variables</a>
+            <a href="/logs" class="sidebar-link">Log</a>
+        </nav>
+        <div class="sidebar-footer">
+            {% if current_user.is_authenticated %}
+            <span class="sidebar-user">{{ current_user.username }}</span>
+            {% endif %}
+            <a href="/logout" class="sidebar-link sidebar-link-danger">Sign out</a>
+        </div>
+    </aside>
+
+    <main class="main-content">
+        <div class="pg-header">
+            <div class="pg-header-left">
+                <h1 class="pg-title">Suites</h1>
+                <p class="pg-subtitle">Run groups of tests together as a single unit</p>
+            </div>
+            <div class="pg-actions">
+                <button class="btn btn-primary" onclick="openCreateModal()">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:5px"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>New Suite
+                </button>
+            </div>
+        </div>
+
+        {% if suites %}
+        <div class="suite-list">
+            {% for suite in suites %}
+            <div class="suite-card" id="suite-{{ suite.id }}">
+                <div class="suite-card-main">
+                    <div class="suite-card-info">
+                        <a href="/suites/{{ suite.id }}" class="suite-card-name">{{ suite.name }}</a>
+                        {% if suite.description %}
+                        <p class="suite-card-desc">{{ suite.description }}</p>
+                        {% endif %}
+                        <div class="suite-card-meta">
+                            <span class="suite-meta-item">{{ suite.test_count }} test{% if suite.test_count != 1 %}s{% endif %}</span>
+                            {% if suite.stop_on_failure %}
+                            <span class="suite-meta-item suite-meta-stop">stops on failure</span>
+                            {% endif %}
+                            {% if suite.last_status %}
+                            <span class="suite-exec-badge suite-exec-{{ suite.last_status }}">{{ suite.last_status }}</span>
+                            {% if suite.last_run %}
+                            <span class="suite-meta-item">{{ suite.last_run[:16] }}</span>
+                            {% endif %}
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="suite-card-actions">
+                        <button class="tov-btn tov-btn-run" id="run-{{ suite.id }}"
+                                onclick="runSuite({{ suite.id }}, this)"
+                                {% if suite.test_count == 0 %}disabled title="Add tests first"{% endif %}>Run</button>
+                        <a href="/suites/{{ suite.id }}" class="tov-btn tov-btn-view">Edit</a>
+                        <button class="tov-btn tov-btn-delete" onclick="deleteSuite({{ suite.id }})">Delete</button>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="tov-empty">
+            <div class="tov-empty-icon">
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#ccc" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-4 0v2"/><line x1="12" y1="12" x2="12" y2="16"/><line x1="10" y1="14" x2="14" y2="14"/></svg>
+            </div>
+            <p>No suites yet</p>
+            <button class="btn btn-primary" onclick="openCreateModal()">Create your first suite</button>
+        </div>
+        {% endif %}
+
+    </main>
+</div>
+
+<!-- Create suite modal -->
+<div id="createModal" class="modal">
+    <div class="modal-content" style="max-width:540px">
+        <div class="modal-header">
+            <h2>New Suite</h2>
+            <span class="modal-close" onclick="closeCreateModal()">&times;</span>
+        </div>
+        <div class="modal-body">
+            <div class="ed-field" style="margin-bottom:1rem">
+                <label for="suiteName">Name *</label>
+                <input type="text" id="suiteName" class="ed-input" placeholder="e.g. Smoke Tests">
+            </div>
+            <div class="ed-field" style="margin-bottom:1rem">
+                <label for="suiteDesc">Description</label>
+                <input type="text" id="suiteDesc" class="ed-input" placeholder="Optional description">
+            </div>
+            <div class="ed-field" style="margin-bottom:1rem">
+                <label>Tests</label>
+                <div class="suite-test-picker" id="testPicker">
+                    {% if tests %}
+                    {% for test in tests %}
+                    <label class="suite-test-pick-row">
+                        <input type="checkbox" class="suite-test-check" value="{{ test.id }}">
+                        <span class="suite-test-pick-name">{{ test.name }}</span>
+                    </label>
+                    {% endfor %}
+                    {% else %}
+                    <span style="color:#aaa;font-size:.82rem">No tests yet</span>
+                    {% endif %}
+                </div>
+            </div>
+            <div style="margin-bottom:1.25rem">
+                <label class="ed-toggle-label">
+                    <input type="checkbox" id="suiteStopOnFailure" class="ed-toggle-check">
+                    <span class="ed-toggle-track"></span>
+                    <span class="ed-toggle-text">Stop on first failure</span>
+                </label>
+            </div>
+            <div id="createStatus" style="font-size:.8rem;min-height:1.2em;color:#c62828"></div>
+            <div style="display:flex;gap:.75rem;margin-top:1rem">
+                <button class="btn btn-primary" onclick="createSuite()">Create suite</button>
+                <button class="btn btn-ghost" onclick="closeCreateModal()">Cancel</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function openCreateModal() {
+        document.getElementById('suiteName').value = '';
+        document.getElementById('suiteDesc').value = '';
+        document.getElementById('suiteStopOnFailure').checked = false;
+        document.querySelectorAll('.suite-test-check').forEach(c => c.checked = false);
+        document.getElementById('createStatus').textContent = '';
+        document.getElementById('createModal').style.display = 'block';
+        setTimeout(() => document.getElementById('suiteName').focus(), 50);
+    }
+    function closeCreateModal() {
+        document.getElementById('createModal').style.display = 'none';
+    }
+    window.addEventListener('click', e => {
+        if (e.target === document.getElementById('createModal')) closeCreateModal();
+    });
+
+    function createSuite() {
+        const name = document.getElementById('suiteName').value.trim();
+        const desc = document.getElementById('suiteDesc').value.trim();
+        const stop = document.getElementById('suiteStopOnFailure').checked;
+        const test_ids = [...document.querySelectorAll('.suite-test-check:checked')].map(c => parseInt(c.value));
+        const statusEl = document.getElementById('createStatus');
+        if (!name) { statusEl.textContent = 'Name is required'; return; }
+        statusEl.textContent = '';
+        fetch('/api/suites', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name, description: desc, stop_on_failure: stop, test_ids })
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (!data.success) { statusEl.textContent = data.error || 'Error'; return; }
+            window.location.href = '/suites/' + data.suite_id;
+        })
+        .catch(err => { statusEl.textContent = 'Error: ' + err; });
+    }
+
+    function deleteSuite(suiteId) {
+        if (!confirm('Delete this suite? Tests inside will not be affected.')) return;
+        fetch('/api/suites/' + suiteId, { method: 'DELETE' })
+        .then(r => r.json())
+        .then(() => document.getElementById('suite-' + suiteId)?.remove())
+        .catch(err => alert('Error: ' + err));
+    }
+
+    function runSuite(suiteId, btn) {
+        btn.disabled = true;
+        btn.textContent = '…';
+        fetch('/api/suites/' + suiteId + '/execute', { method: 'POST' })
+        .then(r => r.json())
+        .then(data => {
+            if (!data.suite_execution_id) {
+                btn.disabled = false; btn.textContent = 'Run';
+                alert(data.error || 'Error starting suite');
+                return;
+            }
+            pollSuite(data.suite_execution_id, btn, Date.now());
+        })
+        .catch(err => { btn.disabled = false; btn.textContent = 'Run'; alert('Error: ' + err); });
+    }
+
+    function pollSuite(seId, btn, startTime) {
+        const elapsed = Math.round((Date.now() - startTime) / 1000);
+        btn.textContent = elapsed + 's';
+        fetch('/api/suite-executions/' + seId + '/status')
+        .then(r => r.json())
+        .then(data => {
+            if (data.status === 'running') {
+                setTimeout(() => pollSuite(seId, btn, startTime), 3000);
+                return;
+            }
+            btn.disabled = false; btn.textContent = 'Run';
+            window.location.reload();
+        })
+        .catch(() => setTimeout(() => pollSuite(seId, btn, startTime), 3000));
+    }
+</script>
+</body>
+</html>

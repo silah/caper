@@ -23,8 +23,8 @@
 - [ ] Test chaining — run one test, then another, passing output between them
 
 ## Organisation
-- [ ] Tags/labels on tests for grouping and filtering
-- [ ] Test suites — run a collection of tests as one unit
+- [x] Tags/labels on tests for grouping and filtering
+- [x] Test suites — run a collection of tests as one unit
 - [ ] Per-test environment overrides (staging vs. prod URL)
 
 ## Operations

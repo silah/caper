@@ -126,6 +126,56 @@ class Database:
             )
         ''')
 
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS suites (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                team_id INTEGER NOT NULL,
+                name TEXT NOT NULL,
+                description TEXT,
+                stop_on_failure INTEGER DEFAULT 0,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (team_id) REFERENCES teams (id)
+            )
+        ''')
+
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS suite_tests (
+                suite_id INTEGER NOT NULL,
+                test_id INTEGER NOT NULL,
+                position INTEGER NOT NULL DEFAULT 0,
+                PRIMARY KEY (suite_id, test_id),
+                FOREIGN KEY (suite_id) REFERENCES suites (id) ON DELETE CASCADE,
+                FOREIGN KEY (test_id) REFERENCES tests (id) ON DELETE CASCADE
+            )
+        ''')
+
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS suite_executions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                suite_id INTEGER NOT NULL,
+                team_id INTEGER NOT NULL,
+                status TEXT NOT NULL DEFAULT 'running',
+                started_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                finished_at TIMESTAMP,
+                duration_seconds REAL,
+                FOREIGN KEY (suite_id) REFERENCES suites (id)
+            )
+        ''')
+
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS suite_execution_tests (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                suite_execution_id INTEGER NOT NULL,
+                test_id INTEGER,
+                test_name TEXT,
+                execution_id INTEGER,
+                position INTEGER NOT NULL DEFAULT 0,
+                status TEXT,
+                FOREIGN KEY (suite_execution_id) REFERENCES suite_executions (id) ON DELETE CASCADE,
+                FOREIGN KEY (execution_id) REFERENCES executions (id)
+            )
+        ''')
+
         # Migrations
         migrations = [
             ("SELECT step_results FROM executions LIMIT 1",
@@ -774,3 +824,184 @@ class Database:
                 pass
         conn.commit()
         conn.close()
+
+    # ── Suites ────────────────────────────────────────────────────────────────
+
+    def create_suite(self, team_id, name, description='', stop_on_failure=0):
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        cursor.execute(
+            'INSERT INTO suites (team_id, name, description, stop_on_failure) VALUES (?, ?, ?, ?)',
+            (team_id, name, description or '', int(stop_on_failure))
+        )
+        suite_id = cursor.lastrowid
+        conn.commit()
+        conn.close()
+        return suite_id
+
+    def get_suites(self, team_id):
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        cursor.execute('''
+            SELECT s.*,
+                COUNT(DISTINCT st.test_id) as test_count,
+                (SELECT status FROM suite_executions WHERE suite_id = s.id
+                 ORDER BY started_at DESC LIMIT 1) as last_status,
+                (SELECT started_at FROM suite_executions WHERE suite_id = s.id
+                 ORDER BY started_at DESC LIMIT 1) as last_run
+            FROM suites s
+            LEFT JOIN suite_tests st ON st.suite_id = s.id
+            WHERE s.team_id = ?
+            GROUP BY s.id
+            ORDER BY s.name
+        ''', (team_id,))
+        suites = [dict(row) for row in cursor.fetchall()]
+        conn.close()
+        return suites
+
+    def get_suite(self, suite_id, team_id=None):
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        if team_id:
+            cursor.execute('SELECT * FROM suites WHERE id = ? AND team_id = ?', (suite_id, team_id))
+        else:
+            cursor.execute('SELECT * FROM suites WHERE id = ?', (suite_id,))
+        row = cursor.fetchone()
+        if not row:
+            conn.close()
+            return None
+        suite = dict(row)
+        cursor.execute('''
+            SELECT t.id, t.name, t.description, t.script, t.retry_count, t.sla_seconds,
+                   st.position
+            FROM suite_tests st
+            JOIN tests t ON t.id = st.test_id
+            WHERE st.suite_id = ?
+            ORDER BY st.position
+        ''', (suite_id,))
+        suite['tests'] = [dict(r) for r in cursor.fetchall()]
+        conn.close()
+        return suite
+
+    def update_suite(self, suite_id, name, description, stop_on_failure, team_id=None):
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        if team_id:
+            cursor.execute(
+                'UPDATE suites SET name=?, description=?, stop_on_failure=? WHERE id=? AND team_id=?',
+                (name, description or '', int(stop_on_failure), suite_id, team_id)
+            )
+        else:
+            cursor.execute(
+                'UPDATE suites SET name=?, description=?, stop_on_failure=? WHERE id=?',
+                (name, description or '', int(stop_on_failure), suite_id)
+            )
+        conn.commit()
+        conn.close()
+
+    def set_suite_tests(self, suite_id, test_ids):
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        cursor.execute('DELETE FROM suite_tests WHERE suite_id = ?', (suite_id,))
+        for position, test_id in enumerate(test_ids):
+            try:
+                cursor.execute(
+                    'INSERT INTO suite_tests (suite_id, test_id, position) VALUES (?, ?, ?)',
+                    (suite_id, int(test_id), position)
+                )
+            except (sqlite3.IntegrityError, ValueError):
+                pass
+        conn.commit()
+        conn.close()
+
+    def delete_suite(self, suite_id, team_id=None):
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        if team_id:
+            cursor.execute('DELETE FROM suites WHERE id = ? AND team_id = ?', (suite_id, team_id))
+        else:
+            cursor.execute('DELETE FROM suites WHERE id = ?', (suite_id,))
+        conn.commit()
+        conn.close()
+
+    def create_suite_execution(self, suite_id, team_id):
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        cursor.execute(
+            'INSERT INTO suite_executions (suite_id, team_id, status) VALUES (?, ?, ?)',
+            (suite_id, team_id, 'running')
+        )
+        suite_execution_id = cursor.lastrowid
+        conn.commit()
+        conn.close()
+        return suite_execution_id
+
+    def update_suite_execution(self, suite_execution_id, status, duration_seconds):
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        cursor.execute(
+            '''UPDATE suite_executions
+               SET status=?, finished_at=CURRENT_TIMESTAMP, duration_seconds=?
+               WHERE id=?''',
+            (status, duration_seconds, suite_execution_id)
+        )
+        conn.commit()
+        conn.close()
+
+    def add_suite_execution_test(self, suite_execution_id, test_id, test_name,
+                                  execution_id, position, status):
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        cursor.execute(
+            '''INSERT INTO suite_execution_tests
+               (suite_execution_id, test_id, test_name, execution_id, position, status)
+               VALUES (?, ?, ?, ?, ?, ?)''',
+            (suite_execution_id, test_id, test_name, execution_id, position, status)
+        )
+        conn.commit()
+        conn.close()
+
+    def update_suite_execution_test(self, suite_execution_id, test_id, status):
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        cursor.execute(
+            '''UPDATE suite_execution_tests SET status=?
+               WHERE suite_execution_id=? AND test_id=?''',
+            (status, suite_execution_id, test_id)
+        )
+        conn.commit()
+        conn.close()
+
+    def get_suite_executions(self, suite_id, limit=15):
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        cursor.execute(
+            'SELECT * FROM suite_executions WHERE suite_id = ? ORDER BY started_at DESC LIMIT ?',
+            (suite_id, limit)
+        )
+        executions = [dict(row) for row in cursor.fetchall()]
+        for ex in executions:
+            cursor.execute(
+                'SELECT * FROM suite_execution_tests WHERE suite_execution_id = ? ORDER BY position',
+                (ex['id'],)
+            )
+            ex['tests'] = [dict(r) for r in cursor.fetchall()]
+        conn.close()
+        return executions
+
+    def get_suite_execution(self, suite_execution_id):
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        cursor.execute('SELECT * FROM suite_executions WHERE id = ?', (suite_execution_id,))
+        row = cursor.fetchone()
+        if not row:
+            conn.close()
+            return None
+        ex = dict(row)
+        cursor.execute(
+            'SELECT * FROM suite_execution_tests WHERE suite_execution_id = ? ORDER BY position',
+            (suite_execution_id,)
+        )
+        ex['tests'] = [dict(r) for r in cursor.fetchall()]
+        conn.close()
+        return ex
