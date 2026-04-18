@@ -1,6 +1,9 @@
 // Test steps array
 let testSteps = [];
 
+// Selector types available for all element-targeting actions
+const SELECTOR_OPTIONS = ['css', 'id', 'xpath', 'name', 'class', 'tag', 'link_text', 'partial_link_text', 'jspath', 'aria', 'text', 'label', 'placeholder', 'role'];
+
 // Action configurations
 const actionConfigs = {
     navigate: {
@@ -10,13 +13,13 @@ const actionConfigs = {
     },
     click: {
         fields: [
-            { name: 'selectorType', label: 'Selector Type', type: 'select', options: ['css', 'id', 'xpath', 'name', 'class', 'tag', 'link_text', 'jspath', 'aria'], required: true },
-            { name: 'selector', label: 'Selector', type: 'text', placeholder: '#submit-button', required: true }
+            { name: 'selectorType', label: 'Selector Type', type: 'select', options: SELECTOR_OPTIONS, required: true },
+            { name: 'selector', label: 'Selector', type: 'text', placeholder: '#submit-button  or  role:button:Submit', required: true }
         ]
     },
     type: {
         fields: [
-            { name: 'selectorType', label: 'Selector Type', type: 'select', options: ['css', 'id', 'xpath', 'name', 'class', 'tag', 'jspath', 'aria'], required: true },
+            { name: 'selectorType', label: 'Selector Type', type: 'select', options: SELECTOR_OPTIONS, required: true },
             { name: 'selector', label: 'Selector', type: 'text', placeholder: '#email-input', required: true },
             { name: 'value', label: 'Text to Type', type: 'text', placeholder: 'test@example.com', required: true }
         ]
@@ -41,20 +44,20 @@ const actionConfigs = {
     },
     assert_text: {
         fields: [
-            { name: 'selectorType', label: 'Selector Type', type: 'select', options: ['css', 'id', 'xpath', 'name', 'class', 'tag', 'jspath', 'aria'], required: true },
+            { name: 'selectorType', label: 'Selector Type', type: 'select', options: SELECTOR_OPTIONS, required: true },
             { name: 'selector', label: 'Selector', type: 'text', placeholder: '.message', required: true },
             { name: 'value', label: 'Expected Text (partial match)', type: 'text', placeholder: 'Success', required: true }
         ]
     },
     scroll_to: {
         fields: [
-            { name: 'selectorType', label: 'Selector Type', type: 'select', options: ['css', 'id', 'xpath', 'name', 'class', 'tag', 'jspath', 'aria'], required: true },
+            { name: 'selectorType', label: 'Selector Type', type: 'select', options: SELECTOR_OPTIONS, required: true },
             { name: 'selector', label: 'Selector', type: 'text', placeholder: '#footer', required: true }
         ]
     },
     select: {
         fields: [
-            { name: 'selectorType', label: 'Selector Type', type: 'select', options: ['css', 'id', 'xpath', 'name', 'class', 'tag', 'jspath', 'aria'], required: true },
+            { name: 'selectorType', label: 'Selector Type', type: 'select', options: SELECTOR_OPTIONS, required: true },
             { name: 'selector', label: 'Selector', type: 'text', placeholder: '#country-select', required: true },
             { name: 'selectBy', label: 'Select By', type: 'select', options: ['text', 'value', 'index'], required: true },
             { name: 'value', label: 'Option', type: 'text', placeholder: 'United Kingdom', required: true }
@@ -62,8 +65,14 @@ const actionConfigs = {
     },
     assert_visible: {
         fields: [
-            { name: 'selectorType', label: 'Selector Type', type: 'select', options: ['css', 'id', 'xpath', 'name', 'class', 'tag', 'jspath', 'aria'], required: true },
+            { name: 'selectorType', label: 'Selector Type', type: 'select', options: SELECTOR_OPTIONS, required: true },
             { name: 'selector', label: 'Selector', type: 'text', placeholder: '.success-banner', required: true }
+        ]
+    },
+    assert_hidden: {
+        fields: [
+            { name: 'selectorType', label: 'Selector Type', type: 'select', options: SELECTOR_OPTIONS, required: true },
+            { name: 'selector', label: 'Selector', type: 'text', placeholder: '.loading-spinner', required: true }
         ]
     },
     assert_url: {
@@ -71,36 +80,81 @@ const actionConfigs = {
             { name: 'value', label: 'URL contains', type: 'text', placeholder: '/dashboard', required: true }
         ]
     },
+    assert_value: {
+        fields: [
+            { name: 'selectorType', label: 'Selector Type', type: 'select', options: SELECTOR_OPTIONS, required: true },
+            { name: 'selector', label: 'Selector', type: 'text', placeholder: '#email-input', required: true },
+            { name: 'value', label: 'Expected Value (partial match)', type: 'text', placeholder: 'user@example.com', required: true }
+        ]
+    },
     key_press: {
         fields: [
             { name: 'key', label: 'Key', type: 'select', options: ['Enter', 'Tab', 'Escape', 'Space', 'Backspace', 'Delete', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'], required: true },
-            { name: 'selectorType', label: 'Target Selector Type (optional)', type: 'select', options: ['css', 'id', 'xpath', 'name', 'class', 'tag', 'jspath', 'aria'], required: false },
+            { name: 'selectorType', label: 'Target Selector Type (optional)', type: 'select', options: SELECTOR_OPTIONS, required: false },
             { name: 'selector', label: 'Target Selector (optional)', type: 'text', placeholder: 'Leave blank to send to focused element', required: false }
         ]
     },
     hover: {
         fields: [
-            { name: 'selectorType', label: 'Selector Type', type: 'select', options: ['css', 'id', 'xpath', 'name', 'class', 'tag', 'jspath', 'aria'], required: true },
+            { name: 'selectorType', label: 'Selector Type', type: 'select', options: SELECTOR_OPTIONS, required: true },
             { name: 'selector', label: 'Selector', type: 'text', placeholder: '.dropdown-trigger', required: true }
         ]
     },
     double_click: {
         fields: [
-            { name: 'selectorType', label: 'Selector Type', type: 'select', options: ['css', 'id', 'xpath', 'name', 'class', 'tag', 'jspath', 'aria'], required: true },
+            { name: 'selectorType', label: 'Selector Type', type: 'select', options: SELECTOR_OPTIONS, required: true },
             { name: 'selector', label: 'Selector', type: 'text', placeholder: '.editable-cell', required: true }
+        ]
+    },
+    right_click: {
+        fields: [
+            { name: 'selectorType', label: 'Selector Type', type: 'select', options: SELECTOR_OPTIONS, required: true },
+            { name: 'selector', label: 'Selector', type: 'text', placeholder: '.context-menu-trigger', required: true }
+        ]
+    },
+    check: {
+        fields: [
+            { name: 'selectorType', label: 'Selector Type', type: 'select', options: SELECTOR_OPTIONS, required: true },
+            { name: 'selector', label: 'Selector', type: 'text', placeholder: '#agree-checkbox', required: true }
+        ]
+    },
+    uncheck: {
+        fields: [
+            { name: 'selectorType', label: 'Selector Type', type: 'select', options: SELECTOR_OPTIONS, required: true },
+            { name: 'selector', label: 'Selector', type: 'text', placeholder: '#newsletter-checkbox', required: true }
+        ]
+    },
+    upload_file: {
+        fields: [
+            { name: 'selectorType', label: 'Selector Type', type: 'select', options: SELECTOR_OPTIONS, required: true },
+            { name: 'selector', label: 'File Input Selector', type: 'text', placeholder: 'input[type="file"]', required: true },
+            { name: 'value', label: 'File Path', type: 'text', placeholder: '/path/to/file.pdf', required: true }
+        ]
+    },
+    wait_for_load_state: {
+        fields: [
+            { name: 'value', label: 'Load State', type: 'select', options: ['networkidle', 'load', 'domcontentloaded'], required: true }
         ]
     },
     wait_for_element: {
         fields: [
-            { name: 'selectorType', label: 'Selector Type', type: 'select', options: ['css', 'id', 'xpath', 'name', 'class', 'tag', 'jspath', 'aria'], required: true },
+            { name: 'selectorType', label: 'Selector Type', type: 'select', options: SELECTOR_OPTIONS, required: true },
             { name: 'selector', label: 'Selector', type: 'text', placeholder: '.results-table', required: true },
             { name: 'value', label: 'Timeout (seconds)', type: 'number', placeholder: '10', required: false }
         ]
     },
     clear: {
         fields: [
-            { name: 'selectorType', label: 'Selector Type', type: 'select', options: ['css', 'id', 'xpath', 'name', 'class', 'tag', 'jspath', 'aria'], required: true },
+            { name: 'selectorType', label: 'Selector Type', type: 'select', options: SELECTOR_OPTIONS, required: true },
             { name: 'selector', label: 'Selector', type: 'text', placeholder: '#search-input', required: true }
+        ]
+    },
+    drag_and_drop: {
+        fields: [
+            { name: 'selectorType', label: 'Source Selector Type', type: 'select', options: SELECTOR_OPTIONS, required: true },
+            { name: 'selector', label: 'Source Selector', type: 'text', placeholder: '.drag-handle', required: true },
+            { name: 'targetSelectorType', label: 'Target Selector Type', type: 'select', options: SELECTOR_OPTIONS, required: true },
+            { name: 'targetSelector', label: 'Target Selector', type: 'text', placeholder: '.drop-zone', required: true }
         ]
     }
 };
@@ -246,8 +300,24 @@ function renderSteps() {
             html += ` - Wait for: <code>${step.selector}</code> (${step.value || 10}s timeout)`;
         } else if (step.action === 'clear') {
             html += ` - Clear: <code>${step.selector}</code> (${step.selectorType})`;
+        } else if (step.action === 'check') {
+            html += ` - Check: <code>${step.selector}</code> (${step.selectorType})`;
+        } else if (step.action === 'uncheck') {
+            html += ` - Uncheck: <code>${step.selector}</code> (${step.selectorType})`;
+        } else if (step.action === 'upload_file') {
+            html += ` - Upload "${step.value}" to: <code>${step.selector}</code>`;
+        } else if (step.action === 'wait_for_load_state') {
+            html += ` - Wait for load state: ${step.value}`;
+        } else if (step.action === 'assert_hidden') {
+            html += ` - Assert hidden: <code>${step.selector}</code> (${step.selectorType})`;
+        } else if (step.action === 'assert_value') {
+            html += ` - Assert value "${step.value}" in: <code>${step.selector}</code>`;
+        } else if (step.action === 'right_click') {
+            html += ` - Right-click: <code>${step.selector}</code> (${step.selectorType})`;
+        } else if (step.action === 'drag_and_drop') {
+            html += ` - Drag <code>${step.selector}</code> to <code>${step.targetSelector}</code>`;
         }
-        
+
         html += `</div>`;
         html += `<div class="step-actions">`;
         html += `<button class="btn btn-sm btn-primary" onclick="insertStepAfter(${index})">+ Insert</button>`;

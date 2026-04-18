@@ -10,7 +10,7 @@ def _sanitize_name(name):
 
 
 def _pw_selector(selector_type, selector):
-    """Convert a selector type + value to a Playwright-compatible selector string."""
+    """Convert a selector type + value to a Playwright CSS/pseudo selector string."""
     if selector_type == 'id':
         return f'[id="{selector}"]'
     elif selector_type == 'name':
@@ -31,18 +31,35 @@ def _pw_selector(selector_type, selector):
 
 def _pw_locator_lines(selector_type, selector, var_name='element'):
     """
-    Return lines at 16-space indent that resolve a locator into var_name.
-    (Per-step code lives at 12 spaces; inner code at 16.)
+    Return lines at 16-space indent that resolve a Playwright locator into var_name.
+    Per-step code lives at 12 spaces; inner code at 16.
+    get_by_* methods are strict (fail loudly on ambiguity); page.locator() is used for
+    CSS/xpath/etc. without .first so ambiguity also fails loudly.
     """
+    ind = '                '  # 16 spaces
     if selector_type == 'jspath':
         expr_r = repr(selector)
         return [
-            f"                _{var_name}_h = page.evaluate_handle('() => (' + {expr_r} + ')')",
-            f"                {var_name} = _{var_name}_h.as_element()",
-            f"                assert {var_name} is not None, 'JSPath returned no element: ' + {expr_r}",
+            f"{ind}_{var_name}_h = page.evaluate_handle('() => (' + {expr_r} + ')')",
+            f"{ind}{var_name} = _{var_name}_h.as_element()",
+            f"{ind}assert {var_name} is not None, 'JSPath returned no element: ' + {expr_r}",
         ]
-    sel_r = repr(_pw_selector(selector_type, selector))
-    return [f"                {var_name} = page.locator({sel_r}).first"]
+    elif selector_type == 'text':
+        return [f"{ind}{var_name} = page.get_by_text({repr(selector)})"]
+    elif selector_type == 'label':
+        return [f"{ind}{var_name} = page.get_by_label({repr(selector)})"]
+    elif selector_type == 'placeholder':
+        return [f"{ind}{var_name} = page.get_by_placeholder({repr(selector)})"]
+    elif selector_type == 'role':
+        # selector format: "role" or "role:accessible name"
+        if ':' in selector:
+            role_part, name_part = selector.split(':', 1)
+            return [f"{ind}{var_name} = page.get_by_role({repr(role_part.strip())}, name={repr(name_part.strip())})"]
+        else:
+            return [f"{ind}{var_name} = page.get_by_role({repr(selector.strip())})"]
+    else:
+        sel_r = repr(_pw_selector(selector_type, selector))
+        return [f"{ind}{var_name} = page.locator({sel_r})"]
 
 
 def generate_selenium_script(steps, test_name='test', base_artefacts_dir=None, browser='firefox'):
@@ -57,51 +74,10 @@ def generate_selenium_script(steps, test_name='test', base_artefacts_dir=None, b
 
     script_lines = [
         "from playwright.sync_api import sync_playwright",
-        "import time",
         "import json",
         "import os",
         "import datetime",
         "import subprocess as _sp",
-        "",
-        "",
-        "def _performance_to_har(resources):",
-        "    entries = []",
-        "    now = datetime.datetime.utcnow().isoformat() + 'Z'",
-        "    for r in resources:",
-        "        entries.append({",
-        "            'startedDateTime': now,",
-        "            'time': r.get('duration', 0),",
-        "            'request': {",
-        "                'method': 'GET',",
-        "                'url': r.get('name', ''),",
-        "                'httpVersion': 'HTTP/1.1',",
-        "                'headers': [], 'queryString': [], 'cookies': [],",
-        "                'headersSize': -1,",
-        "                'bodySize': r.get('transferSize', -1),",
-        "            },",
-        "            'response': {",
-        "                'status': 0, 'statusText': '', 'httpVersion': 'HTTP/1.1',",
-        "                'headers': [], 'cookies': [],",
-        "                'content': {'size': r.get('decodedBodySize', -1), 'mimeType': ''},",
-        "                'redirectURL': '', 'headersSize': -1,",
-        "                'bodySize': r.get('encodedBodySize', -1),",
-        "            },",
-        "            'cache': {},",
-        "            'timings': {",
-        "                'dns': max(0, r.get('domainLookupEnd', 0) - r.get('domainLookupStart', 0)),",
-        "                'connect': max(0, r.get('connectEnd', 0) - r.get('connectStart', 0)),",
-        "                'send': 0,",
-        "                'wait': max(0, r.get('responseStart', 0) - r.get('requestStart', 0)),",
-        "                'receive': max(0, r.get('responseEnd', 0) - r.get('responseStart', 0)),",
-        "            },",
-        "        })",
-        "    return {",
-        "        'log': {",
-        "            'version': '1.2',",
-        "            'creator': {'name': 'caper', 'version': '1.0'},",
-        "            'pages': [], 'entries': entries,",
-        "        }",
-        "    }",
         "",
         "",
         "def run_test():",
@@ -119,23 +95,12 @@ def generate_selenium_script(steps, test_name='test', base_artefacts_dir=None, b
         "",
         f"    with sync_playwright() as _pw:",
         f"        _browser = getattr(_pw, {browser_r}).launch(headless=True)",
-        "        _context = _browser.new_context(record_video_dir=video_dir)",
+        "        _context = _browser.new_context(",
+        "            record_video_dir=video_dir,",
+        "            record_har_path=os.path.join(hars_dir, 'trace.har'),",
+        "        )",
         "        page = _context.new_page()",
         "        step_results = []",
-        "",
-        "        def _save_har(step_num):",
-        "            try:",
-        "                raw = page.evaluate('JSON.stringify(window.performance.getEntriesByType(\"resource\"))')",
-        "                resources = json.loads(raw) if raw else []",
-        "                har_data = _performance_to_har(resources)",
-        "                with open(os.path.join(hars_dir, f'step_{step_num:03d}.har'), 'w') as _f:",
-        "                    json.dump(har_data, _f, indent=2)",
-        "            except Exception:",
-        "                pass",
-        "            try:",
-        "                page.evaluate('window.performance.clearResourceTimings()')",
-        "            except Exception:",
-        "                pass",
         "",
         "        def _screenshot(step_num):",
         "            try:",
@@ -148,14 +113,6 @@ def generate_selenium_script(steps, test_name='test', base_artefacts_dir=None, b
 
     for i, step in enumerate(steps, 1):
         action = step.get('action')
-
-        # Clear perf timings before each step
-        script_lines.extend([
-            "            try:",
-            "                page.evaluate('window.performance.clearResourceTimings()')",
-            "            except Exception:",
-            "                pass",
-        ])
 
         if action == 'navigate':
             url_r = repr(step.get('value', ''))
@@ -170,7 +127,6 @@ def generate_selenium_script(steps, test_name='test', base_artefacts_dir=None, b
                 f"                raise",
                 f"            finally:",
                 f"                _screenshot({i})",
-                f"                _save_har({i})",
             ])
 
         elif action == 'click':
@@ -189,7 +145,6 @@ def generate_selenium_script(steps, test_name='test', base_artefacts_dir=None, b
                 f"                raise",
                 f"            finally:",
                 f"                _screenshot({i})",
-                f"                _save_har({i})",
             ])
 
         elif action == 'type':
@@ -209,7 +164,6 @@ def generate_selenium_script(steps, test_name='test', base_artefacts_dir=None, b
                 f"                raise",
                 f"            finally:",
                 f"                _screenshot({i})",
-                f"                _save_har({i})",
             ])
 
         elif action == 'wait':
@@ -228,7 +182,6 @@ def generate_selenium_script(steps, test_name='test', base_artefacts_dir=None, b
                 f"                raise",
                 f"            finally:",
                 f"                _screenshot({i})",
-                f"                _save_har({i})",
             ])
 
         elif action == 'execute_js':
@@ -243,7 +196,6 @@ def generate_selenium_script(steps, test_name='test', base_artefacts_dir=None, b
                 f"                raise",
                 f"            finally:",
                 f"                _screenshot({i})",
-                f"                _save_har({i})",
             ])
 
         elif action == 'screenshot':
@@ -255,8 +207,6 @@ def generate_selenium_script(steps, test_name='test', base_artefacts_dir=None, b
                 f"            except Exception as e:",
                 f"                step_results.append({{'step': {i}, 'action': 'screenshot', 'status': 'error', 'message': str(e)}})",
                 f"                raise",
-                f"            finally:",
-                f"                _save_har({i})",
             ])
 
         elif action == 'assert_title':
@@ -272,7 +222,6 @@ def generate_selenium_script(steps, test_name='test', base_artefacts_dir=None, b
                 f"                raise",
                 f"            finally:",
                 f"                _screenshot({i})",
-                f"                _save_har({i})",
             ])
 
         elif action == 'assert_text':
@@ -293,7 +242,6 @@ def generate_selenium_script(steps, test_name='test', base_artefacts_dir=None, b
                 f"                raise",
                 f"            finally:",
                 f"                _screenshot({i})",
-                f"                _save_har({i})",
             ])
 
         elif action == 'scroll_to':
@@ -312,7 +260,6 @@ def generate_selenium_script(steps, test_name='test', base_artefacts_dir=None, b
                 f"                raise",
                 f"            finally:",
                 f"                _screenshot({i})",
-                f"                _save_har({i})",
             ])
 
         elif action == 'select':
@@ -339,7 +286,6 @@ def generate_selenium_script(steps, test_name='test', base_artefacts_dir=None, b
                 f"                raise",
                 f"            finally:",
                 f"                _screenshot({i})",
-                f"                _save_har({i})",
             ])
 
         elif action == 'assert_visible':
@@ -358,7 +304,24 @@ def generate_selenium_script(steps, test_name='test', base_artefacts_dir=None, b
                 f"                raise",
                 f"            finally:",
                 f"                _screenshot({i})",
-                f"                _save_har({i})",
+            ])
+
+        elif action == 'assert_hidden':
+            selector_type = step.get('selectorType', 'css')
+            selector = step.get('selector', '')
+            msg_r = repr(f'Element {selector} is hidden')
+            locator_lines = _pw_locator_lines(selector_type, selector)
+            script_lines.extend([
+                f"            # Step {i}: Assert hidden",
+                f"            try:",
+            ] + locator_lines + [
+                f"                element.wait_for(state='hidden', timeout=10000)",
+                f"                step_results.append({{'step': {i}, 'action': 'assert_hidden', 'status': 'success', 'message': {msg_r}}})",
+                f"            except Exception as e:",
+                f"                step_results.append({{'step': {i}, 'action': 'assert_hidden', 'status': 'error', 'message': str(e)}})",
+                f"                raise",
+                f"            finally:",
+                f"                _screenshot({i})",
             ])
 
         elif action == 'assert_url':
@@ -375,7 +338,26 @@ def generate_selenium_script(steps, test_name='test', base_artefacts_dir=None, b
                 f"                raise",
                 f"            finally:",
                 f"                _screenshot({i})",
-                f"                _save_har({i})",
+            ])
+
+        elif action == 'assert_value':
+            selector_type = step.get('selectorType', 'css')
+            selector = step.get('selector', '')
+            expected_r = repr(step.get('value', ''))
+            msg_r = repr(f'Value assertion passed on {selector}')
+            locator_lines = _pw_locator_lines(selector_type, selector)
+            script_lines.extend([
+                f"            # Step {i}: Assert input value",
+                f"            try:",
+            ] + locator_lines + [
+                f"                _actual = element.input_value()",
+                f"                assert {expected_r} in _actual, 'Expected value to contain ' + {expected_r} + ', got: ' + _actual",
+                f"                step_results.append({{'step': {i}, 'action': 'assert_value', 'status': 'success', 'message': {msg_r}}})",
+                f"            except Exception as e:",
+                f"                step_results.append({{'step': {i}, 'action': 'assert_value', 'status': 'error', 'message': str(e)}})",
+                f"                raise",
+                f"            finally:",
+                f"                _screenshot({i})",
             ])
 
         elif action == 'key_press':
@@ -399,7 +381,6 @@ def generate_selenium_script(steps, test_name='test', base_artefacts_dir=None, b
                 f"                raise",
                 f"            finally:",
                 f"                _screenshot({i})",
-                f"                _save_har({i})",
             ])
 
         elif action == 'hover':
@@ -418,7 +399,6 @@ def generate_selenium_script(steps, test_name='test', base_artefacts_dir=None, b
                 f"                raise",
                 f"            finally:",
                 f"                _screenshot({i})",
-                f"                _save_har({i})",
             ])
 
         elif action == 'double_click':
@@ -437,7 +417,94 @@ def generate_selenium_script(steps, test_name='test', base_artefacts_dir=None, b
                 f"                raise",
                 f"            finally:",
                 f"                _screenshot({i})",
-                f"                _save_har({i})",
+            ])
+
+        elif action == 'right_click':
+            selector_type = step.get('selectorType', 'css')
+            selector = step.get('selector', '')
+            msg_r = repr(f'Right-clicked {selector}')
+            locator_lines = _pw_locator_lines(selector_type, selector)
+            script_lines.extend([
+                f"            # Step {i}: Right-click",
+                f"            try:",
+            ] + locator_lines + [
+                f"                element.click(button='right')",
+                f"                step_results.append({{'step': {i}, 'action': 'right_click', 'status': 'success', 'message': {msg_r}}})",
+                f"            except Exception as e:",
+                f"                step_results.append({{'step': {i}, 'action': 'right_click', 'status': 'error', 'message': str(e)}})",
+                f"                raise",
+                f"            finally:",
+                f"                _screenshot({i})",
+            ])
+
+        elif action == 'check':
+            selector_type = step.get('selectorType', 'css')
+            selector = step.get('selector', '')
+            msg_r = repr(f'Checked {selector}')
+            locator_lines = _pw_locator_lines(selector_type, selector)
+            script_lines.extend([
+                f"            # Step {i}: Check",
+                f"            try:",
+            ] + locator_lines + [
+                f"                element.check()",
+                f"                step_results.append({{'step': {i}, 'action': 'check', 'status': 'success', 'message': {msg_r}}})",
+                f"            except Exception as e:",
+                f"                step_results.append({{'step': {i}, 'action': 'check', 'status': 'error', 'message': str(e)}})",
+                f"                raise",
+                f"            finally:",
+                f"                _screenshot({i})",
+            ])
+
+        elif action == 'uncheck':
+            selector_type = step.get('selectorType', 'css')
+            selector = step.get('selector', '')
+            msg_r = repr(f'Unchecked {selector}')
+            locator_lines = _pw_locator_lines(selector_type, selector)
+            script_lines.extend([
+                f"            # Step {i}: Uncheck",
+                f"            try:",
+            ] + locator_lines + [
+                f"                element.uncheck()",
+                f"                step_results.append({{'step': {i}, 'action': 'uncheck', 'status': 'success', 'message': {msg_r}}})",
+                f"            except Exception as e:",
+                f"                step_results.append({{'step': {i}, 'action': 'uncheck', 'status': 'error', 'message': str(e)}})",
+                f"                raise",
+                f"            finally:",
+                f"                _screenshot({i})",
+            ])
+
+        elif action == 'upload_file':
+            selector_type = step.get('selectorType', 'css')
+            selector = step.get('selector', '')
+            file_path_r = repr(step.get('value', ''))
+            msg_r = repr(f'Uploaded file to {selector}')
+            locator_lines = _pw_locator_lines(selector_type, selector)
+            script_lines.extend([
+                f"            # Step {i}: Upload file",
+                f"            try:",
+            ] + locator_lines + [
+                f"                element.set_input_files({file_path_r})",
+                f"                step_results.append({{'step': {i}, 'action': 'upload_file', 'status': 'success', 'message': {msg_r}}})",
+                f"            except Exception as e:",
+                f"                step_results.append({{'step': {i}, 'action': 'upload_file', 'status': 'error', 'message': str(e)}})",
+                f"                raise",
+                f"            finally:",
+                f"                _screenshot({i})",
+            ])
+
+        elif action == 'wait_for_load_state':
+            state_r = repr(step.get('value', 'networkidle'))
+            msg_r = repr(f'Waited for load state: {step.get("value", "networkidle")}')
+            script_lines.extend([
+                f"            # Step {i}: Wait for load state",
+                f"            try:",
+                f"                page.wait_for_load_state({state_r})",
+                f"                step_results.append({{'step': {i}, 'action': 'wait_for_load_state', 'status': 'success', 'message': {msg_r}}})",
+                f"            except Exception as e:",
+                f"                step_results.append({{'step': {i}, 'action': 'wait_for_load_state', 'status': 'error', 'message': str(e)}})",
+                f"                raise",
+                f"            finally:",
+                f"                _screenshot({i})",
             ])
 
         elif action == 'wait_for_element':
@@ -460,7 +527,6 @@ def generate_selenium_script(steps, test_name='test', base_artefacts_dir=None, b
                 f"                raise",
                 f"            finally:",
                 f"                _screenshot({i})",
-                f"                _save_har({i})",
             ])
 
         elif action == 'clear':
@@ -479,7 +545,27 @@ def generate_selenium_script(steps, test_name='test', base_artefacts_dir=None, b
                 f"                raise",
                 f"            finally:",
                 f"                _screenshot({i})",
-                f"                _save_har({i})",
+            ])
+
+        elif action == 'drag_and_drop':
+            src_type = step.get('selectorType', 'css')
+            src_sel = step.get('selector', '')
+            tgt_type = step.get('targetSelectorType', 'css')
+            tgt_sel = step.get('targetSelector', '')
+            msg_r = repr(f'Dragged {src_sel} to {tgt_sel}')
+            src_lines = _pw_locator_lines(src_type, src_sel, var_name='_src')
+            tgt_lines = _pw_locator_lines(tgt_type, tgt_sel, var_name='_tgt')
+            script_lines.extend([
+                f"            # Step {i}: Drag and drop",
+                f"            try:",
+            ] + src_lines + tgt_lines + [
+                f"                _src.drag_to(_tgt)",
+                f"                step_results.append({{'step': {i}, 'action': 'drag_and_drop', 'status': 'success', 'message': {msg_r}}})",
+                f"            except Exception as e:",
+                f"                step_results.append({{'step': {i}, 'action': 'drag_and_drop', 'status': 'error', 'message': str(e)}})",
+                f"                raise",
+                f"            finally:",
+                f"                _screenshot({i})",
             ])
 
         script_lines.append("")
