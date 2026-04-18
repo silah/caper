@@ -1,0 +1,99 @@
+{
+  "_comment": "Import via the Tests → Import button. Each step uses a different selector type to verify all 14 are working. All 25 action types appear at least once. A 1-second wait sits between every interactive step. The navigate step creates /tmp/caper_test_upload.txt as a side-effect so upload_file works without manual setup. Base URL assumes the app is running on localhost:5098 — adjust if different.",
+  "test": {
+    "name": "Caper Internal Full Test",
+    "transactions": [
+      {
+        "name": "Full coverage — all actions, all selectors",
+        "steps": [
+
+          {"type": "navigate",           "value": "http://localhost:5098/internal-testing"},
+          {"type": "wait",               "value": "1"},
+
+          {"type": "assert_title",       "value": "Internal Testing"},
+          {"type": "wait",               "value": "1"},
+
+          {"type": "assert_url",         "value": "internal-testing"},
+          {"type": "wait",               "value": "1"},
+
+          {"type": "assert_visible",     "selectorType": "link_text",        "selector": "Internal Testing Home"},
+          {"type": "wait",               "value": "1"},
+
+          {"type": "assert_visible",     "selectorType": "tag",              "selector": "meter"},
+          {"type": "wait",               "value": "1"},
+
+          {"type": "click",              "selectorType": "id",               "selector": "it-click-btn"},
+          {"type": "wait",               "value": "1"},
+
+          {"type": "type",               "selectorType": "placeholder",      "selector": "Type something here",    "value": "hello playwright"},
+          {"type": "wait",               "value": "1"},
+
+          {"type": "assert_text",        "selectorType": "class",            "selector": "it-text-content",        "value": "assert_text_target_value_xyz"},
+          {"type": "wait",               "value": "1"},
+
+          {"type": "assert_value",       "selectorType": "name",             "selector": "it-value-name",          "value": "expected_value_abc"},
+          {"type": "wait",               "value": "1"},
+
+          {"type": "assert_visible",     "selectorType": "aria",             "selector": "visible-element"},
+          {"type": "wait",               "value": "1"},
+
+          {"type": "assert_hidden",      "selectorType": "css",              "selector": "#it-hidden-el"},
+          {"type": "wait",               "value": "1"},
+
+          {"type": "execute_js",         "value": "document.getElementById('it-js-target').textContent='JS_OK'"},
+          {"type": "wait",               "value": "1"},
+
+          {"type": "scroll_to",          "selectorType": "xpath",            "selector": "//div[@id='it-scroll-anchor']"},
+          {"type": "wait",               "value": "1"},
+
+          {"type": "hover",              "selectorType": "text",             "selector": "Hover over me"},
+          {"type": "wait",               "value": "1"},
+
+          {"type": "select",             "selectorType": "label",            "selector": "Select Country",         "selectBy": "text", "value": "United Kingdom"},
+          {"type": "wait",               "value": "1"},
+
+          {"type": "key_press",          "selectorType": "role",             "selector": "textbox:Key Press Input", "key": "Enter"},
+          {"type": "wait",               "value": "1"},
+
+          {"type": "double_click",       "selectorType": "partial_link_text","selector": "Double Click"},
+          {"type": "wait",               "value": "1"},
+
+          {"type": "right_click",        "selectorType": "jspath",           "selector": "document.getElementById('it-rightclick-area')"},
+          {"type": "wait",               "value": "1"},
+
+          {"type": "check",              "selectorType": "id",               "selector": "it-check-input"},
+          {"type": "wait",               "value": "1"},
+
+          {"type": "uncheck",            "selectorType": "name",             "selector": "it-uncheck-name"},
+          {"type": "wait",               "value": "1"},
+
+          {"type": "clear",              "selectorType": "label",            "selector": "Clear This Input"},
+          {"type": "wait",               "value": "1"},
+
+          {"type": "execute_js",         "value": "window.triggerDelayed()"},
+          {"type": "wait_for_element",   "selectorType": "css",              "selector": "#it-delayed-el",         "value": "5"},
+          {"type": "wait",               "value": "1"},
+
+          {"type": "upload_file",        "selectorType": "css",              "selector": "#it-file-input",         "value": "/tmp/caper_test_upload.txt"},
+          {"type": "wait",               "value": "1"},
+
+          {"type": "drag_and_drop",      "selectorType": "class",            "selector": "it-drag-item",           "targetSelectorType": "aria", "targetSelector": "drop-zone"},
+          {"type": "wait",               "value": "1"},
+
+          {"type": "screenshot"},
+          {"type": "wait",               "value": "1"},
+
+          {"type": "navigate",           "value": "http://localhost:5098/internal-testing/p2"},
+          {"type": "wait_for_load_state","value": "networkidle"},
+          {"type": "wait",               "value": "1"},
+
+          {"type": "assert_url",         "value": "p2"},
+          {"type": "wait",               "value": "1"},
+
+          {"type": "navigate",           "value": "http://localhost:5098/internal-testing"}
+
+        ]
+      }
+    ]
+  }
+}

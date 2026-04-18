@@ -758,8 +758,23 @@ def _map_selector_type(st):
     return {'id': 'id', 'css': 'css', 'xpath': 'xpath', 'name': 'name',
             'class': 'class', 'tag': 'tag'}.get(st, 'css')
 
+_NATIVE_ACTIONS = {
+    'navigate', 'click', 'type', 'wait', 'execute_js', 'screenshot',
+    'assert_title', 'assert_text', 'assert_visible', 'assert_hidden',
+    'assert_url', 'assert_value', 'scroll_to', 'select', 'key_press',
+    'hover', 'double_click', 'right_click', 'check', 'uncheck',
+    'upload_file', 'wait_for_load_state', 'wait_for_element', 'clear',
+    'drag_and_drop',
+}
+
+
 def _map_imported_step(raw):
     step_type = raw.get('type', '')
+    # Native Caper format — pass through directly, renaming 'type' → 'action'
+    if step_type in _NATIVE_ACTIONS:
+        step = {k: v for k, v in raw.items() if k != 'type'}
+        step['action'] = step_type
+        return step
     name = raw.get('name', '')
     if step_type == 'go_to_url':
         url = raw.get('url') or raw.get('options', {}).get('url', '')
@@ -866,6 +881,24 @@ def view_logs():
     team = get_current_team()
     return render_template('log.html', entries=entries, page=page,
                            total_pages=total_pages, total=total, team=team)
+
+
+@app.route('/internal-testing')
+@login_required
+def internal_testing():
+    # Pre-create the upload test file so the upload_file step works without manual setup
+    try:
+        with open('/tmp/caper_test_upload.txt', 'w') as _f:
+            _f.write('Caper internal test upload file\n')
+    except Exception:
+        pass
+    return render_template('internal_testing.html')
+
+
+@app.route('/internal-testing/p2')
+@login_required
+def internal_testing_p2():
+    return render_template('internal_testing_p2.html')
 
 
 @app.errorhandler(Exception)
