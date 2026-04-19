@@ -63,7 +63,18 @@ Available selectorType values (prefer semantic ones):
   link_text   — exact anchor text
   partial_link_text — partial anchor text
 
-Prefer selector types in this order: role, aria, placeholder, label, text, id, css.
+Selector preference order (most preferred first):
+  1. id          — most stable, unique, developer-assigned
+  2. aria        — aria-label is stable and semantic
+  3. placeholder — reliable for form inputs
+  4. label       — reliable for labelled form fields
+  5. css         — use when a stable class or attribute is available (e.g. [data-testid="..."])
+  6. role        — use get_by_role only when no structural attribute exists
+  7. partial_link_text — prefer over full text for links/buttons where exact copy is uncertain
+  8. text        — last resort; only use when no attribute or partial match is available
+
+Avoid guessing exact visible text for buttons or links — prefer aria-label, id, or a css
+attribute selector. If exact text is uncertain, use partial_link_text instead of text or role.
 Use {{VARIABLE_NAME}} for credentials and environment-specific values (e.g. {{BASE_URL}}, {{PASSWORD}}).
 
 Real-world page considerations:
