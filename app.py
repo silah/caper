@@ -239,6 +239,7 @@ def api_ai_generate_test():
         steps, dropped = ai_client.generate_test_steps(prompt, config)
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+    app.logger.info(f'AI generate: {len(steps)} valid steps, {len(dropped)} dropped ({dropped})')
     if not steps:
         return jsonify({'error': 'AI returned no valid steps. Try rephrasing your prompt.'}), 500
     try:
@@ -246,7 +247,7 @@ def api_ai_generate_test():
         test_id = db.create_test(
             name=name,
             description=prompt,
-            steps=json.dumps(steps),
+            steps=steps,
             script=script,
             team_id=team['id'],
         )
