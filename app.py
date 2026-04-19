@@ -274,6 +274,87 @@ def api_ai_describe_test():
     return jsonify({'success': True, 'description': description})
 
 
+@app.route('/api/ai/models', methods=['POST'])
+@login_required
+def api_ai_models():
+    team = get_current_team()
+    if not team:
+        return jsonify({'error': 'No team'}), 403
+    data = request.json or {}
+    provider = (data.get('provider') or '').lower()
+    api_key  = data.get('api_key', '').strip()
+    endpoint = (data.get('endpoint') or 'http://localhost:11434').rstrip('/')
+
+    if not provider:
+        return jsonify({'error': 'Provider required'}), 400
+
+    # Fall back to saved key if caller didn't supply one
+    if not api_key and provider != 'ollama':
+        variables = db.get_team_variables(team['id'])
+        config = ai_client.get_ai_config(variables)
+        api_key = config.get('api_key', '')
+
+    try:
+        models = _fetch_provider_models(provider, api_key, endpoint)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+    return jsonify({'models': models})
+
+
+def _fetch_provider_models(provider, api_key, endpoint):
+    import urllib.request, urllib.error, json as _json
+
+    def _get(url, headers=None):
+        req = urllib.request.Request(url, headers=headers or {})
+        with urllib.request.urlopen(req, timeout=10) as r:
+            return _json.loads(r.read())
+
+    if provider == 'gemini':
+        data = _get(f'https://generativelanguage.googleapis.com/v1beta/models?key={api_key}')
+        models = []
+        for m in data.get('models', []):
+            if 'generateContent' not in m.get('supportedGenerationMethods', []):
+                continue
+            name = m['name'].replace('models/', '')
+            models.append(f'gemini/{name}')
+        return sorted(models)
+
+    if provider == 'openai':
+        data = _get('https://api.openai.com/v1/models',
+                    headers={'Authorization': f'Bearer {api_key}'})
+        keep = {'gpt', 'o1', 'o3', 'chatgpt'}
+        exclude = {'instruct', 'embedding', 'tts', 'whisper', 'dall', 'realtime', 'audio'}
+        models = []
+        for m in data.get('data', []):
+            mid = m['id']
+            if any(mid.startswith(k) for k in keep) and not any(e in mid for e in exclude):
+                models.append(mid)
+        return sorted(models)
+
+    if provider == 'anthropic':
+        data = _get('https://api.anthropic.com/v1/models',
+                    headers={'x-api-key': api_key, 'anthropic-version': '2023-06-01'})
+        return sorted(m['id'] for m in data.get('data', []))
+
+    if provider == 'groq':
+        data = _get('https://api.groq.com/openai/v1/models',
+                    headers={'Authorization': f'Bearer {api_key}'})
+        exclude = {'whisper', 'guard', 'vision'}
+        models = []
+        for m in data.get('data', []):
+            mid = m['id']
+            if not any(e in mid for e in exclude):
+                models.append(f'groq/{mid}')
+        return sorted(models)
+
+    if provider == 'ollama':
+        data = _get(f'{endpoint}/api/tags')
+        return [f'ollama/{m["name"]}' for m in data.get('models', [])]
+
+    raise ValueError(f'Unknown provider: {provider}')
+
+
 @app.route('/tags')
 @login_required
 def tags_page():

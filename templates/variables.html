@@ -64,7 +64,13 @@
                     </select>
                 </div>
                 <div class="ed-field">
-                    <label>Model</label>
+                    <label style="display:flex;align-items:center;gap:8px">
+                        Model
+                        <button type="button" id="loadModelsBtn" class="btn btn-ghost"
+                                style="font-size:.72rem;padding:2px 8px;display:none"
+                                onclick="loadModels()">Load available</button>
+                        <span id="loadModelsStatus" style="font-size:.75rem;color:#888"></span>
+                    </label>
                     <select id="aiModelSelect" class="ed-input" style="width:260px" onchange="onModelSelectChange()">
                         <option value="">— select provider first —</option>
                     </select>
@@ -225,16 +231,26 @@
                 const provider = document.getElementById('aiProvider').value;
                 const sel = document.getElementById('aiModelSelect');
                 document.getElementById('aiEndpointWrap').style.display = provider === 'ollama' ? '' : 'none';
+                document.getElementById('loadModelsBtn').style.display = provider ? '' : 'none';
+                document.getElementById('loadModelsStatus').textContent = '';
                 sel.innerHTML = '';
                 if (!provider || !AI_MODELS[provider]) {
                     sel.innerHTML = '<option value="">— select provider first —</option>';
                     document.getElementById('aiModelCustom').style.display = 'none';
                     return;
                 }
-                AI_MODELS[provider].forEach(m => {
+                _populateModelDropdown(AI_MODELS[provider].map(m => m.value), AI_MODELS[provider]);
+            }
+
+            function _populateModelDropdown(values, labelledList) {
+                const sel = document.getElementById('aiModelSelect');
+                sel.innerHTML = '';
+                values.forEach(v => {
                     const opt = document.createElement('option');
-                    opt.value = m.value;
-                    opt.textContent = m.label;
+                    opt.value = v;
+                    // Use label from static list if available, otherwise use value
+                    const match = labelledList && labelledList.find(m => m.value === v);
+                    opt.textContent = match ? match.label : v;
                     sel.appendChild(opt);
                 });
                 const custom = document.createElement('option');
@@ -242,6 +258,35 @@
                 custom.textContent = 'Custom…';
                 sel.appendChild(custom);
                 document.getElementById('aiModelCustom').style.display = 'none';
+            }
+
+            async function loadModels() {
+                const provider = document.getElementById('aiProvider').value;
+                const apiKey   = document.getElementById('aiApiKey').value;
+                const endpoint = document.getElementById('aiEndpoint').value.trim();
+                const btn      = document.getElementById('loadModelsBtn');
+                const status   = document.getElementById('loadModelsStatus');
+
+                btn.disabled = true;
+                status.textContent = 'Loading…';
+
+                try {
+                    const r = await fetch('/api/ai/models', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ provider, api_key: apiKey, endpoint }),
+                    });
+                    const data = await r.json();
+                    if (data.error) throw new Error(data.error);
+                    _populateModelDropdown(data.models, AI_MODELS[provider]);
+                    status.textContent = `${data.models.length} model${data.models.length !== 1 ? 's' : ''} loaded`;
+                    status.style.color = '#27ae60';
+                } catch (e) {
+                    status.textContent = 'Failed: ' + e.message;
+                    status.style.color = '#c62828';
+                } finally {
+                    btn.disabled = false;
+                }
             }
 
             function onModelSelectChange() {
