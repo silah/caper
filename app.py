@@ -13,6 +13,7 @@ from database import Database
 from test_generator import generate_selenium_script
 from models import User
 import ai_client
+import ai_agent
 
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'dev-secret-key-change-in-production')
@@ -275,6 +276,48 @@ def api_ai_describe_test():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
     return jsonify({'success': True, 'description': description})
+
+
+@app.route('/api/ai/agent-generate', methods=['POST'])
+@login_required
+def api_ai_agent_generate():
+    team = get_current_team()
+    if not team:
+        return jsonify({'error': 'No team'}), 403
+    data = request.json or {}
+    prompt = (data.get('prompt') or '').strip()
+    name   = (data.get('name') or 'AI Generated Test').strip()
+    if not prompt:
+        return jsonify({'error': 'Prompt is required'}), 400
+    variables = db.get_team_variables(team['id'])
+    config = ai_client.get_ai_config(variables)
+    if not config.get('model'):
+        return jsonify({'error': 'AI is not configured. Add CAPER_AI_PROVIDER, CAPER_AI_MODEL and CAPER_AI_API_KEY in Variables.'}), 400
+
+    task_id = ai_agent.create_task()
+
+    def _save(steps):
+        script = generate_selenium_script(steps, test_name=name, base_artefacts_dir=BASE_ARTEFACTS_DIR)
+        return db.create_test(name=name, description=prompt, steps=steps,
+                              script=script, team_id=team['id'])
+
+    ai_agent.start_agent(prompt, config, task_id, _save)
+    return jsonify({'task_id': task_id})
+
+
+@app.route('/api/ai/agent-status/<task_id>', methods=['GET'])
+@login_required
+def api_ai_agent_status(task_id):
+    task = ai_agent.get_task(task_id)
+    if not task:
+        return jsonify({'error': 'Task not found'}), 404
+    return jsonify({
+        'status':  task['status'],
+        'log':     task['log'],
+        'steps':   len(task['steps']),
+        'test_id': task['test_id'],
+        'error':   task['error'],
+    })
 
 
 @app.route('/api/ai/models', methods=['POST'])

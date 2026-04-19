@@ -243,50 +243,113 @@
 
 <!-- AI Generate Test Modal -->
 <div id="aiModal" class="modal" style="display:none">
-    <div class="modal-content" style="max-width:520px">
+    <div class="modal-content" style="max-width:540px">
         <div class="modal-header">
             <h3 class="modal-title">Generate test with AI</h3>
             <button class="modal-close" onclick="closeAiModal()">&times;</button>
         </div>
         <div style="padding:20px 24px">
-            <div class="ed-field" style="margin-bottom:14px">
-                <label>Test name</label>
-                <input type="text" id="aiGenName" class="ed-input" placeholder="e.g. Login and checkout flow">
+
+            <!-- Mode toggle -->
+            <div style="display:flex;gap:0;margin-bottom:18px;border:1px solid #e0e0e0;border-radius:8px;overflow:hidden">
+                <button id="modeQuick" class="ai-mode-btn ai-mode-active" onclick="setMode('quick')" style="flex:1;padding:9px 0;font-size:.83rem;font-weight:600;border:none;cursor:pointer;background:#f5f5f5;color:#333;transition:background .15s">
+                    Quick
+                    <span style="display:block;font-size:.72rem;font-weight:400;color:#888;margin-top:1px">LLM guesses steps</span>
+                </button>
+                <button id="modeSmart" class="ai-mode-btn" onclick="setMode('smart')" style="flex:1;padding:9px 0;font-size:.83rem;font-weight:600;border:none;cursor:pointer;background:#fff;color:#333;border-left:1px solid #e0e0e0;transition:background .15s">
+                    Smart
+                    <span style="display:block;font-size:.72rem;font-weight:400;color:#888;margin-top:1px">Opens real browser</span>
+                </button>
             </div>
-            <div class="ed-field" style="margin-bottom:6px">
-                <label>Describe what the test should do</label>
-                <textarea id="aiGenPrompt" class="ed-desc-input" rows="5"
-                    placeholder="e.g. Navigate to the app, log in with {{USERNAME}} and {{PASSWORD}}, add the first product to the cart, go to checkout, and assert the order summary is visible."></textarea>
+
+            <!-- Form fields -->
+            <div id="aiFormFields">
+                <div class="ed-field" style="margin-bottom:14px">
+                    <label>Test name</label>
+                    <input type="text" id="aiGenName" class="ed-input" placeholder="e.g. Login and checkout flow">
+                </div>
+                <div class="ed-field" style="margin-bottom:6px">
+                    <label>Describe what the test should do</label>
+                    <textarea id="aiGenPrompt" class="ed-desc-input" rows="5"
+                        placeholder="e.g. Navigate to the app, log in with {{USERNAME}} and {{PASSWORD}}, add the first product to the cart, go to checkout, and assert the order summary is visible."></textarea>
+                </div>
+                <p style="font-size:.78rem;color:#888;margin:0 0 18px">
+                    Use <code>&#123;&#123;VARIABLE_NAME&#125;&#125;</code> for credentials or environment values.
+                    AI must be configured in <a href="/variables">Variables</a>.
+                </p>
+                <div id="aiGenError" style="display:none;color:#c62828;font-size:.83rem;margin-bottom:12px"></div>
+                <div style="display:flex;gap:8px;justify-content:flex-end">
+                    <button class="btn btn-ghost" onclick="closeAiModal()">Cancel</button>
+                    <button class="btn btn-primary" id="aiGenBtn" onclick="startGenerate()">Generate</button>
+                </div>
             </div>
-            <p style="font-size:.78rem;color:#888;margin:0 0 18px">
-                Use <code>&#123;&#123;VARIABLE_NAME&#125;&#125;</code> for credentials or environment values.
-                AI must be configured in <a href="/variables">Variables</a>.
-            </p>
-            <div id="aiGenError" style="display:none;color:#c62828;font-size:.83rem;margin-bottom:12px"></div>
-            <div style="display:flex;gap:8px;justify-content:flex-end">
-                <button class="btn btn-ghost" onclick="closeAiModal()">Cancel</button>
-                <button class="btn btn-primary" id="aiGenBtn" onclick="generateTest()">Generate</button>
+
+            <!-- Agent progress panel (hidden until agent mode starts) -->
+            <div id="aiProgressPanel" style="display:none">
+                <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+                    <div class="ai-spinner"></div>
+                    <span id="aiProgressStatus" style="font-size:.85rem;color:#555">Starting…</span>
+                </div>
+                <div id="aiProgressLog" style="background:#f5f5f5;border-radius:6px;padding:10px 12px;height:180px;overflow-y:auto;font-size:.76rem;font-family:monospace;color:#444;line-height:1.55"></div>
+                <div style="margin-top:10px;font-size:.8rem;color:#888">
+                    Steps recorded: <strong id="aiStepCount">0</strong>
+                </div>
+                <div id="aiProgressError" style="display:none;color:#c62828;font-size:.83rem;margin-top:10px"></div>
+                <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px">
+                    <button class="btn btn-ghost" id="aiCancelBtn" onclick="closeAiModal()">Cancel</button>
+                </div>
             </div>
+
         </div>
     </div>
 </div>
 
+<style>
+.ai-mode-active { background:#1a1a2e !important; color:#fff !important; }
+.ai-mode-active span { color:#aaa !important; }
+.ai-spinner {
+    width:16px;height:16px;border:2px solid #ddd;border-top-color:#555;
+    border-radius:50%;animation:spin .7s linear infinite;flex-shrink:0;
+}
+@keyframes spin { to { transform:rotate(360deg); } }
+</style>
+
 <script>
+    let _aiMode = 'quick';
+    let _agentPollInterval = null;
+
+    function setMode(mode) {
+        _aiMode = mode;
+        document.getElementById('modeQuick').classList.toggle('ai-mode-active', mode === 'quick');
+        document.getElementById('modeSmart').classList.toggle('ai-mode-active', mode === 'smart');
+    }
+
     function openAiModal() {
         document.getElementById('aiModal').style.display = 'block';
-        document.getElementById('aiGenName').focus();
-    }
-    function closeAiModal() {
-        document.getElementById('aiModal').style.display = 'none';
+        document.getElementById('aiFormFields').style.display = '';
+        document.getElementById('aiProgressPanel').style.display = 'none';
         document.getElementById('aiGenError').style.display = 'none';
         document.getElementById('aiGenBtn').disabled = false;
         document.getElementById('aiGenBtn').textContent = 'Generate';
+        setMode('quick');
+        document.getElementById('aiGenName').focus();
     }
+
+    function closeAiModal() {
+        if (_agentPollInterval) { clearInterval(_agentPollInterval); _agentPollInterval = null; }
+        document.getElementById('aiModal').style.display = 'none';
+    }
+
     window.addEventListener('click', e => {
         if (e.target === document.getElementById('aiModal')) closeAiModal();
     });
 
-    function generateTest() {
+    function startGenerate() {
+        if (_aiMode === 'smart') startAgentGenerate();
+        else generateTestQuick();
+    }
+
+    function generateTestQuick() {
         const name   = document.getElementById('aiGenName').value.trim();
         const prompt = document.getElementById('aiGenPrompt').value.trim();
         const errEl  = document.getElementById('aiGenError');
@@ -321,6 +384,83 @@
             btn.disabled = false;
             btn.textContent = 'Generate';
         });
+    }
+
+    function startAgentGenerate() {
+        const name   = document.getElementById('aiGenName').value.trim();
+        const prompt = document.getElementById('aiGenPrompt').value.trim();
+        const errEl  = document.getElementById('aiGenError');
+
+        if (!prompt) { errEl.textContent = 'Please describe what the test should do.'; errEl.style.display = ''; return; }
+        errEl.style.display = 'none';
+
+        fetch('/api/ai/agent-generate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name: name || 'AI Generated Test', prompt }),
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (!data.task_id) {
+                errEl.textContent = data.error || 'Failed to start agent.';
+                errEl.style.display = '';
+                return;
+            }
+            showProgressPanel();
+            pollAgentStatus(data.task_id);
+        })
+        .catch(err => {
+            errEl.textContent = 'Request failed: ' + err;
+            errEl.style.display = '';
+        });
+    }
+
+    function showProgressPanel() {
+        document.getElementById('aiFormFields').style.display = 'none';
+        document.getElementById('aiProgressPanel').style.display = '';
+        document.getElementById('aiProgressLog').textContent = '';
+        document.getElementById('aiStepCount').textContent = '0';
+        document.getElementById('aiProgressError').style.display = 'none';
+        document.getElementById('aiProgressStatus').textContent = 'Starting…';
+    }
+
+    function pollAgentStatus(taskId) {
+        let lastLogLen = 0;
+        _agentPollInterval = setInterval(() => {
+            fetch(`/api/ai/agent-status/${taskId}`)
+            .then(r => r.json())
+            .then(data => {
+                const log = data.log || [];
+                if (log.length > lastLogLen) {
+                    const logEl = document.getElementById('aiProgressLog');
+                    log.slice(lastLogLen).forEach(line => {
+                        const div = document.createElement('div');
+                        div.textContent = line;
+                        logEl.appendChild(div);
+                    });
+                    logEl.scrollTop = logEl.scrollHeight;
+                    lastLogLen = log.length;
+                }
+                document.getElementById('aiStepCount').textContent = (data.steps || []).length;
+
+                if (data.status === 'complete') {
+                    clearInterval(_agentPollInterval); _agentPollInterval = null;
+                    document.getElementById('aiProgressStatus').textContent = 'Done!';
+                    window.location.href = `/edit/${data.test_id}`;
+                } else if (data.status === 'error') {
+                    clearInterval(_agentPollInterval); _agentPollInterval = null;
+                    document.getElementById('aiProgressStatus').textContent = 'Failed';
+                    const errEl = document.getElementById('aiProgressError');
+                    errEl.textContent = data.error || 'Agent encountered an error.';
+                    errEl.style.display = '';
+                    document.getElementById('aiCancelBtn').textContent = 'Close';
+                } else {
+                    const lastLine = log[log.length - 1] || 'Running…';
+                    document.getElementById('aiProgressStatus').textContent = lastLine.replace(/^[▶✓✗]\s*/, '');
+                }
+            })
+            .catch(() => {});
+        }, 2000);
     }
 </script>
 </body>
