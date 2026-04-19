@@ -264,7 +264,7 @@ function renderSteps() {
         html += `<li class="step-item" draggable="true" data-index="${index}">`;
         html += `<div class="drag-handle">⋮⋮</div>`;
         html += `<div class="step-content">`;
-        html += `<strong>${step.action.toUpperCase()}</strong>`;
+        html += `<strong>${(step.action||'unknown').toUpperCase()}</strong>`;
         
         if (step.action === 'navigate') {
             html += ` - Navigate to: <code>${step.value}</code>`;

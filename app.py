@@ -236,9 +236,11 @@ def api_ai_generate_test():
     if not config.get('model'):
         return jsonify({'error': 'AI is not configured. Add CAPER_AI_PROVIDER, CAPER_AI_MODEL and CAPER_AI_API_KEY in Variables.'}), 400
     try:
-        steps = ai_client.generate_test_steps(prompt, config)
+        steps, dropped = ai_client.generate_test_steps(prompt, config)
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+    if not steps:
+        return jsonify({'error': 'AI returned no valid steps. Try rephrasing your prompt.'}), 500
     try:
         script = generate_selenium_script(steps, test_name=name, base_artefacts_dir=BASE_ARTEFACTS_DIR)
         test_id = db.create_test(
@@ -250,7 +252,7 @@ def api_ai_generate_test():
         )
     except Exception as e:
         return jsonify({'error': f'Failed to save test: {e}'}), 500
-    return jsonify({'success': True, 'test_id': test_id})
+    return jsonify({'success': True, 'test_id': test_id, 'dropped': dropped})
 
 
 @app.route('/api/ai/describe-test', methods=['POST'])

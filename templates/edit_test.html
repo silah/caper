@@ -257,6 +257,19 @@
     <script>
         const testId = {{ test.id }};
         testSteps = {{ test.steps | tojson }};
+
+        // Show warning passed via ?warn= from AI generation
+        (function() {
+            const params = new URLSearchParams(window.location.search);
+            const warn = params.get('warn');
+            if (warn) {
+                const el = document.createElement('div');
+                el.className = 'import-status import-status-warn';
+                el.style.cssText = 'margin:0 0 16px;white-space:pre-wrap';
+                el.textContent = warn;
+                document.querySelector('.ed-page').insertBefore(el, document.querySelector('.ed-topbar').nextSibling);
+            }
+        })();
         const _currentTagIds = new Set({{ test_tags | map(attribute='id') | list | tojson }});
 
         /* ── Step table rendering ── */
@@ -347,7 +360,7 @@
                 html += `<tr class="st-row${editing?' st-row-editing':''}" draggable="${!editing}" data-index="${i}">
                     <td class="st-col-drag"><span class="drag-handle">⋮⋮</span></td>
                     <td class="st-col-num">${i+1}</td>
-                    <td><span class="step-action-tag">${step.action.replace(/_/g,' ').toUpperCase()}</span></td>
+                    <td><span class="step-action-tag">${(step.action||'unknown').replace(/_/g,' ').toUpperCase()}</span></td>
                     <td class="st-detail">${_stepDetail(step)}</td>
                     <td class="st-col-btns">
                         <button class="tov-btn tov-btn-view" onclick="insertStepAfter(${i})" title="Insert step below">+ Below</button>

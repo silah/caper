@@ -305,7 +305,9 @@
         .then(r => r.json())
         .then(data => {
             if (data.success) {
-                window.location.href = `/edit/${data.test_id}`;
+                const warn = data.dropped && data.dropped.length
+                    ? `?warn=${encodeURIComponent(`${data.dropped.length} unrecognised step(s) were dropped: ${data.dropped.join(', ')}`)}` : '';
+                window.location.href = `/edit/${data.test_id}${warn}`;
             } else {
                 errEl.textContent = data.error || 'Generation failed.';
                 errEl.style.display = '';
