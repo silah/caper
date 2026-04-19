@@ -271,6 +271,10 @@ def _next_step(
         'You are shown the current page state and must return the single next action '
         'to make progress toward the current goal. '
         'Use ONLY selector values you can see in the DOM summary — never invent text or names. '
+        'IMPORTANT: Before taking any other action, always check the DOM summary for any modal, '
+        'banner, or overlay that asks the user to consent to cookies, tracking, or data processing — '
+        'regardless of the language the page is in. If such a prompt is present, dismiss it by '
+        'clicking the most permissive acceptance option available before doing anything else. '
         'If the current goal is already achieved, return {"action":"goal_complete"}. '
         'Return ONLY the JSON object, no explanation, no markdown.'
     )
