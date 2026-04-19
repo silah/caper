@@ -12,6 +12,7 @@ import urllib.request
 from database import Database
 from test_generator import generate_selenium_script
 from models import User
+import ai_client
 
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'dev-secret-key-change-in-production')
@@ -217,6 +218,60 @@ def api_delete_variable(key):
         return jsonify({'error': 'No team'}), 403
     db.delete_team_variable(team['id'], key)
     return jsonify({'success': True})
+
+
+@app.route('/api/ai/generate-test', methods=['POST'])
+@login_required
+def api_ai_generate_test():
+    team = get_current_team()
+    if not team:
+        return jsonify({'error': 'No team'}), 403
+    data = request.json or {}
+    prompt = (data.get('prompt') or '').strip()
+    name   = (data.get('name') or 'AI Generated Test').strip()
+    if not prompt:
+        return jsonify({'error': 'Prompt is required'}), 400
+    variables = db.get_team_variables(team['id'])
+    config = ai_client.get_ai_config(variables)
+    if not config.get('model'):
+        return jsonify({'error': 'AI is not configured. Add CAPER_AI_PROVIDER, CAPER_AI_MODEL and CAPER_AI_API_KEY in Variables.'}), 400
+    try:
+        steps = ai_client.generate_test_steps(prompt, config)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+    try:
+        script = generate_selenium_script(steps, test_name=name, base_artefacts_dir=BASE_ARTEFACTS_DIR)
+        test_id = db.create_test(
+            name=name,
+            description=prompt,
+            steps=json.dumps(steps),
+            script=script,
+            team_id=team['id'],
+        )
+    except Exception as e:
+        return jsonify({'error': f'Failed to save test: {e}'}), 500
+    return jsonify({'success': True, 'test_id': test_id})
+
+
+@app.route('/api/ai/describe-test', methods=['POST'])
+@login_required
+def api_ai_describe_test():
+    team = get_current_team()
+    if not team:
+        return jsonify({'error': 'No team'}), 403
+    data = request.json or {}
+    steps = data.get('steps')
+    if not steps or not isinstance(steps, list):
+        return jsonify({'error': 'steps array is required'}), 400
+    variables = db.get_team_variables(team['id'])
+    config = ai_client.get_ai_config(variables)
+    if not config.get('model'):
+        return jsonify({'error': 'AI is not configured. Add CAPER_AI_PROVIDER, CAPER_AI_MODEL and CAPER_AI_API_KEY in Variables.'}), 400
+    try:
+        description = ai_client.describe_test(steps, config)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+    return jsonify({'success': True, 'description': description})
 
 
 @app.route('/tags')

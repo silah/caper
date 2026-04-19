@@ -56,9 +56,13 @@
             </div>
 
             <!-- Description -->
-            <div class="ed-desc-wrap">
+            <div class="ed-desc-wrap" style="position:relative">
                 <textarea id="testDescription" class="ed-desc-input"
                           placeholder="Description (optional)" rows="2">{{ test.description or '' }}</textarea>
+                <button id="aiDescBtn" class="btn btn-ghost" style="position:absolute;bottom:8px;right:8px;font-size:.75rem;padding:3px 10px"
+                        onclick="generateDescription()" title="Generate description from steps using AI">
+                    AI describe
+                </button>
             </div>
 
             <!-- Schedule -->
@@ -567,6 +571,28 @@
                 }
             })
             .catch(err => alert('Error: ' + err));
+        }
+
+        function generateDescription() {
+            if (!testSteps.length) { alert('Add some steps first — the AI needs them to write a description.'); return; }
+            const btn = document.getElementById('aiDescBtn');
+            btn.disabled = true;
+            btn.textContent = 'Thinking…';
+            fetch('/api/ai/describe-test', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ steps: testSteps }),
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    document.getElementById('testDescription').value = data.description;
+                } else {
+                    alert('AI error: ' + (data.error || 'Unknown error'));
+                }
+            })
+            .catch(err => alert('Request failed: ' + err))
+            .finally(() => { btn.disabled = false; btn.textContent = 'AI describe'; });
         }
     </script>
     </main>

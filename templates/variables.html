@@ -44,6 +44,47 @@
             </div>
         </div>
 
+        <!-- AI Configuration -->
+        <div class="vars-add-card" style="margin-bottom:24px">
+            <div class="vars-add-title">AI Configuration</div>
+            <p style="font-size:.82rem;color:#666;margin:0 0 14px">
+                Used for AI-powered test generation and description. Values are stored as reserved team variables.
+                Get a free API key from <strong>Google AI Studio</strong> (Gemini) or run <strong>Ollama</strong> locally for no cost.
+            </p>
+            <div class="vars-form-row" style="flex-wrap:wrap;gap:12px;align-items:flex-end">
+                <div class="ed-field">
+                    <label>Provider</label>
+                    <select id="aiProvider" class="ed-input" style="width:160px">
+                        <option value="">— select —</option>
+                        <option value="gemini">Gemini (Google)</option>
+                        <option value="openai">OpenAI</option>
+                        <option value="anthropic">Anthropic</option>
+                        <option value="groq">Groq</option>
+                        <option value="ollama">Ollama (local)</option>
+                    </select>
+                </div>
+                <div class="ed-field">
+                    <label>Model</label>
+                    <input type="text" id="aiModel" class="ed-input" style="width:220px"
+                           placeholder="e.g. gemini/gemini-2.0-flash">
+                </div>
+                <div class="ed-field">
+                    <label>API Key</label>
+                    <input type="password" id="aiApiKey" class="ed-input" style="width:220px"
+                           placeholder="sk-… or AIza…">
+                </div>
+                <div class="ed-field" id="aiEndpointWrap" style="display:none">
+                    <label>Endpoint</label>
+                    <input type="text" id="aiEndpoint" class="ed-input" style="width:220px"
+                           placeholder="http://localhost:11434">
+                </div>
+                <div style="padding-bottom:1px">
+                    <button class="btn btn-primary" onclick="saveAiConfig()">Save</button>
+                </div>
+            </div>
+            <div id="aiStatus" style="margin-top:10px;font-size:.82rem"></div>
+        </div>
+
         <div class="vars-add-card" style="margin-bottom:24px">
             <div class="vars-add-title">Add / update variable</div>
             <div class="vars-form-row">
@@ -71,7 +112,9 @@
             Secrets are stored in plain text but their values are masked in this UI.
         </div>
 
-        {% if variables %}
+        {% set ai_keys = ['CAPER_AI_PROVIDER','CAPER_AI_API_KEY','CAPER_AI_MODEL','CAPER_AI_ENDPOINT'] %}
+        {% set user_vars = variables | rejectattr('key', 'in', ai_keys) | list %}
+        {% if user_vars %}
         <table class="vars-table">
             <thead>
                 <tr>
@@ -83,7 +126,7 @@
                 </tr>
             </thead>
             <tbody id="varTableBody">
-                {% for var in variables %}
+                {% for var in user_vars %}
                 <tr id="var-row-{{ loop.index }}">
                     <td><span class="vars-key">&#123;&#123;{{ var.key }}&#125;&#125;</span></td>
                     <td><span class="vars-value">{{ '••••••••' if var.is_secret else var.value }}</span></td>
@@ -108,12 +151,74 @@
         </div>
         {% endif %}
 
+        <!-- Pre-populate AI config fields from saved variables -->
         <script>
+            (function() {
+                const saved = {
+                    {% for var in variables %}
+                    {% if var.key in ai_keys %}
+                    '{{ var.key }}': '{{ var.value }}',
+                    {% endif %}
+                    {% endfor %}
+                };
+                const provider = saved['CAPER_AI_PROVIDER'] || '';
+                const model    = saved['CAPER_AI_MODEL'] || '';
+                const endpoint = saved['CAPER_AI_ENDPOINT'] || '';
+                if (provider) document.getElementById('aiProvider').value = provider;
+                if (model)    document.getElementById('aiModel').value    = model;
+                if (endpoint) document.getElementById('aiEndpoint').value = endpoint;
+                if (provider === 'ollama') document.getElementById('aiEndpointWrap').style.display = '';
+            })();
+        </script>
+
+        <script>
+            document.getElementById('aiProvider').addEventListener('change', function() {
+                document.getElementById('aiEndpointWrap').style.display = this.value === 'ollama' ? '' : 'none';
+            });
+
+            async function saveAiConfig() {
+                const provider = document.getElementById('aiProvider').value;
+                const model    = document.getElementById('aiModel').value.trim();
+                const apiKey   = document.getElementById('aiApiKey').value;
+                const endpoint = document.getElementById('aiEndpoint').value.trim();
+                const statusEl = document.getElementById('aiStatus');
+
+                if (!provider || !model) {
+                    statusEl.style.color = '#c62828';
+                    statusEl.textContent = 'Provider and Model are required';
+                    return;
+                }
+
+                const saves = [
+                    { key: 'CAPER_AI_PROVIDER', value: provider, is_secret: false },
+                    { key: 'CAPER_AI_MODEL',    value: model,    is_secret: false },
+                    { key: 'CAPER_AI_ENDPOINT', value: endpoint, is_secret: false },
+                ];
+                if (apiKey) saves.push({ key: 'CAPER_AI_API_KEY', value: apiKey, is_secret: true });
+
+                try {
+                    await Promise.all(saves.map(v =>
+                        fetch('/api/variables', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(v),
+                        }).then(r => r.json())
+                    ));
+                    statusEl.style.color = '#27ae60';
+                    statusEl.textContent = 'AI configuration saved';
+                    document.getElementById('aiApiKey').value = '';
+                } catch (e) {
+                    statusEl.style.color = '#c62828';
+                    statusEl.textContent = 'Error saving: ' + e;
+                }
+            }
+
             function saveVar(isSecret) {
                 const key = document.getElementById('newKey').value.trim();
                 const value = document.getElementById('newValue').value;
                 const statusEl = document.getElementById('varStatus');
                 if (!key) { statusEl.style.color = '#c62828'; statusEl.textContent = 'Key is required'; return; }
+                if (key.startsWith('CAPER_AI_')) { statusEl.style.color = '#c62828'; statusEl.textContent = 'CAPER_AI_ keys are reserved — use the AI Configuration section above'; return; }
                 if (!/^[A-Z0-9_]+$/.test(key)) {
                     statusEl.style.color = '#c62828';
                     statusEl.textContent = 'Key must be uppercase letters, digits, and underscores only';

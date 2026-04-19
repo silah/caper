@@ -2,3 +2,4 @@ Flask==3.0.0
 playwright
 Werkzeug==3.0.1
 Flask-Login==0.6.3
+litellm

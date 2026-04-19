@@ -46,6 +46,9 @@
                 <button class="btn btn-secondary" onclick="document.getElementById('importFile').click()">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:5px"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>Import
                 </button>
+                <button class="btn btn-secondary" onclick="openAiModal()">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:5px"><path d="M12 2a10 10 0 1 0 10 10"/><path d="M12 8v4l3 3"/><circle cx="18" cy="6" r="3" fill="currentColor" stroke="none"/></svg>Generate with AI
+                </button>
                 <a href="/create" class="btn btn-primary">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:5px"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>New Test
                 </a>
@@ -237,5 +240,86 @@
         </script>
     </main>
 </div>
+
+<!-- AI Generate Test Modal -->
+<div id="aiModal" class="modal" style="display:none">
+    <div class="modal-content" style="max-width:520px">
+        <div class="modal-header">
+            <h3 class="modal-title">Generate test with AI</h3>
+            <button class="modal-close" onclick="closeAiModal()">&times;</button>
+        </div>
+        <div style="padding:20px 24px">
+            <div class="ed-field" style="margin-bottom:14px">
+                <label>Test name</label>
+                <input type="text" id="aiGenName" class="ed-input" placeholder="e.g. Login and checkout flow">
+            </div>
+            <div class="ed-field" style="margin-bottom:6px">
+                <label>Describe what the test should do</label>
+                <textarea id="aiGenPrompt" class="ed-desc-input" rows="5"
+                    placeholder="e.g. Navigate to the app, log in with {{USERNAME}} and {{PASSWORD}}, add the first product to the cart, go to checkout, and assert the order summary is visible."></textarea>
+            </div>
+            <p style="font-size:.78rem;color:#888;margin:0 0 18px">
+                Use <code>&#123;&#123;VARIABLE_NAME&#125;&#125;</code> for credentials or environment values.
+                AI must be configured in <a href="/variables">Variables</a>.
+            </p>
+            <div id="aiGenError" style="display:none;color:#c62828;font-size:.83rem;margin-bottom:12px"></div>
+            <div style="display:flex;gap:8px;justify-content:flex-end">
+                <button class="btn btn-ghost" onclick="closeAiModal()">Cancel</button>
+                <button class="btn btn-primary" id="aiGenBtn" onclick="generateTest()">Generate</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function openAiModal() {
+        document.getElementById('aiModal').style.display = 'block';
+        document.getElementById('aiGenName').focus();
+    }
+    function closeAiModal() {
+        document.getElementById('aiModal').style.display = 'none';
+        document.getElementById('aiGenError').style.display = 'none';
+        document.getElementById('aiGenBtn').disabled = false;
+        document.getElementById('aiGenBtn').textContent = 'Generate';
+    }
+    window.addEventListener('click', e => {
+        if (e.target === document.getElementById('aiModal')) closeAiModal();
+    });
+
+    function generateTest() {
+        const name   = document.getElementById('aiGenName').value.trim();
+        const prompt = document.getElementById('aiGenPrompt').value.trim();
+        const errEl  = document.getElementById('aiGenError');
+        const btn    = document.getElementById('aiGenBtn');
+
+        if (!prompt) { errEl.textContent = 'Please describe what the test should do.'; errEl.style.display = ''; return; }
+        errEl.style.display = 'none';
+        btn.disabled = true;
+        btn.textContent = 'Generating…';
+
+        fetch('/api/ai/generate-test', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name: name || 'AI Generated Test', prompt }),
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                window.location.href = `/edit/${data.test_id}`;
+            } else {
+                errEl.textContent = data.error || 'Generation failed.';
+                errEl.style.display = '';
+                btn.disabled = false;
+                btn.textContent = 'Generate';
+            }
+        })
+        .catch(err => {
+            errEl.textContent = 'Request failed: ' + err;
+            errEl.style.display = '';
+            btn.disabled = false;
+            btn.textContent = 'Generate';
+        });
+    }
+</script>
 </body>
 </html>
