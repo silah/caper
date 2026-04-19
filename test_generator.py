@@ -112,6 +112,8 @@ def generate_selenium_script(steps, test_name='test', base_artefacts_dir=None, b
     ]
 
     for i, step in enumerate(steps, 1):
+        if not isinstance(step, dict):
+            continue
         action = step.get('action')
 
         if action == 'navigate':

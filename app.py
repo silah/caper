@@ -1098,7 +1098,7 @@ def _migrate_selenium_scripts():
             steps = json.loads(steps_raw if isinstance(steps_raw, str) else steps_raw.decode('utf-8'))
         except Exception:
             continue
-        new_script = generate_selenium_script(steps, browser)
+        new_script = generate_selenium_script(steps, browser=browser)
         conn2 = db.get_connection()
         conn2.execute('UPDATE tests SET script = ? WHERE id = ?', (new_script.encode('utf-8'), test_id))
         conn2.commit()
