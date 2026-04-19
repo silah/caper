@@ -220,9 +220,13 @@ def _strip_fences(raw: str) -> str:
 def _decompose_goals(prompt: str, config: dict) -> list[str]:
     system = (
         'You are a browser test planner. Break the user\'s test description into '
-        '2-6 sequential sub-goals. Each sub-goal should be a short, specific action phrase. '
+        '2-6 sequential sub-goals. Each sub-goal must describe the desired END STATE — '
+        'what the browser should be showing when the goal is complete — not just the action to take. '
+        'A goal is only done when its full outcome is achieved and visible on the page. '
+        'Bad example (action-based): "Search for Ry in the search box" '
+        'Good example (outcome-based): "The Ry weather forecast page is open and showing forecast data" '
         'Return ONLY a JSON array of strings, no other text. '
-        'Example: ["Navigate to the login page", "Submit the login form", "Verify the dashboard loaded"]'
+        'Example: ["The login page is open", "The user is logged in and the dashboard is visible", "The checkout summary page is showing the order details"]'
     )
     raw = _llm_call(config, system, f'Test description: {prompt}')
     try:
@@ -275,7 +279,10 @@ def _next_step(
         'banner, or overlay that asks the user to consent to cookies, tracking, or data processing — '
         'regardless of the language the page is in. If such a prompt is present, dismiss it by '
         'clicking the most permissive acceptance option available before doing anything else. '
-        'If the current goal is already achieved, return {"action":"goal_complete"}. '
+        'Only return {"action":"goal_complete"} when the full end state of the current goal '
+        'is visible and confirmed on the page — not just when intermediate progress has been made. '
+        'For example, if the goal is to reach a forecast page, do not complete the goal just because '
+        'a search result appeared; keep acting until the destination page is fully loaded. '
         'Return ONLY the JSON object, no explanation, no markdown.'
     )
 
