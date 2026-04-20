@@ -42,6 +42,14 @@ Tests run in headless Firefox or Chrome via Playwright. Every execution produces
 ### Notifications
 - **Webhooks** — send a configurable HTTP GET or POST to any endpoint on test success or failure; self-signed certificates accepted
 
+### AI Test Generation
+- **Quick generation** — describe a test in plain English and an LLM generates the step sequence in a single call; supports `{{VARIABLE_NAME}}` substitution in prompts
+- **Smart generation (agentic)** — opens a real headless browser, decomposes the prompt into sub-goals, then iterates: take accessibility snapshot → ask LLM for the next action → execute → repeat; the LLM only uses selector values it can actually see in the DOM, eliminating hallucinated text
+- **Cookie consent handling** — the agent automatically detects and dismisses cookie/GDPR banners in any language before proceeding with each goal
+- **Describe existing test** — send any test's steps to the LLM and receive a plain-English summary of what it does
+- **Bring your own LLM** — configure any provider supported by [LiteLLM](https://github.com/BerriAI/litellm): OpenAI, Anthropic, Google Gemini, Groq, Ollama (local), and more; API key and model are stored as reserved team variables (`CAPER_AI_*`)
+- **Live model picker** — the Variables page fetches available models directly from each provider's API so you always see a current list
+
 ### Teams
 - **Multi-user teams** — register and create or join a team; all tests, executions, and variables are scoped to a team
 - **Shared variables** — team-level key/value store for secrets and environment config
@@ -77,6 +85,8 @@ caper/
 ├── app.py                      # Flask routes, scheduler, subprocess runner
 ├── database.py                 # SQLite schema, migrations, all DB methods
 ├── test_generator.py           # Generates Playwright scripts from step JSON
+├── ai_client.py                # LiteLLM wrapper: quick generation and test description
+├── ai_agent.py                 # Agentic browser loop: goal decomposition, DOM snapshot, step execution
 ├── models.py                   # Flask-Login user model
 ├── requirements.txt
 ├── Dockerfile
@@ -170,6 +180,21 @@ Selectors are strict by default — if a locator resolves to more than one eleme
 ## Internal Test Bed
 
 `/internal-testing` is a built-in page designed to validate every step action and every selector type. Import `internal_test_seed.json` via the Tests → Import button to create a ready-made test that exercises all 25 actions and all 14 selector types in a single run. Set `INT_TEST_USER` and `INT_TEST_PW` as team variables before running.
+
+---
+
+## AI Configuration
+
+AI features are configured via the **Variables** page. Set the following reserved team variables:
+
+| Variable | Description |
+|---|---|
+| `CAPER_AI_PROVIDER` | Provider name: `openai`, `anthropic`, `gemini`, `groq`, or `ollama` |
+| `CAPER_AI_MODEL` | Model identifier, e.g. `gemini/gemini-2.5-flash`, `claude-sonnet-4-6`, `gpt-4o` |
+| `CAPER_AI_API_KEY` | Your provider API key (not required for Ollama) |
+| `CAPER_AI_ENDPOINT` | Custom base URL — required for Ollama (e.g. `http://localhost:11434`), optional otherwise |
+
+These keys are hidden from the main variables table and cannot be used as test step variables.
 
 ---
 
