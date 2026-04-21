@@ -2699,6 +2699,26 @@ summary {
 }
 .exd-thumb:hover { opacity: .85; }
 .exd-loading { color: #aaa; font-size: .82rem; }
+.exd-collapsible { border: none; padding: 0; }
+.exd-collapsible > summary {
+    cursor: pointer;
+    list-style: none;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    user-select: none;
+}
+.exd-collapsible > summary::before {
+    content: '▶';
+    font-size: .6rem;
+    color: #aaa;
+    transition: transform .15s;
+    flex-shrink: 0;
+}
+.exd-collapsible[open] > summary::before { transform: rotate(90deg); }
+.exd-collapsible > table,
+.exd-collapsible > .screenshots-gallery,
+.exd-collapsible > pre { margin-top: 10px; }
 
 /* ── Execution history table (test detail page) ────────────── */
 .exh-table {

@@ -104,28 +104,28 @@
         {% if execution.console_errors %}
         {% set ce = execution.console_errors | from_json %}
         {% if ce %}
-        <div class="exd-obs-section">
-            <h3 class="exd-section-title">JS Errors &amp; Warnings <span class="exd-count-badge">{{ ce | length }}</span></h3>
+        <details class="exd-obs-section exd-collapsible">
+            <summary class="exd-section-title">JS Errors <span class="exd-count-badge">{{ ce | length }}</span></summary>
             <table class="exd-obs-table">
                 <thead><tr><th>Type</th><th>Message</th></tr></thead>
                 <tbody>
                 {% for err in ce %}
                 <tr>
-                    <td><span class="obs-badge {% if err.type == 'pageerror' or err.type == 'error' %}obs-badge-err{% else %}obs-badge-warn{% endif %}">{{ err.type }}</span></td>
+                    <td><span class="obs-badge obs-badge-err">{{ err.type }}</span></td>
                     <td class="exd-obs-msg">{{ err.text }}</td>
                 </tr>
                 {% endfor %}
                 </tbody>
             </table>
-        </div>
+        </details>
         {% endif %}
         {% endif %}
 
         {% if execution.network_anomalies %}
         {% set na = execution.network_anomalies | from_json %}
         {% if na %}
-        <div class="exd-obs-section">
-            <h3 class="exd-section-title">Network Issues <span class="exd-count-badge">{{ na | length }}</span></h3>
+        <details class="exd-obs-section exd-collapsible">
+            <summary class="exd-section-title">Network Issues <span class="exd-count-badge">{{ na | length }}</span></summary>
             <table class="exd-obs-table">
                 <thead><tr><th>Status</th><th>Duration</th><th>Size</th><th>URL</th></tr></thead>
                 <tbody>
@@ -139,54 +139,37 @@
                 {% endfor %}
                 </tbody>
             </table>
-        </div>
+        </details>
         {% endif %}
         {% endif %}
 
         <!-- Screenshots -->
         {% if execution.artefact_dir %}
-        <div class="exd-obs-section">
-            <h3 class="exd-section-title">Screenshots</h3>
-            <div class="exd-screenshots" id="screenshotsGrid">
-                <span class="exd-loading">Loading&hellip;</span>
-            </div>
-        </div>
+        <details class="exd-obs-section exd-collapsible screenshots-details" data-artefact-dir="{{ execution.artefact_dir }}">
+            <summary class="exd-section-title">Screenshots</summary>
+            <div class="screenshots-gallery exd-screenshots"></div>
+        </details>
         {% endif %}
 
         <!-- Error output -->
         {% if execution.error and execution.error.strip() %}
-        <div class="exd-obs-section">
-            <h3 class="exd-section-title" style="color:#c62828">Error Output</h3>
+        <details class="exd-obs-section exd-collapsible" open>
+            <summary class="exd-section-title" style="color:#c62828">Error Output</summary>
             <pre class="error-output">{{ execution.error }}</pre>
-        </div>
+        </details>
         {% endif %}
 
     </main>
 </div>
 
-<script src="{{ url_for('static', filename='js/app.js') }}"></script>
+<script src="{{ url_for('static', filename='js/har-viewer.js') }}"></script>
 <script>
-    // Render step results
     const stepsEl = document.querySelector('.exd-steps-list');
     if (stepsEl) {
         const steps = JSON.parse(stepsEl.dataset.steps || '[]');
         const dir = stepsEl.dataset.artefactDir || '';
         stepsEl.innerHTML = renderStepResults(steps, dir);
     }
-
-    // Load screenshots
-    const grid = document.getElementById('screenshotsGrid');
-    {% if execution.artefact_dir %}
-    fetch('/api/artefacts/{{ execution.artefact_dir }}/screenshots')
-        .then(r => r.json())
-        .then(files => {
-            if (!files.length) { grid.innerHTML = '<span style="color:#aaa;font-size:.83rem">No screenshots captured.</span>'; return; }
-            grid.innerHTML = files.map(f =>
-                `<a href="${f}" target="_blank"><img src="${f}" class="exd-thumb" loading="lazy"></a>`
-            ).join('');
-        })
-        .catch(() => { grid.innerHTML = '<span style="color:#aaa;font-size:.83rem">Could not load screenshots.</span>'; });
-    {% endif %}
 </script>
 </body>
 </html>

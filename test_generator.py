@@ -102,7 +102,7 @@ def generate_selenium_script(steps, test_name='test', base_artefacts_dir=None, b
         "        page = _context.new_page()",
         "        step_results = []",
         "        _console_errors = []",
-        "        page.on('console', lambda msg: _console_errors.append({'type': msg.type, 'text': msg.text}) if msg.type in ('error', 'warning') else None)",
+        "        page.on('console', lambda msg: _console_errors.append({'type': msg.type, 'text': msg.text}) if msg.type == 'error' else None)",
         "        page.on('pageerror', lambda err: _console_errors.append({'type': 'pageerror', 'text': str(err)}))",
         "",
         "        def _screenshot(step_num):",
