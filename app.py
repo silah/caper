@@ -10,7 +10,7 @@ import threading
 import time
 import urllib.request
 from database import Database
-from test_generator import generate_selenium_script
+from test_generator import generate_playwright_script
 from models import User
 import ai_client
 import ai_agent
@@ -286,7 +286,7 @@ def api_ai_generate_test():
     if not steps:
         return jsonify({'error': 'AI returned no valid steps. Try rephrasing your prompt.'}), 500
     try:
-        script = generate_selenium_script(steps, test_name=name, base_artefacts_dir=BASE_ARTEFACTS_DIR)
+        script = generate_playwright_script(steps, test_name=name, base_artefacts_dir=BASE_ARTEFACTS_DIR)
         test_id = db.create_test(
             name=name,
             description=prompt,
@@ -339,7 +339,7 @@ def api_ai_agent_generate():
     task_id = ai_agent.create_task()
 
     def _save(steps):
-        script = generate_selenium_script(steps, test_name=name, base_artefacts_dir=BASE_ARTEFACTS_DIR)
+        script = generate_playwright_script(steps, test_name=name, base_artefacts_dir=BASE_ARTEFACTS_DIR)
         return db.create_test(name=name, description=prompt, steps=steps,
                               script=script, team_id=team['id'])
 
@@ -846,7 +846,7 @@ def create_test():
     if not name or not steps:
         return jsonify({'error': 'Name and steps are required'}), 400
     browser = data.get('browser', 'firefox') if data.get('browser') in ('firefox', 'chrome') else 'firefox'
-    script = generate_selenium_script(steps, test_name=name, base_artefacts_dir=BASE_ARTEFACTS_DIR,
+    script = generate_playwright_script(steps, test_name=name, base_artefacts_dir=BASE_ARTEFACTS_DIR,
                                       browser=browser)
     test_id = db.create_test(name, description, steps, script, team['id'], browser=browser)
     return jsonify({'success': True, 'test_id': test_id,
@@ -976,7 +976,7 @@ def update_test(test_id):
         return jsonify({'error': 'Name and steps are required'}), 400
 
     browser = data.get('browser', 'firefox') if data.get('browser') in ('firefox', 'chrome') else 'firefox'
-    script = generate_selenium_script(steps, test_name=name, base_artefacts_dir=BASE_ARTEFACTS_DIR,
+    script = generate_playwright_script(steps, test_name=name, base_artefacts_dir=BASE_ARTEFACTS_DIR,
                                       browser=browser)
 
     try:
@@ -1127,7 +1127,7 @@ def import_test():
                                 'type': raw_step.get('type', '(unknown)')})
     if not steps:
         return jsonify({'error': 'No recognisable steps found in the file'}), 400
-    script = generate_selenium_script(steps, test_name=name, base_artefacts_dir=BASE_ARTEFACTS_DIR)
+    script = generate_playwright_script(steps, test_name=name, base_artefacts_dir=BASE_ARTEFACTS_DIR)
     test_id = db.create_test(name, '', steps, script, team['id'])
     return jsonify({'success': True, 'test_id': test_id,
                     'message': f'Imported "{name}" with {len(steps)} steps',
@@ -1225,7 +1225,7 @@ def _migrate_selenium_scripts():
             steps = json.loads(steps_raw if isinstance(steps_raw, str) else steps_raw.decode('utf-8'))
         except Exception:
             continue
-        new_script = generate_selenium_script(steps, browser=browser)
+        new_script = generate_playwright_script(steps, browser=browser)
         conn2 = db.get_connection()
         conn2.execute('UPDATE tests SET script = ? WHERE id = ?', (new_script.encode('utf-8'), test_id))
         conn2.commit()

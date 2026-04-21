@@ -7,7 +7,7 @@ import json
 import os
 import sys
 
-from test_generator import generate_selenium_script
+from test_generator import generate_playwright_script
 
 DB_PATH = os.environ.get('DB_PATH', 'tests.db')
 BASE_ARTEFACTS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'artefacts')
@@ -29,7 +29,7 @@ def regenerate_all_scripts():
 
         print(f"  Regenerating '{name}' (ID: {test_id})...")
 
-        new_script = generate_selenium_script(steps, test_name=name, base_artefacts_dir=BASE_ARTEFACTS_DIR)
+        new_script = generate_playwright_script(steps, test_name=name, base_artefacts_dir=BASE_ARTEFACTS_DIR)
 
         cursor.execute(
             'UPDATE tests SET script = ? WHERE id = ?',

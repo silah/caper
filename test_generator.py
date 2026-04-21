@@ -79,7 +79,7 @@ _CWV_SCRIPT = (
 )
 
 
-def generate_selenium_script(steps, test_name='test', base_artefacts_dir=None, browser='firefox'):
+def generate_playwright_script(steps, test_name='test', base_artefacts_dir=None, browser='firefox'):
     """Generate a Playwright test script from step definitions."""
     if base_artefacts_dir is None:
         base_artefacts_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'artefacts')
