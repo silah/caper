@@ -2935,3 +2935,67 @@ summary {
 /* Suite run list pass/fail counts */
 .sre-pass { color: #059669; font-weight: 600; }
 .sre-fail { color: #dc2626; font-weight: 600; }
+
+/* ── Performance / CWV dashboard ──────────────────────────── */
+.cwv-legend {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 18px;
+    font-size: .78rem;
+    color: #666;
+}
+.cwv-legend-item { display: flex; align-items: center; gap: 5px; }
+.cwv-legend-sep { flex: 1; }
+.cwv-threshold-note { color: #aaa; font-size: .73rem; }
+.cwv-dot {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+.cwv-good { background: #34a853; }
+.cwv-warn { background: #fbbc04; }
+.cwv-poor { background: #ea4335; }
+
+.cwv-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: .83rem;
+}
+.cwv-table thead th {
+    text-align: left;
+    padding: 8px 14px;
+    background: #f5f5f5;
+    border-bottom: 2px solid #e0e0e0;
+    font-size: .74rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    color: #666;
+    white-space: nowrap;
+}
+.cwv-table td { padding: 10px 14px; border-bottom: 1px solid #f0f0f0; vertical-align: middle; }
+.cwv-row:hover td { background: #fafafa; }
+.cwv-th-name { width: 28%; }
+.cwv-th-trend { width: 18%; }
+
+.cwv-name { font-weight: 600; color: #1a1a2e; }
+.cwv-last-run { color: #aaa; font-size: .76rem; white-space: nowrap; }
+
+.cwv-val {
+    display: inline-block;
+    padding: 3px 9px;
+    border-radius: 10px;
+    font-size: .78rem;
+    font-weight: 600;
+    white-space: nowrap;
+}
+.cwv-val.cwv-good { background: #e6f4ea; color: #1e7e34; }
+.cwv-val.cwv-warn { background: #fef9e7; color: #b8860b; }
+.cwv-val.cwv-poor { background: #fce8e6; color: #c0392b; }
+.cwv-na { color: #ccc; }
+
+.cwv-trend-cell { white-space: nowrap; }
+.cwv-trend-cell .cwv-dot { width: 9px; height: 9px; margin-right: 2px; cursor: default; }

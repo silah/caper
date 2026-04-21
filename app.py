@@ -168,6 +168,14 @@ def view_executions():
     tests = db.get_executions_grouped_by_test(team_id=team['id'])
     return render_template('view_executions.html', tests=tests, team=team)
 
+@app.route('/performance')
+@login_required
+def performance_dashboard():
+    team = get_current_team()
+    data = db.get_cwv_dashboard(team_id=team['id'] if team else None)
+    return render_template('performance.html', data=data, team=team)
+
+
 @app.route('/health')
 @login_required
 def health_dashboard():
@@ -704,6 +712,7 @@ def _run_test_subprocess(test_id, script, execution_id, test_name='',
     final_artefact_dir = ''
     final_console_errors = None
     final_network_anomalies = None
+    final_cwv_data = None
 
     for attempt in range(max_attempts):
         if attempt > 0:
@@ -774,6 +783,13 @@ def _run_test_subprocess(test_id, script, execution_id, test_name='',
             if artefact_dir:
                 anomalies = _parse_har_anomalies(artefact_dir)
                 final_network_anomalies = json.dumps(anomalies) if anomalies else None
+            if 'CWV_DATA:' in output:
+                start_idx = output.find('CWV_DATA:') + len('CWV_DATA:')
+                cwv_line = output[start_idx:].strip().split('\n')[0].strip()
+                try:
+                    final_cwv_data = json.dumps(json.loads(cwv_line))
+                except Exception:
+                    pass
 
             if status == 'success':
                 break
@@ -801,7 +817,8 @@ def _run_test_subprocess(test_id, script, execution_id, test_name='',
     db.update_execution(execution_id, final_status, final_output, final_error,
                         final_step_results, final_artefact_dir, duration_seconds, sla_violated,
                         console_errors=final_console_errors,
-                        network_anomalies=final_network_anomalies)
+                        network_anomalies=final_network_anomalies,
+                        cwv_data=final_cwv_data)
     db.update_execution_stats(test_id)
 
     label = f'"{test_name}" ' if test_name else ''

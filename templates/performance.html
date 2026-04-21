@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Performance - Caper</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+<div class="app-shell">
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <div class="sidebar-brand">
+                <span class="sidebar-brand-name">Caper</span>
+                <span class="sidebar-brand-dot"></span>
+            </div>
+        </div>
+        <nav class="sidebar-nav">
+            <a href="/" class="sidebar-link">Home</a>
+            <a href="/tests" class="sidebar-link">Tests</a>
+            <a href="/executions" class="sidebar-link">Executions</a>
+            <a href="/health" class="sidebar-link">Health</a>
+            <a href="/performance" class="sidebar-link active">Performance</a>
+            <a href="/tags" class="sidebar-link">Tags</a>
+            <a href="/suites" class="sidebar-link">Suites</a>
+            <a href="/suite-executions" class="sidebar-link">Suite Runs</a>
+            <div class="sidebar-divider"></div>
+            <a href="/create" class="sidebar-link">Create Test</a>
+            <a href="/variables" class="sidebar-link">Variables</a>
+            <a href="/logs" class="sidebar-link">Log</a>
+        </nav>
+        <div class="sidebar-footer">
+            {% if current_user.is_authenticated %}
+            <span class="sidebar-user">{{ current_user.username }}</span>
+            {% endif %}
+            <a href="/logout" class="sidebar-link sidebar-link-danger">Sign out</a>
+        </div>
+    </aside>
+
+    <main class="main-content">
+        <div class="pg-header">
+            <div class="pg-header-left">
+                <h1 class="pg-title">Performance</h1>
+                <p class="pg-subtitle">Core Web Vitals across your tests</p>
+            </div>
+        </div>
+
+        <!-- Legend -->
+        <div class="cwv-legend">
+            <span class="cwv-legend-item"><span class="cwv-dot cwv-good"></span>Good</span>
+            <span class="cwv-legend-item"><span class="cwv-dot cwv-warn"></span>Needs improvement</span>
+            <span class="cwv-legend-item"><span class="cwv-dot cwv-poor"></span>Poor</span>
+            <span class="cwv-legend-item cwv-legend-sep"></span>
+            <span class="cwv-legend-item cwv-threshold-note">LCP &lt;2.5s / CLS &lt;0.1 / INP &lt;200ms / TTFB &lt;800ms</span>
+        </div>
+
+        {% if data %}
+        <table class="cwv-table">
+            <thead>
+                <tr>
+                    <th class="cwv-th-name">Test</th>
+                    <th>LCP</th>
+                    <th>CLS</th>
+                    <th>INP</th>
+                    <th>TTFB</th>
+                    <th class="cwv-th-trend">Trend (last 10)</th>
+                    <th>Last run</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for row in data %}
+            {% set cwv = row.latest %}
+            <tr class="cwv-row" onclick="window.location.href='/test/{{ row.test_id }}'" style="cursor:pointer">
+                <td class="cwv-name">{{ row.test_name }}</td>
+
+                <!-- LCP: good <2500, warn <4000, poor >=4000 (ms) -->
+                <td>
+                {% if cwv.lcp is not none %}
+                <span class="cwv-val {% if cwv.lcp < 2500 %}cwv-good{% elif cwv.lcp < 4000 %}cwv-warn{% else %}cwv-poor{% endif %}">
+                    {{ '%.1f'|format(cwv.lcp / 1000) }}s
+                </span>
+                {% else %}<span class="cwv-na">—</span>{% endif %}
+                </td>
+
+                <!-- CLS: good <0.1, warn <0.25, poor >=0.25 -->
+                <td>
+                {% if cwv.cls is not none %}
+                <span class="cwv-val {% if cwv.cls < 0.1 %}cwv-good{% elif cwv.cls < 0.25 %}cwv-warn{% else %}cwv-poor{% endif %}">
+                    {{ '%.3f'|format(cwv.cls) }}
+                </span>
+                {% else %}<span class="cwv-na">—</span>{% endif %}
+                </td>
+
+                <!-- INP: good <200, warn <500, poor >=500 (ms) -->
+                <td>
+                {% if cwv.inp is not none %}
+                <span class="cwv-val {% if cwv.inp < 200 %}cwv-good{% elif cwv.inp < 500 %}cwv-warn{% else %}cwv-poor{% endif %}">
+                    {{ cwv.inp }}ms
+                </span>
+                {% else %}<span class="cwv-na">—</span>{% endif %}
+                </td>
+
+                <!-- TTFB: good <800, warn <1800, poor >=1800 (ms) -->
+                <td>
+                {% if cwv.ttfb is not none %}
+                <span class="cwv-val {% if cwv.ttfb < 800 %}cwv-good{% elif cwv.ttfb < 1800 %}cwv-warn{% else %}cwv-poor{% endif %}">
+                    {{ cwv.ttfb }}ms
+                </span>
+                {% else %}<span class="cwv-na">—</span>{% endif %}
+                </td>
+
+                <!-- Trend sparkline -->
+                <td class="cwv-trend-cell">
+                    {% for entry in row.trend | reverse %}
+                    {% set c = entry.cwv %}
+                    {% set score = namespace(bad=0, warn=0) %}
+                    {% if c.lcp is not none %}{% if c.lcp >= 4000 %}{% set score.bad = score.bad + 1 %}{% elif c.lcp >= 2500 %}{% set score.warn = score.warn + 1 %}{% endif %}{% endif %}
+                    {% if c.cls is not none %}{% if c.cls >= 0.25 %}{% set score.bad = score.bad + 1 %}{% elif c.cls >= 0.1 %}{% set score.warn = score.warn + 1 %}{% endif %}{% endif %}
+                    {% if c.ttfb is not none %}{% if c.ttfb >= 1800 %}{% set score.bad = score.bad + 1 %}{% elif c.ttfb >= 800 %}{% set score.warn = score.warn + 1 %}{% endif %}{% endif %}
+                    <span class="cwv-dot {% if score.bad > 0 %}cwv-poor{% elif score.warn > 0 %}cwv-warn{% else %}cwv-good{% endif %}"
+                          title="{{ entry.executed_at }}"></span>
+                    {% endfor %}
+                </td>
+
+                <td class="cwv-last-run">{{ row.latest_at }}</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+
+        {% else %}
+        <div class="tov-empty">
+            <div class="tov-empty-icon">
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#ccc" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+            </div>
+            <p>No performance data yet</p>
+            <p style="font-size:.83rem;color:#aaa">Run a test to start capturing Core Web Vitals.</p>
+        </div>
+        {% endif %}
+    </main>
+</div>
+</body>
+</html>

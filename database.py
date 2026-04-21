@@ -241,6 +241,7 @@ class Database:
         for col, definition in [
             ('console_errors', 'TEXT'),
             ('network_anomalies', 'TEXT'),
+            ('cwv_data', 'TEXT'),
         ]:
             try:
                 cursor.execute(f'SELECT {col} FROM executions LIMIT 1')
@@ -513,16 +514,18 @@ class Database:
 
     def update_execution(self, execution_id, status, output='', error='', step_results='',
                          artefact_dir='', duration_seconds=None, sla_violated=0,
-                         console_errors=None, network_anomalies=None):
+                         console_errors=None, network_anomalies=None, cwv_data=None):
         conn = self.get_connection()
         cursor = conn.cursor()
         cursor.execute('''
             UPDATE executions
             SET status = ?, output = ?, error = ?, step_results = ?, artefact_dir = ?,
-                duration_seconds = ?, sla_violated = ?, console_errors = ?, network_anomalies = ?
+                duration_seconds = ?, sla_violated = ?, console_errors = ?, network_anomalies = ?,
+                cwv_data = ?
             WHERE id = ?
         ''', (status, output, error, step_results, artefact_dir,
-              duration_seconds, sla_violated, console_errors, network_anomalies, execution_id))
+              duration_seconds, sla_violated, console_errors, network_anomalies,
+              cwv_data, execution_id))
         conn.commit()
         conn.close()
 
@@ -532,7 +535,7 @@ class Database:
         cursor.execute('''
             SELECT id, test_id, status, output, error, step_results, executed_at,
                    team_id, artefact_dir, duration_seconds, sla_violated,
-                   console_errors, network_anomalies
+                   console_errors, network_anomalies, cwv_data
             FROM executions WHERE id = ?
         ''', (execution_id,))
         row = cursor.fetchone()
@@ -567,6 +570,49 @@ class Database:
         conn.close()
         return result
 
+    def get_cwv_dashboard(self, team_id=None):
+        import json as _json
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        if team_id:
+            cursor.execute('SELECT id, name FROM tests WHERE team_id = ? ORDER BY name', (team_id,))
+        else:
+            cursor.execute('SELECT id, name FROM tests ORDER BY name')
+        tests = [dict(row) for row in cursor.fetchall()]
+        result = []
+        for test in tests:
+            if team_id:
+                cursor.execute('''
+                    SELECT cwv_data, executed_at FROM executions
+                    WHERE test_id = ? AND team_id = ? AND cwv_data IS NOT NULL
+                    ORDER BY executed_at DESC LIMIT 20
+                ''', (test['id'], team_id))
+            else:
+                cursor.execute('''
+                    SELECT cwv_data, executed_at FROM executions
+                    WHERE test_id = ? AND cwv_data IS NOT NULL
+                    ORDER BY executed_at DESC LIMIT 20
+                ''', (test['id'],))
+            rows = cursor.fetchall()
+            if not rows:
+                continue
+            trend = []
+            for row in rows:
+                try:
+                    trend.append({'cwv': _json.loads(row[0]), 'executed_at': row[1]})
+                except Exception:
+                    pass
+            if trend:
+                result.append({
+                    'test_id': test['id'],
+                    'test_name': test['name'],
+                    'latest': trend[0]['cwv'],
+                    'latest_at': trend[0]['executed_at'],
+                    'trend': trend[:10],
+                })
+        conn.close()
+        return result
+
     def log_execution(self, test_id, status, output='', error='', step_results='', team_id=None):
         conn = self.get_connection()
         cursor = conn.cursor()
@@ -583,14 +629,14 @@ class Database:
         if team_id:
             cursor.execute('''
                 SELECT id, status, output, error, step_results, executed_at, artefact_dir,
-                       duration_seconds, sla_violated, console_errors, network_anomalies
+                       duration_seconds, sla_violated, console_errors, network_anomalies, cwv_data
                 FROM executions WHERE test_id = ? AND team_id = ?
                 ORDER BY executed_at DESC LIMIT ?
             ''', (test_id, team_id, limit))
         else:
             cursor.execute('''
                 SELECT id, status, output, error, step_results, executed_at, artefact_dir,
-                       duration_seconds, sla_violated, console_errors, network_anomalies
+                       duration_seconds, sla_violated, console_errors, network_anomalies, cwv_data
                 FROM executions WHERE test_id = ?
                 ORDER BY executed_at DESC LIMIT ?
             ''', (test_id, limit))

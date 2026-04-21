@@ -62,6 +62,23 @@ def _pw_locator_lines(selector_type, selector, var_name='element'):
         return [f"{ind}{var_name} = page.locator({sel_r})"]
 
 
+_CWV_SCRIPT = (
+    'window.__caper_cwv__={lcp:null,cls:0,inp:null,ttfb:null};'
+    'try{var _n=performance.getEntriesByType("navigation")[0];'
+    'if(_n)window.__caper_cwv__.ttfb=Math.round(_n.responseStart-_n.requestStart);}catch(_e){}'
+    'try{new PerformanceObserver(function(l){var e=l.getEntries(),x=e[e.length-1];'
+    'if(x)window.__caper_cwv__.lcp=Math.round(x.startTime);'
+    '}).observe({type:"largest-contentful-paint",buffered:true});}catch(_e){}'
+    'try{new PerformanceObserver(function(l){l.getEntries().forEach(function(e){'
+    'if(!e.hadRecentInput)window.__caper_cwv__.cls=+(window.__caper_cwv__.cls+e.value).toFixed(3);'
+    '});}).observe({type:"layout-shift",buffered:true});}catch(_e){}'
+    'try{new PerformanceObserver(function(l){l.getEntries().forEach(function(e){'
+    'if(window.__caper_cwv__.inp===null||e.duration>window.__caper_cwv__.inp)'
+    'window.__caper_cwv__.inp=Math.round(e.duration);'
+    '});}).observe({type:"event",buffered:true,durationThreshold:16});}catch(_e){}'
+)
+
+
 def generate_selenium_script(steps, test_name='test', base_artefacts_dir=None, browser='firefox'):
     """Generate a Playwright test script from step definitions."""
     if base_artefacts_dir is None:
@@ -104,6 +121,7 @@ def generate_selenium_script(steps, test_name='test', base_artefacts_dir=None, b
         "        _console_errors = []",
         "        page.on('console', lambda msg: _console_errors.append({'type': msg.type, 'text': msg.text}) if msg.type == 'error' else None)",
         "        page.on('pageerror', lambda err: _console_errors.append({'type': 'pageerror', 'text': str(err)}))",
+        f"        page.add_init_script({repr(_CWV_SCRIPT)})",
         "",
         "        def _screenshot(step_num):",
         "            try:",
@@ -586,6 +604,11 @@ def generate_selenium_script(steps, test_name='test', base_artefacts_dir=None, b
         "            return {'status': 'error', 'message': str(e)}",
         "",
         "        finally:",
+        "            try:",
+        "                _cwv = page.evaluate('() => window.__caper_cwv__ || null')",
+        "                if _cwv: print('CWV_DATA:', json.dumps(_cwv))",
+        "            except Exception:",
+        "                pass",
         "            _video_path = None",
         "            try:",
         "                if page.video:",
