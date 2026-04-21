@@ -156,6 +156,15 @@ const actionConfigs = {
             { name: 'targetSelectorType', label: 'Target Selector Type', type: 'select', options: SELECTOR_OPTIONS, required: true },
             { name: 'targetSelector', label: 'Target Selector', type: 'text', placeholder: '.drop-zone', required: true }
         ]
+    },
+    pick_random: {
+        fields: [
+            { name: 'selector', label: 'CSS Selector (candidates)', type: 'text', placeholder: '.product-card', required: true },
+            { name: 'filter', label: 'Exclude selector (optional)', type: 'text', placeholder: '.out-of-stock', required: false },
+            { name: 'captureAttr', label: 'Capture attribute (blank = inner text)', type: 'text', placeholder: 'data-product-id', required: false },
+            { name: 'storeAs', label: 'Store as variable name', type: 'text', placeholder: 'selected_product', required: true },
+            { name: 'clickElement', label: 'Click picked element', type: 'select', options: ['yes', 'no'], required: true }
+        ]
     }
 };
 
@@ -316,6 +325,11 @@ function renderSteps() {
             html += ` - Right-click: <code>${step.selector}</code> (${step.selectorType})`;
         } else if (step.action === 'drag_and_drop') {
             html += ` - Drag <code>${step.selector}</code> to <code>${step.targetSelector}</code>`;
+        } else if (step.action === 'pick_random') {
+            const capture = step.captureAttr ? `attr:${step.captureAttr}` : 'text';
+            const click = step.clickElement !== 'no' ? ', click' : '';
+            const excl = step.filter ? ` (excl. <code>${step.filter}</code>)` : '';
+            html += ` - Pick random <code>${step.selector}</code>${excl} → <code>{{${step.storeAs}}}</code> [${capture}${click}]`;
         }
 
         html += `</div>`;
