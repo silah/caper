@@ -29,7 +29,7 @@ def from_json_filter(value):
 BASE_ARTEFACTS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'artefacts')
 
 
-def _parse_har_anomalies(artefact_dir, slow_ms=2000, large_bytes=512_000):
+def _parse_har_anomalies(artefact_dir, slow_ms=5000, large_bytes=1_048_576):
     har_path = os.path.join(BASE_ARTEFACTS_DIR, artefact_dir, 'hars', 'trace.har')
     anomalies = []
     try:

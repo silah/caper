@@ -70,12 +70,29 @@
             <!-- Left 2/3: HAR + observability -->
             <div class="exd-left">
 
-                {% if execution.artefact_dir %}
-                <details class="exd-panel exd-collapsible har-details"
-                         data-har-url="/artefacts/{{ execution.artefact_dir }}/hars/trace.har">
-                    <summary class="exd-panel-title">HAR / Network trace</summary>
-                    <div class="har-container"></div>
+                {% if execution.network_anomalies %}
+                {% set na = execution.network_anomalies | from_json %}
+                {% if na %}
+                <details class="exd-panel exd-collapsible">
+                    <summary class="exd-panel-title">Network Issues <span class="exd-count-badge">{{ na | length }}</span></summary>
+                    <table class="exd-obs-table">
+                        <thead><tr><th>Status</th><th>URL</th><th>Reason</th></tr></thead>
+                        <tbody>
+                        {% for issue in na %}
+                        <tr>
+                            <td>{% if issue.status >= 400 %}<span class="obs-badge obs-badge-err">{{ issue.status }}</span>{% else %}<span style="color:#aaa">{{ issue.status }}</span>{% endif %}</td>
+                            <td class="exd-obs-url" title="{{ issue.url }}">{{ issue.url | truncate(60) }}</td>
+                            <td style="white-space:nowrap">
+                                {% for reason in issue.issues %}
+                                <span class="obs-badge {% if reason.startswith('HTTP') %}obs-badge-err{% else %}obs-badge-warn{% endif %}">{{ reason }}</span>
+                                {% endfor %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                        </tbody>
+                    </table>
                 </details>
+                {% endif %}
                 {% endif %}
 
                 {% if execution.console_errors %}
@@ -98,26 +115,12 @@
                 {% endif %}
                 {% endif %}
 
-                {% if execution.network_anomalies %}
-                {% set na = execution.network_anomalies | from_json %}
-                {% if na %}
-                <details class="exd-panel exd-collapsible">
-                    <summary class="exd-panel-title">Network Issues <span class="exd-count-badge">{{ na | length }}</span></summary>
-                    <table class="exd-obs-table">
-                        <thead><tr><th>Status</th><th>Duration</th><th>Size</th><th>URL</th></tr></thead>
-                        <tbody>
-                        {% for issue in na %}
-                        <tr>
-                            <td>{% if issue.status >= 400 %}<span class="obs-badge obs-badge-err">{{ issue.status }}</span>{% else %}<span style="color:#aaa">{{ issue.status }}</span>{% endif %}</td>
-                            <td>{% if issue.duration_ms > 2000 %}<span class="obs-badge obs-badge-warn">{{ issue.duration_ms }}ms</span>{% else %}{{ issue.duration_ms }}ms{% endif %}</td>
-                            <td>{% if issue.size_bytes > 512000 %}<span class="obs-badge obs-badge-warn">{{ (issue.size_bytes // 1024) }}KB</span>{% else %}{{ (issue.size_bytes // 1024) }}KB{% endif %}</td>
-                            <td class="exd-obs-url" title="{{ issue.url }}">{{ issue.url | truncate(80) }}</td>
-                        </tr>
-                        {% endfor %}
-                        </tbody>
-                    </table>
+                {% if execution.artefact_dir %}
+                <details class="exd-panel exd-collapsible har-details"
+                         data-har-url="/artefacts/{{ execution.artefact_dir }}/hars/trace.har">
+                    <summary class="exd-panel-title">HAR / Network trace</summary>
+                    <div class="har-container"></div>
                 </details>
-                {% endif %}
                 {% endif %}
 
                 {% if execution.error and execution.error.strip() %}
