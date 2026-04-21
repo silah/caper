@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Execution &mdash; {{ test.name if test else 'Unknown' }} - Caper</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+<div class="app-shell">
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <div class="sidebar-brand">
+                <span class="sidebar-brand-name">Caper</span>
+                <span class="sidebar-brand-dot"></span>
+            </div>
+        </div>
+        <nav class="sidebar-nav">
+            <a href="/" class="sidebar-link">Home</a>
+            <a href="/tests" class="sidebar-link">Tests</a>
+            <a href="/executions" class="sidebar-link active">Executions</a>
+            <a href="/health" class="sidebar-link">Health</a>
+            <a href="/tags" class="sidebar-link">Tags</a>
+            <a href="/suites" class="sidebar-link">Suites</a>
+            <a href="/suite-executions" class="sidebar-link">Suite Runs</a>
+            <div class="sidebar-divider"></div>
+            <a href="/create" class="sidebar-link">Create Test</a>
+            <a href="/variables" class="sidebar-link">Variables</a>
+            <a href="/logs" class="sidebar-link">Log</a>
+        </nav>
+        <div class="sidebar-footer">
+            {% if current_user.is_authenticated %}
+            <span class="sidebar-user">{{ current_user.username }}</span>
+            {% endif %}
+            <a href="/logout" class="sidebar-link sidebar-link-danger">Sign out</a>
+        </div>
+    </aside>
+
+    <main class="main-content">
+
+        <!-- Page header -->
+        <div class="exd-header">
+            <button class="btn btn-ghost exd-back" onclick="history.back()">&larr; Back</button>
+            <div class="exd-header-main">
+                <div class="exd-title-row">
+                    <span class="exd-test-name">{{ test.name if test else 'Unknown test' }}</span>
+                    <span class="status-badge status-{{ execution.status }}">{{ execution.status }}</span>
+                    {% if execution.sla_violated %}
+                    <span class="exd-meta-pill exd-sla">SLA violated</span>
+                    {% endif %}
+                    {% if execution.console_errors %}
+                    {% set ce = execution.console_errors | from_json %}
+                    {% if ce %}
+                    <span class="obs-badge obs-badge-err">{{ ce | length }} JS error{{ 's' if ce | length != 1 }}</span>
+                    {% endif %}
+                    {% endif %}
+                    {% if execution.network_anomalies %}
+                    {% set na = execution.network_anomalies | from_json %}
+                    {% if na %}
+                    <span class="obs-badge obs-badge-warn">{{ na | length }} network issue{{ 's' if na | length != 1 }}</span>
+                    {% endif %}
+                    {% endif %}
+                </div>
+                <div class="exd-sub-row">
+                    <span>{{ execution.executed_at }}</span>
+                    {% if execution.duration_seconds %}
+                    <span class="exd-dot">&middot;</span>
+                    <span>{{ '%.1f'|format(execution.duration_seconds) }}s</span>
+                    {% endif %}
+                    {% if test %}
+                    <span class="exd-dot">&middot;</span>
+                    <a href="/test/{{ test.id }}" class="exd-test-link">View test</a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Main grid: video + steps -->
+        <div class="exd-body">
+
+            {% if execution.artefact_dir %}
+            <div class="exd-video-wrap">
+                <video controls preload="metadata" class="exd-video"
+                       onerror="this.closest('.exd-video-wrap').style.display='none'">
+                    <source src="/artefacts/{{ execution.artefact_dir }}/video/recording.mp4" type="video/mp4">
+                </video>
+                <a href="/artefacts/{{ execution.artefact_dir }}/video/recording.mp4"
+                   download class="exd-dl-btn">&#8595; Download MP4</a>
+            </div>
+            {% endif %}
+
+            {% if execution.step_results %}
+            <div class="exd-steps-wrap">
+                <h3 class="exd-section-title">Steps</h3>
+                <div class="exd-steps-list"
+                     data-steps="{{ execution.step_results }}"
+                     data-artefact-dir="{{ execution.artefact_dir or '' }}"></div>
+            </div>
+            {% endif %}
+
+        </div>
+
+        <!-- Observability panels -->
+        {% if execution.console_errors %}
+        {% set ce = execution.console_errors | from_json %}
+        {% if ce %}
+        <div class="exd-obs-section">
+            <h3 class="exd-section-title">JS Errors &amp; Warnings <span class="exd-count-badge">{{ ce | length }}</span></h3>
+            <table class="exd-obs-table">
+                <thead><tr><th>Type</th><th>Message</th></tr></thead>
+                <tbody>
+                {% for err in ce %}
+                <tr>
+                    <td><span class="obs-badge {% if err.type == 'pageerror' or err.type == 'error' %}obs-badge-err{% else %}obs-badge-warn{% endif %}">{{ err.type }}</span></td>
+                    <td class="exd-obs-msg">{{ err.text }}</td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endif %}
+        {% endif %}
+
+        {% if execution.network_anomalies %}
+        {% set na = execution.network_anomalies | from_json %}
+        {% if na %}
+        <div class="exd-obs-section">
+            <h3 class="exd-section-title">Network Issues <span class="exd-count-badge">{{ na | length }}</span></h3>
+            <table class="exd-obs-table">
+                <thead><tr><th>Status</th><th>Duration</th><th>Size</th><th>URL</th></tr></thead>
+                <tbody>
+                {% for issue in na %}
+                <tr>
+                    <td>{% if issue.status >= 400 %}<span class="obs-badge obs-badge-err">{{ issue.status }}</span>{% else %}<span style="color:#aaa">{{ issue.status }}</span>{% endif %}</td>
+                    <td>{% if issue.duration_ms > 2000 %}<span class="obs-badge obs-badge-warn">{{ issue.duration_ms }}ms</span>{% else %}{{ issue.duration_ms }}ms{% endif %}</td>
+                    <td>{% if issue.size_bytes > 512000 %}<span class="obs-badge obs-badge-warn">{{ (issue.size_bytes // 1024) }}KB</span>{% else %}{{ (issue.size_bytes // 1024) }}KB{% endif %}</td>
+                    <td class="exd-obs-url" title="{{ issue.url }}">{{ issue.url | truncate(80) }}</td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endif %}
+        {% endif %}
+
+        <!-- Screenshots -->
+        {% if execution.artefact_dir %}
+        <div class="exd-obs-section">
+            <h3 class="exd-section-title">Screenshots</h3>
+            <div class="exd-screenshots" id="screenshotsGrid">
+                <span class="exd-loading">Loading&hellip;</span>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Error output -->
+        {% if execution.error and execution.error.strip() %}
+        <div class="exd-obs-section">
+            <h3 class="exd-section-title" style="color:#c62828">Error Output</h3>
+            <pre class="error-output">{{ execution.error }}</pre>
+        </div>
+        {% endif %}
+
+    </main>
+</div>
+
+<script src="{{ url_for('static', filename='js/app.js') }}"></script>
+<script>
+    // Render step results
+    const stepsEl = document.querySelector('.exd-steps-list');
+    if (stepsEl) {
+        const steps = JSON.parse(stepsEl.dataset.steps || '[]');
+        const dir = stepsEl.dataset.artefactDir || '';
+        stepsEl.innerHTML = renderStepResults(steps, dir);
+    }
+
+    // Load screenshots
+    const grid = document.getElementById('screenshotsGrid');
+    {% if execution.artefact_dir %}
+    fetch('/api/artefacts/{{ execution.artefact_dir }}/screenshots')
+        .then(r => r.json())
+        .then(files => {
+            if (!files.length) { grid.innerHTML = '<span style="color:#aaa;font-size:.83rem">No screenshots captured.</span>'; return; }
+            grid.innerHTML = files.map(f =>
+                `<a href="${f}" target="_blank"><img src="${f}" class="exd-thumb" loading="lazy"></a>`
+            ).join('');
+        })
+        .catch(() => { grid.innerHTML = '<span style="color:#aaa;font-size:.83rem">Could not load screenshots.</span>'; });
+    {% endif %}
+</script>
+</body>
+</html>

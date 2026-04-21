@@ -101,6 +101,9 @@ def generate_selenium_script(steps, test_name='test', base_artefacts_dir=None, b
         "        )",
         "        page = _context.new_page()",
         "        step_results = []",
+        "        _console_errors = []",
+        "        page.on('console', lambda msg: _console_errors.append({'type': msg.type, 'text': msg.text}) if msg.type in ('error', 'warning') else None)",
+        "        page.on('pageerror', lambda err: _console_errors.append({'type': 'pageerror', 'text': str(err)}))",
         "",
         "        def _screenshot(step_num):",
         "            try:",
@@ -574,10 +577,12 @@ def generate_selenium_script(steps, test_name='test', base_artefacts_dir=None, b
 
     script_lines.extend([
         "            print('STEP_RESULTS:', json.dumps(step_results))",
+        "            print('CONSOLE_ERRORS:', json.dumps(_console_errors))",
         "            return {'status': 'success', 'message': 'Test completed successfully'}",
         "",
         "        except Exception as e:",
         "            print('STEP_RESULTS:', json.dumps(step_results))",
+        "            print('CONSOLE_ERRORS:', json.dumps(_console_errors))",
         "            return {'status': 'error', 'message': str(e)}",
         "",
         "        finally:",

@@ -238,6 +238,15 @@ class Database:
                     except sqlite3.OperationalError:
                         pass
 
+        for col, definition in [
+            ('console_errors', 'TEXT'),
+            ('network_anomalies', 'TEXT'),
+        ]:
+            try:
+                cursor.execute(f'SELECT {col} FROM executions LIMIT 1')
+            except sqlite3.OperationalError:
+                cursor.execute(f'ALTER TABLE executions ADD COLUMN {col} {definition}')
+
         conn.commit()
         conn.close()
 
@@ -503,16 +512,17 @@ class Database:
         return execution_id
 
     def update_execution(self, execution_id, status, output='', error='', step_results='',
-                         artefact_dir='', duration_seconds=None, sla_violated=0):
+                         artefact_dir='', duration_seconds=None, sla_violated=0,
+                         console_errors=None, network_anomalies=None):
         conn = self.get_connection()
         cursor = conn.cursor()
         cursor.execute('''
             UPDATE executions
             SET status = ?, output = ?, error = ?, step_results = ?, artefact_dir = ?,
-                duration_seconds = ?, sla_violated = ?
+                duration_seconds = ?, sla_violated = ?, console_errors = ?, network_anomalies = ?
             WHERE id = ?
         ''', (status, output, error, step_results, artefact_dir,
-              duration_seconds, sla_violated, execution_id))
+              duration_seconds, sla_violated, console_errors, network_anomalies, execution_id))
         conn.commit()
         conn.close()
 
@@ -521,12 +531,41 @@ class Database:
         cursor = conn.cursor()
         cursor.execute('''
             SELECT id, test_id, status, output, error, step_results, executed_at,
-                   team_id, artefact_dir, duration_seconds, sla_violated
+                   team_id, artefact_dir, duration_seconds, sla_violated,
+                   console_errors, network_anomalies
             FROM executions WHERE id = ?
         ''', (execution_id,))
         row = cursor.fetchone()
         conn.close()
         return dict(row) if row else None
+
+    def get_test_uptime(self, test_id, team_id=None):
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        result = {}
+        for label, hours in [('24h', 24), ('7d', 168), ('30d', 720)]:
+            if team_id:
+                cursor.execute('''
+                    SELECT COUNT(*) as total,
+                           SUM(CASE WHEN status = 'success' THEN 1 ELSE 0 END) as passed
+                    FROM executions
+                    WHERE test_id = ? AND team_id = ?
+                      AND executed_at >= datetime('now', ? || ' hours')
+                ''', (test_id, team_id, f'-{hours}'))
+            else:
+                cursor.execute('''
+                    SELECT COUNT(*) as total,
+                           SUM(CASE WHEN status = 'success' THEN 1 ELSE 0 END) as passed
+                    FROM executions
+                    WHERE test_id = ?
+                      AND executed_at >= datetime('now', ? || ' hours')
+                ''', (test_id, f'-{hours}'))
+            row = cursor.fetchone()
+            total = row[0] if row else 0
+            passed = row[1] if row else 0
+            result[label] = round(passed / total * 100, 1) if total > 0 else None
+        conn.close()
+        return result
 
     def log_execution(self, test_id, status, output='', error='', step_results='', team_id=None):
         conn = self.get_connection()
@@ -544,14 +583,14 @@ class Database:
         if team_id:
             cursor.execute('''
                 SELECT id, status, output, error, step_results, executed_at, artefact_dir,
-                       duration_seconds, sla_violated
+                       duration_seconds, sla_violated, console_errors, network_anomalies
                 FROM executions WHERE test_id = ? AND team_id = ?
                 ORDER BY executed_at DESC LIMIT ?
             ''', (test_id, team_id, limit))
         else:
             cursor.execute('''
                 SELECT id, status, output, error, step_results, executed_at, artefact_dir,
-                       duration_seconds, sla_violated
+                       duration_seconds, sla_violated, console_errors, network_anomalies
                 FROM executions WHERE test_id = ?
                 ORDER BY executed_at DESC LIMIT ?
             ''', (test_id, limit))
@@ -683,14 +722,14 @@ class Database:
             if team_id:
                 cursor.execute('''
                     SELECT id, status, executed_at, artefact_dir, step_results, error, output,
-                           duration_seconds, sla_violated
+                           duration_seconds, sla_violated, console_errors, network_anomalies
                     FROM executions WHERE test_id = ? AND team_id = ?
                     ORDER BY executed_at DESC LIMIT ?
                 ''', (test['id'], team_id, limit_per_test))
             else:
                 cursor.execute('''
                     SELECT id, status, executed_at, artefact_dir, step_results, error, output,
-                           duration_seconds, sla_violated
+                           duration_seconds, sla_violated, console_errors, network_anomalies
                     FROM executions WHERE test_id = ?
                     ORDER BY executed_at DESC LIMIT ?
                 ''', (test['id'], limit_per_test))

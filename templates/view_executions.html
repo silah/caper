@@ -166,14 +166,7 @@
             document.querySelectorAll('.eo-sq.sq-running').forEach(pollRunningSq);
 
             function openExecution(sq) {
-                document.getElementById('modalTitle').textContent = sq.dataset.testName;
-                document.getElementById('modalTime').textContent = sq.dataset.at + ' — ' + sq.dataset.status;
-                document.getElementById('modalBody').innerHTML = '<div class="modal-loading">Loading\u2026</div>';
-                document.getElementById('execModal').style.display = 'block';
-                fetch(`/api/executions/${sq.dataset.id}/status`)
-                    .then(r => r.json())
-                    .then(data => renderModal(data, sq.dataset.testName, sq.dataset.at, sq.dataset.artefactDir))
-                    .catch(() => { document.getElementById('modalBody').innerHTML = '<p class="har-empty">Failed to load execution details.</p>'; });
+                window.location.href = `/execution/${sq.dataset.id}`;
             }
 
             function renderModal(data, testName, executedAt, artefactDir) {

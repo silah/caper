@@ -19,7 +19,41 @@ app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'dev-secret-key-change-in-production')
 db = Database()
 
+@app.template_filter('from_json')
+def from_json_filter(value):
+    try:
+        return json.loads(value)
+    except Exception:
+        return []
+
 BASE_ARTEFACTS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'artefacts')
+
+
+def _parse_har_anomalies(artefact_dir, slow_ms=2000, large_bytes=512_000):
+    har_path = os.path.join(BASE_ARTEFACTS_DIR, artefact_dir, 'hars', 'trace.har')
+    anomalies = []
+    try:
+        with open(har_path) as f:
+            har = json.load(f)
+        for entry in har.get('log', {}).get('entries', []):
+            url = entry.get('request', {}).get('url', '')
+            status = entry.get('response', {}).get('status', 0)
+            duration = entry.get('time', 0)
+            size = entry.get('response', {}).get('content', {}).get('size', 0)
+            issues = []
+            if status >= 400:
+                issues.append(f'HTTP {status}')
+            if duration > slow_ms:
+                issues.append(f'{int(duration)}ms')
+            if size > large_bytes:
+                issues.append(f'{size // 1024}KB')
+            if issues:
+                anomalies.append({'url': url, 'status': status,
+                                  'duration_ms': int(duration), 'size_bytes': size,
+                                  'issues': issues})
+    except Exception:
+        pass
+    return anomalies
 
 login_manager = LoginManager()
 login_manager.init_app(app)
@@ -668,6 +702,8 @@ def _run_test_subprocess(test_id, script, execution_id, test_name='',
     final_error = ''
     final_step_results = ''
     final_artefact_dir = ''
+    final_console_errors = None
+    final_network_anomalies = None
 
     for attempt in range(max_attempts):
         if attempt > 0:
@@ -698,6 +734,18 @@ def _run_test_subprocess(test_id, script, execution_id, test_name='',
                 lines = rest.split('\n')
                 step_results = lines[0].strip() if lines else ''
 
+            console_errors_json = None
+            if 'CONSOLE_ERRORS:' in output:
+                start_idx = output.find('CONSOLE_ERRORS:') + len('CONSOLE_ERRORS:')
+                rest = output[start_idx:].strip()
+                line = rest.split('\n')[0].strip()
+                try:
+                    parsed = json.loads(line)
+                    if parsed:
+                        console_errors_json = json.dumps(parsed)
+                except Exception:
+                    pass
+
             artefact_dir = ''
             for line in output.splitlines():
                 if line.startswith('ARTEFACT_DIR:'):
@@ -722,6 +770,10 @@ def _run_test_subprocess(test_id, script, execution_id, test_name='',
             final_error = error
             final_step_results = step_results
             final_artefact_dir = artefact_dir
+            final_console_errors = console_errors_json
+            if artefact_dir:
+                anomalies = _parse_har_anomalies(artefact_dir)
+                final_network_anomalies = json.dumps(anomalies) if anomalies else None
 
             if status == 'success':
                 break
@@ -747,7 +799,9 @@ def _run_test_subprocess(test_id, script, execution_id, test_name='',
     sla_violated = 1 if (sla_seconds and duration_seconds > float(sla_seconds)) else 0
 
     db.update_execution(execution_id, final_status, final_output, final_error,
-                        final_step_results, final_artefact_dir, duration_seconds, sla_violated)
+                        final_step_results, final_artefact_dir, duration_seconds, sla_violated,
+                        console_errors=final_console_errors,
+                        network_anomalies=final_network_anomalies)
     db.update_execution_stats(test_id)
 
     label = f'"{test_name}" ' if test_name else ''
@@ -859,6 +913,17 @@ def delete_test(test_id):
     db.delete_test(test_id, team_id=team['id'] if team else None)
     return jsonify({'success': True, 'message': 'Test deleted successfully'})
 
+@app.route('/execution/<int:execution_id>')
+@login_required
+def execution_detail(execution_id):
+    execution = db.get_execution(execution_id)
+    if not execution:
+        return "Execution not found", 404
+    team = get_current_team()
+    test = db.get_test(execution['test_id'], team_id=team['id'] if team else None)
+    return render_template('execution_detail.html', execution=execution, test=test, team=team)
+
+
 @app.route('/test/<int:test_id>')
 @login_required
 def test_detail(test_id):
@@ -867,7 +932,8 @@ def test_detail(test_id):
     if not test:
         return "Test not found", 404
     executions = db.get_test_executions(test_id, team_id=team['id'] if team else None)
-    return render_template('test_detail.html', test=test, executions=executions, team=team)
+    uptime = db.get_test_uptime(test_id, team_id=team['id'] if team else None)
+    return render_template('test_detail.html', test=test, executions=executions, team=team, uptime=uptime)
 
 @app.route('/edit/<int:test_id>')
 @login_required

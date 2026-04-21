@@ -57,6 +57,17 @@
                 {% if test.last_executed %}
                 <div class="meta-item"><strong>Last Executed:</strong> {{ test.last_executed }}</div>
                 {% endif %}
+                {% if uptime %}
+                <div class="meta-item" style="display:flex;align-items:center;gap:6px">
+                    <strong>Uptime:</strong>
+                    {% for window in ['24h', '7d', '30d'] %}
+                    {% set pct = uptime[window] %}
+                    <span class="uptime-pill {% if pct is none %}uptime-none{% elif pct >= 99 %}uptime-ok{% elif pct >= 90 %}uptime-warn{% else %}uptime-bad{% endif %}">
+                        {{ window }}&nbsp;{{ ('%.1f'|format(pct) + '%') if pct is not none else '—' }}
+                    </span>
+                    {% endfor %}
+                </div>
+                {% endif %}
             </div>
 
             <div class="section schedule-section">
@@ -117,51 +128,31 @@
             <div class="section">
                 <h3>Execution History</h3>
                 {% if executions %}
-                <div class="executions-history">
+                <table class="exh-table">
+                    <thead>
+                        <tr>
+                            <th>Time</th>
+                            <th>Status</th>
+                            <th>Duration</th>
+                            <th>Signals</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
                     {% for execution in executions %}
-                    <div class="execution-row">
-                        <div class="execution-row-header">
-                            <span class="execution-time">{{ execution.executed_at }}</span>
-                            <span class="status-badge status-{{ execution.status }}">{{ execution.status }}</span>
-                        </div>
-
-                        {% if execution.artefact_dir %}
-                        <div class="execution-video">
-                            <video controls preload="none" class="run-video"
-                                   onerror="this.closest('.execution-video').style.display='none'">
-                                <source src="/artefacts/{{ execution.artefact_dir }}/video/recording.mp4" type="video/mp4">
-                            </video>
-                            <div class="artefact-links">
-                                <a href="/artefacts/{{ execution.artefact_dir }}/video/recording.mp4" download class="btn btn-sm btn-secondary">Download MP4</a>
-                            </div>
-                        </div>
-                        {% endif %}
-
-                        {% if execution.artefact_dir %}
-                        <details class="screenshots-details" data-artefact-dir="{{ execution.artefact_dir }}">
-                            <summary>Screenshots</summary>
-                            <div class="screenshots-gallery"></div>
-                        </details>
-                        {% endif %}
-
-                        {% if execution.step_results %}
-                        <details class="execution-steps">
-                            <summary>Step results</summary>
-                            <div class="steps-results-list"
-                                 data-steps="{{ execution.step_results }}"
-                                 data-artefact-dir="{{ execution.artefact_dir or '' }}"></div>
-                        </details>
-                        {% endif %}
-
-                        {% if execution.error %}
-                        <details class="execution-error">
-                            <summary>Error</summary>
-                            <pre class="error-output">{{ execution.error }}</pre>
-                        </details>
-                        {% endif %}
-                    </div>
+                    <tr class="exh-row">
+                        <td class="exh-time">{{ execution.executed_at }}</td>
+                        <td><span class="status-badge status-{{ execution.status }}">{{ execution.status }}</span>{% if execution.sla_violated %} <span class="exd-meta-pill exd-sla">SLA</span>{% endif %}</td>
+                        <td class="exh-dur">{{ ('%.1f'|format(execution.duration_seconds) + 's') if execution.duration_seconds else '—' }}</td>
+                        <td class="exh-signals">
+                            {% if execution.console_errors %}{% set ce = execution.console_errors | from_json %}{% if ce %}<span class="obs-badge obs-badge-err">{{ ce|length }} JS</span>{% endif %}{% endif %}
+                            {% if execution.network_anomalies %}{% set na = execution.network_anomalies | from_json %}{% if na %}<span class="obs-badge obs-badge-warn">{{ na|length }} net</span>{% endif %}{% endif %}
+                        </td>
+                        <td><a href="/execution/{{ execution.id }}" class="tov-btn tov-btn-view">View</a></td>
+                    </tr>
                     {% endfor %}
-                </div>
+                    </tbody>
+                </table>
                 {% else %}
                 <p>No execution history yet.</p>
                 {% endif %}
