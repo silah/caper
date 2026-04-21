@@ -630,6 +630,7 @@ def generate_playwright_script(steps, test_name='test', base_artefacts_dir=None,
             script_lines.extend([
                 f"            # Step {i}: Pick random element",
                 f"            try:",
+                f"                page.locator({sel_r}).first.wait_for(state='attached', timeout=10000)",
                 f"                _candidates = page.locator({sel_r}).all()",
                 f"                _filter = {filter_r}",
                 f"                if _filter:",
