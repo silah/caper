@@ -115,6 +115,8 @@
                             - Assert element <code>{{ step.selector }}</code> contains: "{{ step.value }}"
                         {% elif step.action == 'scroll_to' %}
                             - Scroll to element: <code>{{ step.selector }}</code> ({{ step.selectorType }})
+                        {% elif step.action == 'click_if_exists' %}
+                            - Click <code>{{ step.selector }}</code> if present, skip otherwise
                         {% elif step.action == 'pick_random' %}
                             - Pick random <code>{{ step.selector }}</code>{% if step.filter %} (excl. <code>{{ step.filter }}</code>){% endif %} → <code>&#123;&#123;{{ step.storeAs }}&#125;&#125;</code>{% if step.captureAttr %} [attr: {{ step.captureAttr }}]{% endif %}{% if step.clickElement != 'no' %}, click{% endif %}
                         {% endif %}

@@ -4,6 +4,53 @@ let testSteps = [];
 // Selector types available for all element-targeting actions
 const SELECTOR_OPTIONS = ['css', 'id', 'xpath', 'name', 'class', 'tag', 'link_text', 'partial_link_text', 'jspath', 'aria', 'text', 'label', 'placeholder', 'role'];
 
+// Step categories
+const stepCategories = {
+    Navigation: [
+        { value: 'navigate',             label: 'Navigate to URL' },
+        { value: 'wait',                 label: 'Wait' },
+        { value: 'wait_for_element',     label: 'Wait for Element' },
+        { value: 'wait_for_load_state',  label: 'Wait for Load State' },
+    ],
+    Interactions: [
+        { value: 'click',        label: 'Click' },
+        { value: 'double_click', label: 'Double Click' },
+        { value: 'right_click',  label: 'Right Click' },
+        { value: 'hover',        label: 'Hover' },
+        { value: 'type',         label: 'Type Text' },
+        { value: 'clear',        label: 'Clear Input' },
+        { value: 'select',       label: 'Select Dropdown Option' },
+        { value: 'check',        label: 'Check (checkbox/radio)' },
+        { value: 'uncheck',      label: 'Uncheck (checkbox/radio)' },
+        { value: 'key_press',    label: 'Key Press' },
+        { value: 'scroll_to',    label: 'Scroll To Element' },
+        { value: 'drag_and_drop',label: 'Drag and Drop' },
+        { value: 'upload_file',  label: 'Upload File' },
+    ],
+    Assertions: [
+        { value: 'assert_title',   label: 'Assert Title' },
+        { value: 'assert_text',    label: 'Assert Element Text' },
+        { value: 'assert_visible', label: 'Assert Element Visible' },
+        { value: 'assert_hidden',  label: 'Assert Element Hidden' },
+        { value: 'assert_url',     label: 'Assert URL' },
+        { value: 'assert_value',   label: 'Assert Input Value' },
+    ],
+    Utilities: [
+        { value: 'screenshot',  label: 'Take Screenshot' },
+        { value: 'execute_js',  label: 'Execute JavaScript' },
+    ],
+    Conditionals: [
+        { value: 'click_if_exists', label: 'Click If Exists' },
+        { value: 'pick_random',     label: 'Pick Random Element' },
+    ],
+};
+
+function populateActionType(categorySelect, actionSelect) {
+    const cat = categorySelect.value;
+    const steps = stepCategories[cat] || [];
+    actionSelect.innerHTML = steps.map(s => `<option value="${s.value}">${s.label}</option>`).join('');
+}
+
 // Action configurations
 const actionConfigs = {
     navigate: {
@@ -157,6 +204,12 @@ const actionConfigs = {
             { name: 'targetSelector', label: 'Target Selector', type: 'text', placeholder: '.drop-zone', required: true }
         ]
     },
+    click_if_exists: {
+        fields: [
+            { name: 'selectorType', label: 'Selector Type', type: 'select', options: SELECTOR_OPTIONS, required: true },
+            { name: 'selector', label: 'Selector', type: 'text', placeholder: '#cookie-banner .accept-btn', required: true }
+        ]
+    },
     pick_random: {
         fields: [
             { name: 'selector', label: 'CSS Selector (candidates)', type: 'text', placeholder: '.product-card', required: true },
@@ -170,10 +223,16 @@ const actionConfigs = {
 
 // Initialize
 document.addEventListener('DOMContentLoaded', function() {
+    const categorySelect = document.getElementById('stepCategory');
     const actionTypeSelect = document.getElementById('actionType');
-    if (actionTypeSelect) {
+    if (categorySelect && actionTypeSelect) {
+        populateActionType(categorySelect, actionTypeSelect);
+        categorySelect.addEventListener('change', () => {
+            populateActionType(categorySelect, actionTypeSelect);
+            updateStepConfig();
+        });
         actionTypeSelect.addEventListener('change', updateStepConfig);
-        updateStepConfig(); // Initial load
+        updateStepConfig();
     }
     renderSteps();
 });
@@ -325,6 +384,8 @@ function renderSteps() {
             html += ` - Right-click: <code>${step.selector}</code> (${step.selectorType})`;
         } else if (step.action === 'drag_and_drop') {
             html += ` - Drag <code>${step.selector}</code> to <code>${step.targetSelector}</code>`;
+        } else if (step.action === 'click_if_exists') {
+            html += ` - Click <code>${step.selector}</code> if present, skip otherwise`;
         } else if (step.action === 'pick_random') {
             const capture = step.captureAttr ? `attr:${step.captureAttr}` : 'text';
             const click = step.clickElement !== 'no' ? ', click' : '';

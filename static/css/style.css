@@ -219,6 +219,18 @@ body {
     margin-bottom: 2rem;
 }
 
+.step-type-row {
+    display: flex;
+    gap: 1rem;
+}
+
+.step-type-row > div {
+    display: flex;
+    flex-direction: column;
+    gap: .3rem;
+    flex: 1;
+}
+
 .steps-section h3,
 .add-step-section h4 {
     margin-bottom: 1rem;

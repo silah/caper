@@ -598,6 +598,28 @@ def generate_playwright_script(steps, test_name='test', base_artefacts_dir=None,
                 f"                _screenshot({i})",
             ])
 
+        elif action == 'click_if_exists':
+            selector_type = step.get('selectorType', 'css')
+            selector = step.get('selector', '')
+            sel_r = repr(_pw_selector(selector_type, selector))
+            msg_found_r = repr(f'Clicked {selector} (found)')
+            msg_skip_r = repr(f'Skipped {selector} (not found)')
+            script_lines.extend([
+                f"            # Step {i}: Click if exists",
+                f"            try:",
+                f"                _cie = page.locator({sel_r})",
+                f"                if _cie.count() > 0 and _cie.first.is_visible():",
+                f"                    _cie.first.click()",
+                f"                    step_results.append({{'step': {i}, 'action': 'click_if_exists', 'status': 'success', 'message': {msg_found_r}}})",
+                f"                else:",
+                f"                    step_results.append({{'step': {i}, 'action': 'click_if_exists', 'status': 'skipped', 'message': {msg_skip_r}}})",
+                f"            except Exception as e:",
+                f"                step_results.append({{'step': {i}, 'action': 'click_if_exists', 'status': 'error', 'message': str(e)}})",
+                f"                raise",
+                f"            finally:",
+                f"                _screenshot({i})",
+            ])
+
         elif action == 'pick_random':
             sel_r = repr(step.get('selector', ''))
             filter_r = repr(step.get('filter', '') or '')
