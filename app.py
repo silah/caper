@@ -1134,6 +1134,12 @@ def import_test():
                     'skipped': skipped})
 
 
+@app.route('/docs')
+@login_required
+def view_docs():
+    return render_template('docs.html')
+
+
 @app.route('/logs')
 @login_required
 def view_logs():

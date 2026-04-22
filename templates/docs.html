@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Docs - Caper</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+<div class="app-shell">
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <div class="sidebar-brand">
+                <span class="sidebar-brand-name">Caper</span>
+                <span class="sidebar-brand-dot"></span>
+            </div>
+        </div>
+        <nav class="sidebar-nav">
+            <a href="/" class="sidebar-link">Home</a>
+            <a href="/tests" class="sidebar-link">Tests</a>
+            <a href="/executions" class="sidebar-link">Executions</a>
+            <a href="/health" class="sidebar-link">Health</a>
+            <a href="/performance" class="sidebar-link">Performance</a>
+            <a href="/tags" class="sidebar-link">Tags</a>
+            <a href="/suites" class="sidebar-link">Suites</a>
+            <a href="/suite-executions" class="sidebar-link">Suite Runs</a>
+            <div class="sidebar-divider"></div>
+            <a href="/create" class="sidebar-link">Create Test</a>
+            <a href="/variables" class="sidebar-link">Variables</a>
+            <a href="/logs" class="sidebar-link">Log</a>
+            <a href="/docs" class="sidebar-link active">Docs</a>
+        </nav>
+        <div class="sidebar-footer">
+            {% if current_user.is_authenticated %}
+            <span class="sidebar-user">{{ current_user.username }}</span>
+            {% endif %}
+            <a href="/logout" class="sidebar-link sidebar-link-danger">Sign out</a>
+        </div>
+    </aside>
+
+    <main class="main-content">
+        <div class="docs-page">
+
+            <div class="docs-header">
+                <h1>Documentation</h1>
+                <p class="docs-subtitle">Reference guide for Caper step types and features</p>
+            </div>
+
+            <div class="docs-layout">
+
+                <!-- TOC -->
+                <nav class="docs-toc">
+                    <div class="docs-toc-title">On this page</div>
+                    <a href="#variables" class="docs-toc-link">Variables</a>
+                    <a href="#custom-steps" class="docs-toc-link docs-toc-section">Custom Steps</a>
+                    <a href="#pick-random" class="docs-toc-link docs-toc-sub">Pick Random Element</a>
+                    <a href="#click-if-exists" class="docs-toc-link docs-toc-sub">Click If Exists</a>
+                </nav>
+
+                <div class="docs-content">
+
+                    <!-- Variables -->
+                    <section id="variables" class="docs-section">
+                        <h2>Variables</h2>
+                        <p>Caper supports two kinds of variables that can be interpolated into step values using <code>&#123;&#123;variable_name&#125;&#125;</code> syntax.</p>
+
+                        <h3>Team Variables</h3>
+                        <p>Static key-value pairs defined in <a href="/variables">Variables</a>. Substituted into the script before it runs. Useful for environment-specific values like base URLs, usernames, or API keys.</p>
+                        <div class="docs-example">
+                            <div class="docs-example-label">Example — Navigate step using a team variable</div>
+                            <table class="docs-field-table">
+                                <tr><td>URL</td><td><code>&#123;&#123;BASE_URL&#125;&#125;/products</code></td></tr>
+                            </table>
+                            <p class="docs-note">If <code>BASE_URL</code> is set to <code>https://shop.example.com</code> in Variables, the test will navigate to <code>https://shop.example.com/products</code>.</p>
+                        </div>
+
+                        <h3>Runtime Variables</h3>
+                        <p>Captured during test execution by steps like <a href="#pick-random">Pick Random Element</a>. Available to all subsequent steps in the same run via <code>&#123;&#123;variable_name&#125;&#125;</code>.</p>
+                    </section>
+
+                    <!-- Custom Steps -->
+                    <section id="custom-steps" class="docs-section">
+                        <h2>Custom Steps</h2>
+                        <p>The following step types are unique to Caper. They are built on top of standard Playwright but expose higher-level behaviour not available natively.</p>
+                    </section>
+
+                    <!-- Pick Random -->
+                    <section id="pick-random" class="docs-section">
+                        <h2>Pick Random Element</h2>
+                        <p class="docs-tag-row"><span class="docs-tag">Conditionals</span></p>
+                        <p>Selects a random element from all DOM nodes matching a CSS selector, captures a value from it, stores it in a named variable, and optionally clicks it. Use this to test flows that should work with <em>any</em> item in a list — product cards, search results, table rows, etc.</p>
+
+                        <h3>Fields</h3>
+                        <table class="docs-field-table docs-field-table-full">
+                            <thead><tr><th>Field</th><th>Required</th><th>Description</th></tr></thead>
+                            <tbody>
+                                <tr><td>CSS Selector (candidates)</td><td>Yes</td><td>Matches all candidate elements. Must be a CSS selector — class, tag, attribute, or a combination.</td></tr>
+                                <tr><td>Exclude selector</td><td>No</td><td>Any candidate that also matches this selector is excluded from the pool before picking. Use to skip sold-out, disabled, or unavailable items.</td></tr>
+                                <tr><td>Capture attribute</td><td>No</td><td>If set, captures this HTML attribute from the picked element (e.g. <code>data-sku</code>, <code>href</code>). If left blank, captures the element's inner text.</td></tr>
+                                <tr><td>Store as variable name</td><td>Yes</td><td>The captured value is stored under this name. Reference it in later steps as <code>&#123;&#123;name&#125;&#125;</code>.</td></tr>
+                                <tr><td>Click picked element</td><td>Yes</td><td>Whether to click the picked element after capturing. Set to <strong>no</strong> if you only want to capture a value without navigating.</td></tr>
+                            </tbody>
+                        </table>
+
+                        <h3>How it works</h3>
+                        <ol class="docs-ol">
+                            <li>Waits for the first matching element to be attached to the DOM (10s timeout).</li>
+                            <li>Fetches all matching elements via <code>page.locator(selector).all()</code>.</li>
+                            <li>Filters out any elements that also match the exclude selector.</li>
+                            <li>Picks one at random.</li>
+                            <li>Captures inner text or an attribute, stores it in the runtime variable store.</li>
+                            <li>Optionally clicks the picked element.</li>
+                        </ol>
+                        <p class="docs-note">The step result message always shows exactly which item was picked, so failed runs are fully traceable.</p>
+
+                        <!-- Example 1 -->
+                        <h3>Example — Add a random product to basket</h3>
+                        <p>A product list page where each card has the class <code>product-card</code>. We want to pick one at random, navigate to its detail page, and add it to the basket.</p>
+
+                        <div class="docs-demo">
+                            <div class="docs-demo-label">Sample HTML</div>
+                            <pre class="docs-code">&lt;div class="product-list"&gt;
+
+  &lt;div class="product-card"&gt;
+    &lt;a href="/products/blue-widget" class="product-link"&gt;
+      &lt;img src="/img/blue-widget.jpg" alt="Blue Widget"&gt;
+      &lt;h3 class="product-name"&gt;Blue Widget&lt;/h3&gt;
+      &lt;p class="product-price"&gt;&euro;29.99&lt;/p&gt;
+    &lt;/a&gt;
+    &lt;button class="add-to-basket"&gt;Add to basket&lt;/button&gt;
+  &lt;/div&gt;
+
+  &lt;div class="product-card"&gt;
+    &lt;a href="/products/red-gadget" class="product-link"&gt;
+      &lt;img src="/img/red-gadget.jpg" alt="Red Gadget"&gt;
+      &lt;h3 class="product-name"&gt;Red Gadget&lt;/h3&gt;
+      &lt;p class="product-price"&gt;&euro;49.99&lt;/p&gt;
+    &lt;/a&gt;
+    &lt;button class="add-to-basket"&gt;Add to basket&lt;/button&gt;
+  &lt;/div&gt;
+
+  &lt;!-- ...more cards --&gt;
+
+&lt;/div&gt;</pre>
+                        </div>
+
+                        <div class="docs-demo">
+                            <div class="docs-demo-label">Step configuration</div>
+                            <table class="docs-field-table">
+                                <tr><td>CSS Selector</td><td><code>.product-card .product-name</code></td></tr>
+                                <tr><td>Exclude selector</td><td><em>leave blank</em></td></tr>
+                                <tr><td>Capture attribute</td><td><em>leave blank</em> (captures inner text — e.g. "Blue Widget")</td></tr>
+                                <tr><td>Store as</td><td><code>selected_product</code></td></tr>
+                                <tr><td>Click picked element</td><td>yes</td></tr>
+                            </table>
+                        </div>
+
+                        <div class="docs-demo">
+                            <div class="docs-demo-label">Subsequent step — assert product is in basket</div>
+                            <table class="docs-field-table">
+                                <tr><td>Step type</td><td>Assert Element Text</td></tr>
+                                <tr><td>Selector</td><td><code>.basket-item-name</code></td></tr>
+                                <tr><td>Expected text</td><td><code>&#123;&#123;selected_product&#125;&#125;</code></td></tr>
+                            </table>
+                            <p class="docs-note">At runtime, <code>&#123;&#123;selected_product&#125;&#125;</code> is replaced with whichever product name was captured — e.g. "Blue Widget".</p>
+                        </div>
+
+                        <!-- Example 2 — sold out -->
+                        <h3>Example — Skip sold-out items</h3>
+                        <p>Same product list, but some cards have a <code>sold-out</code> class added when stock is zero. We want to pick only from available items.</p>
+
+                        <div class="docs-demo">
+                            <div class="docs-demo-label">Sample HTML — mix of available and sold-out</div>
+                            <pre class="docs-code">&lt;div class="product-list"&gt;
+
+  &lt;div class="product-card"&gt;
+    &lt;a href="/products/blue-widget" class="product-link"&gt;
+      &lt;h3 class="product-name"&gt;Blue Widget&lt;/h3&gt;
+      &lt;p class="product-price"&gt;&euro;29.99&lt;/p&gt;
+    &lt;/a&gt;
+    &lt;button class="add-to-basket"&gt;Add to basket&lt;/button&gt;
+  &lt;/div&gt;
+
+  &lt;div class="product-card sold-out"&gt;
+    &lt;a href="/products/red-gadget" class="product-link"&gt;
+      &lt;h3 class="product-name"&gt;Red Gadget&lt;/h3&gt;
+      &lt;p class="product-price"&gt;&euro;49.99&lt;/p&gt;
+    &lt;/a&gt;
+    &lt;span class="sold-out-label"&gt;Sold out&lt;/span&gt;
+  &lt;/div&gt;
+
+  &lt;div class="product-card"&gt;
+    &lt;a href="/products/green-doohickey" class="product-link"&gt;
+      &lt;h3 class="product-name"&gt;Green Doohickey&lt;/h3&gt;
+      &lt;p class="product-price"&gt;&euro;9.99&lt;/p&gt;
+    &lt;/a&gt;
+    &lt;button class="add-to-basket"&gt;Add to basket&lt;/button&gt;
+  &lt;/div&gt;
+
+&lt;/div&gt;</pre>
+                        </div>
+
+                        <div class="docs-demo">
+                            <div class="docs-demo-label">Step configuration — exclude sold-out cards</div>
+                            <table class="docs-field-table">
+                                <tr><td>CSS Selector</td><td><code>.product-card .product-name</code></td></tr>
+                                <tr><td>Exclude selector</td><td><code>.sold-out</code></td></tr>
+                                <tr><td>Capture attribute</td><td><em>leave blank</em></td></tr>
+                                <tr><td>Store as</td><td><code>selected_product</code></td></tr>
+                                <tr><td>Click picked element</td><td>yes</td></tr>
+                            </table>
+                            <p class="docs-note">The exclude selector is evaluated against the <em>candidate</em> element (the <code>.product-name</code> h3), not the card. To match against the parent card, use <code>:is(.sold-out) .product-name</code> or target the card directly as the candidate selector: <code>.product-card:not(.sold-out) .product-name</code> — which is often the cleanest approach.</p>
+                        </div>
+
+                        <div class="docs-demo docs-demo-tip">
+                            <div class="docs-demo-label">Tip — cleanest sold-out exclusion</div>
+                            <table class="docs-field-table">
+                                <tr><td>CSS Selector</td><td><code>.product-card:not(.sold-out) .product-name</code></td></tr>
+                                <tr><td>Exclude selector</td><td><em>leave blank</em></td></tr>
+                            </table>
+                            <p class="docs-note">Using <code>:not()</code> directly in the candidate selector is simpler and more reliable than using the exclude field when the out-of-stock marker is on a parent element.</p>
+                        </div>
+                    </section>
+
+                    <!-- Click If Exists -->
+                    <section id="click-if-exists" class="docs-section">
+                        <h2>Click If Exists</h2>
+                        <p class="docs-tag-row"><span class="docs-tag">Conditionals</span></p>
+                        <p>Clicks an element if it is present and visible in the DOM. If the element is not found, the step is skipped silently and the test continues. The step never fails due to the element being absent.</p>
+                        <p>Use this for elements that appear inconsistently — cookie consent banners, promotional modals, "continue as guest" prompts, newsletter popups, or any overlay that only shows on first visit or under certain conditions.</p>
+
+                        <h3>Fields</h3>
+                        <table class="docs-field-table docs-field-table-full">
+                            <thead><tr><th>Field</th><th>Required</th><th>Description</th></tr></thead>
+                            <tbody>
+                                <tr><td>Selector Type</td><td>Yes</td><td>How to locate the element — CSS, ID, XPath, etc.</td></tr>
+                                <tr><td>Selector</td><td>Yes</td><td>The selector value. Targets the element to click.</td></tr>
+                            </tbody>
+                        </table>
+
+                        <h3>Step result statuses</h3>
+                        <table class="docs-field-table docs-field-table-full">
+                            <thead><tr><th>Status</th><th>Meaning</th></tr></thead>
+                            <tbody>
+                                <tr><td><span class="status-badge status-success">success</span></td><td>Element was found and visible — clicked successfully.</td></tr>
+                                <tr><td><span class="status-badge" style="background:#6c757d;color:#fff">skipped</span></td><td>Element was not found or not visible — step skipped, test continues.</td></tr>
+                                <tr><td><span class="status-badge status-error">error</span></td><td>Element was found but the click itself threw an exception.</td></tr>
+                            </tbody>
+                        </table>
+
+                        <h3>Example — Dismiss cookie banner</h3>
+                        <p>A cookie consent banner that appears on the first visit but not on subsequent ones. Adding this step before any navigation ensures the banner is dismissed if present, without breaking runs where it is absent.</p>
+
+                        <div class="docs-demo">
+                            <div class="docs-demo-label">Sample HTML</div>
+                            <pre class="docs-code">&lt;div id="cookie-banner" class="consent-overlay"&gt;
+  &lt;p&gt;We use cookies to improve your experience.&lt;/p&gt;
+  &lt;button id="cookie-accept" class="btn-accept"&gt;Accept all&lt;/button&gt;
+  &lt;button id="cookie-reject" class="btn-reject"&gt;Reject&lt;/button&gt;
+&lt;/div&gt;</pre>
+                        </div>
+
+                        <div class="docs-demo">
+                            <div class="docs-demo-label">Step configuration</div>
+                            <table class="docs-field-table">
+                                <tr><td>Selector Type</td><td>css</td></tr>
+                                <tr><td>Selector</td><td><code>#cookie-accept</code></td></tr>
+                            </table>
+                        </div>
+
+                        <div class="docs-demo">
+                            <div class="docs-demo-label">Recommended test flow</div>
+                            <ol class="docs-ol">
+                                <li>Navigate — go to the page</li>
+                                <li><strong>Click If Exists</strong> — <code>#cookie-accept</code></li>
+                                <li>Continue with the rest of the test normally</li>
+                            </ol>
+                            <p class="docs-note">Works regardless of language — the selector targets the element directly, not any text inside it, so French, German, or Danish cookie banners work identically.</p>
+                        </div>
+                    </section>
+
+                </div><!-- /docs-content -->
+            </div><!-- /docs-layout -->
+        </div><!-- /docs-page -->
+    </main>
+</div>
+</body>
+</html>
