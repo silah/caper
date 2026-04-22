@@ -3053,3 +3053,14 @@ summary {
 .docs-note { font-size: .8rem !important; color: #888 !important; margin-top: .5rem !important; font-style: italic; }
 
 .docs-ol { font-size: .88rem; color: #555; padding-left: 1.4rem; line-height: 1.9; margin: .4rem 0 .6rem; }
+
+/* Docs — rendered product card demo */
+.dpc-list { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: .8rem; }
+.dpc-card { background: #fff; border: 1px solid #e0e0e0; border-radius: 10px; padding: 1rem; width: 130px; display: flex; flex-direction: column; align-items: center; gap: 6px; position: relative; box-shadow: 0 1px 4px rgba(0,0,0,.06); }
+.dpc-img { font-size: 2rem; line-height: 1; }
+.dpc-name { font-size: .78rem; font-weight: 700; color: #1a1a2e; text-align: center; margin: 0; }
+.dpc-price { font-size: .75rem; color: #555; margin: 0; }
+.dpc-btn { margin-top: 4px; width: 100%; font-size: .7rem; padding: 4px 6px; background: #3498db; color: #fff; border: none; border-radius: 5px; cursor: pointer; font-weight: 600; }
+.dpc-btn:disabled { background: #ccc; cursor: default; }
+.dpc-soldout { opacity: .45; }
+.dpc-soldout-badge { position: absolute; top: 8px; right: 8px; background: #e74c3c; color: #fff; font-size: .6rem; font-weight: 700; padding: 2px 6px; border-radius: 4px; text-transform: uppercase; }

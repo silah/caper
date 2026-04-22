@@ -118,6 +118,37 @@
                         <p>A product list page where each card has the class <code>product-card</code>. We want to pick one at random, navigate to its detail page, and add it to the basket.</p>
 
                         <div class="docs-demo">
+                            <div class="docs-demo-label">Live preview — this is what the product list looks like</div>
+                            <div class="dpc-list">
+                                <div class="dpc-card">
+                                    <div class="dpc-img">🔵</div>
+                                    <h3 class="dpc-name">Blue Widget</h3>
+                                    <p class="dpc-price">&euro;29.99</p>
+                                    <button class="dpc-btn">Add to basket</button>
+                                </div>
+                                <div class="dpc-card">
+                                    <div class="dpc-img">🔴</div>
+                                    <h3 class="dpc-name">Red Gadget</h3>
+                                    <p class="dpc-price">&euro;49.99</p>
+                                    <button class="dpc-btn">Add to basket</button>
+                                </div>
+                                <div class="dpc-card">
+                                    <div class="dpc-img">🟢</div>
+                                    <h3 class="dpc-name">Green Doohickey</h3>
+                                    <p class="dpc-price">&euro;9.99</p>
+                                    <button class="dpc-btn">Add to basket</button>
+                                </div>
+                                <div class="dpc-card">
+                                    <div class="dpc-img">🟡</div>
+                                    <h3 class="dpc-name">Yellow Thing</h3>
+                                    <p class="dpc-price">&euro;14.99</p>
+                                    <button class="dpc-btn">Add to basket</button>
+                                </div>
+                            </div>
+                            <p class="docs-note">The selector <code>.product-card .product-name</code> targets the <code>h3</code> inside each card. One is picked at random — e.g. "Red Gadget" — and its text is stored as <code>&#123;&#123;selected_product&#125;&#125;</code>.</p>
+                        </div>
+
+                        <div class="docs-demo">
                             <div class="docs-demo-label">Sample HTML</div>
                             <pre class="docs-code">&lt;div class="product-list"&gt;
 
@@ -168,6 +199,39 @@
                         <!-- Example 2 — sold out -->
                         <h3>Example — Skip sold-out items</h3>
                         <p>Same product list, but some cards have a <code>sold-out</code> class added when stock is zero. We want to pick only from available items.</p>
+
+                        <div class="docs-demo">
+                            <div class="docs-demo-label">Live preview — sold-out cards are greyed out and excluded from the random pick</div>
+                            <div class="dpc-list">
+                                <div class="dpc-card">
+                                    <div class="dpc-img">🔵</div>
+                                    <h3 class="dpc-name">Blue Widget</h3>
+                                    <p class="dpc-price">&euro;29.99</p>
+                                    <button class="dpc-btn">Add to basket</button>
+                                </div>
+                                <div class="dpc-card dpc-soldout">
+                                    <div class="dpc-soldout-badge">Sold out</div>
+                                    <div class="dpc-img">🔴</div>
+                                    <h3 class="dpc-name">Red Gadget</h3>
+                                    <p class="dpc-price">&euro;49.99</p>
+                                    <button class="dpc-btn" disabled>Unavailable</button>
+                                </div>
+                                <div class="dpc-card">
+                                    <div class="dpc-img">🟢</div>
+                                    <h3 class="dpc-name">Green Doohickey</h3>
+                                    <p class="dpc-price">&euro;9.99</p>
+                                    <button class="dpc-btn">Add to basket</button>
+                                </div>
+                                <div class="dpc-card dpc-soldout">
+                                    <div class="dpc-soldout-badge">Sold out</div>
+                                    <div class="dpc-img">🟡</div>
+                                    <h3 class="dpc-name">Yellow Thing</h3>
+                                    <p class="dpc-price">&euro;14.99</p>
+                                    <button class="dpc-btn" disabled>Unavailable</button>
+                                </div>
+                            </div>
+                            <p class="docs-note">The two sold-out cards (Red Gadget, Yellow Thing) have the class <code>sold-out</code> on their <code>.product-card</code> wrapper. Using <code>.product-card:not(.sold-out) .product-name</code> as the selector means only Blue Widget and Green Doohickey are in the candidate pool.</p>
+                        </div>
 
                         <div class="docs-demo">
                             <div class="docs-demo-label">Sample HTML — mix of available and sold-out</div>
