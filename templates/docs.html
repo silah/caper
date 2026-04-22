@@ -312,8 +312,32 @@
                             </tbody>
                         </table>
 
-                        <h3>Example — Dismiss cookie banner</h3>
+                        <h3>Example 1 — Dismiss cookie banner</h3>
                         <p>A cookie consent banner that appears on the first visit but not on subsequent ones. Adding this step before any navigation ensures the banner is dismissed if present, without breaking runs where it is absent.</p>
+
+                        <div class="docs-demo">
+                            <div class="docs-demo-label">Live preview — what the banner looks like on the page</div>
+                            <div class="cie-page-preview">
+                                <div class="cie-page-content">
+                                    <div class="cie-page-line"></div>
+                                    <div class="cie-page-line cie-page-line-short"></div>
+                                    <div class="cie-page-line"></div>
+                                    <div class="cie-page-line cie-page-line-mid"></div>
+                                </div>
+                                <div class="cie-cookie-banner">
+                                    <div class="cie-cookie-icon">🍪</div>
+                                    <div class="cie-cookie-text">
+                                        <strong>We use cookies</strong>
+                                        <span>to improve your experience and analyse site traffic.</span>
+                                    </div>
+                                    <div class="cie-cookie-actions">
+                                        <button class="cie-btn cie-btn-accept" id="cookie-accept">Accept all</button>
+                                        <button class="cie-btn cie-btn-reject">Reject</button>
+                                    </div>
+                                </div>
+                            </div>
+                            <p class="docs-note">The banner sits at the bottom of the page. On a fresh session it is present — the step clicks <code>#cookie-accept</code> and moves on. On a returning session it is absent — the step is silently skipped.</p>
+                        </div>
 
                         <div class="docs-demo">
                             <div class="docs-demo-label">Sample HTML</div>
@@ -340,6 +364,53 @@
                                 <li>Continue with the rest of the test normally</li>
                             </ol>
                             <p class="docs-note">Works regardless of language — the selector targets the element directly, not any text inside it, so French, German, or Danish cookie banners work identically.</p>
+                        </div>
+
+                        <h3>Example 2 — Dismiss a special offer modal</h3>
+                        <p>Some sites show a promotional modal on the first visit — a discount code, a newsletter signup, or a limited-time offer. It only appears occasionally, so a regular click step would fail whenever it's absent.</p>
+
+                        <div class="docs-demo">
+                            <div class="docs-demo-label">Live preview — promotional modal overlaying the page</div>
+                            <div class="cie-page-preview cie-modal-preview">
+                                <div class="cie-page-content cie-page-content-blurred">
+                                    <div class="cie-page-line"></div>
+                                    <div class="cie-page-line cie-page-line-short"></div>
+                                    <div class="cie-page-line"></div>
+                                    <div class="cie-page-line cie-page-line-mid"></div>
+                                </div>
+                                <div class="cie-modal">
+                                    <div class="cie-modal-inner">
+                                        <div class="cie-modal-offer-tag">Limited time offer</div>
+                                        <div class="cie-modal-emoji">🎉</div>
+                                        <strong class="cie-modal-title">Get 15% off your first order</strong>
+                                        <p class="cie-modal-body">Use code <code>WELCOME15</code> at checkout.</p>
+                                        <button class="cie-btn cie-btn-accept">Claim offer</button>
+                                        <button class="cie-btn-dismiss" id="offer-dismiss">No thanks</button>
+                                    </div>
+                                </div>
+                            </div>
+                            <p class="docs-note">The modal blocks the page. Clicking <code>#offer-dismiss</code> closes it — or if the modal isn't shown this session, the step is skipped and the test continues uninterrupted.</p>
+                        </div>
+
+                        <div class="docs-demo">
+                            <div class="docs-demo-label">Sample HTML</div>
+                            <pre class="docs-code">&lt;div id="offer-modal" class="modal-overlay"&gt;
+  &lt;div class="modal-box"&gt;
+    &lt;h2&gt;Get 15% off your first order&lt;/h2&gt;
+    &lt;p&gt;Use code WELCOME15 at checkout.&lt;/p&gt;
+    &lt;button class="btn-claim"&gt;Claim offer&lt;/button&gt;
+    &lt;button id="offer-dismiss" class="btn-dismiss"&gt;No thanks&lt;/button&gt;
+  &lt;/div&gt;
+&lt;/div&gt;</pre>
+                        </div>
+
+                        <div class="docs-demo">
+                            <div class="docs-demo-label">Step configuration</div>
+                            <table class="docs-field-table">
+                                <tr><td>Selector Type</td><td>css</td></tr>
+                                <tr><td>Selector</td><td><code>#offer-dismiss</code></td></tr>
+                            </table>
+                            <p class="docs-note">Target the dismiss/close button, not the modal wrapper — clicking the wrapper may do nothing depending on the site's implementation.</p>
                         </div>
                     </section>
 
