@@ -692,7 +692,7 @@ def _send_webhook(test_id, status):
 
 
 def _run_test_subprocess(test_id, script, execution_id, test_name='',
-                         team_id=None, retry_count=0, sla_seconds=None):
+                         team_id=None, retry_count=0, sla_seconds=None, auto_heal=False):
     # Substitute {{VARIABLE}} placeholders with team variables
     if team_id:
         try:
@@ -821,6 +821,25 @@ def _run_test_subprocess(test_id, script, execution_id, test_name='',
                         cwv_data=final_cwv_data)
     db.update_execution_stats(test_id)
 
+    if auto_heal and final_status == 'error':
+        try:
+            import healing
+            team_vars = db.get_team_variables(team_id) if team_id else []
+            config = ai_client.get_ai_config(team_vars)
+            if config.get('model'):
+                test_row = db.get_test(test_id)
+                execution_row = db.get_execution(execution_id)
+                if test_row and execution_row:
+                    healing_data = healing.diagnose_execution(
+                        test_row, execution_row, config, BASE_ARTEFACTS_DIR
+                    )
+                    db.update_execution_healing(execution_id, json.dumps(healing_data))
+                    db.log_event('info',
+                        f'Auto-heal diagnosis complete for execution {execution_id}',
+                        f'steps_diagnosed={healing_data.get("steps_diagnosed")}')
+        except Exception as _he:
+            db.log_event('error', f'Auto-heal failed for execution {execution_id}', str(_he))
+
     label = f'"{test_name}" ' if test_name else ''
     detail = f'execution_id={execution_id} test_id={test_id} duration={duration_seconds:.1f}s'
     if sla_violated:
@@ -848,7 +867,9 @@ def create_test():
     browser = data.get('browser', 'firefox') if data.get('browser') in ('firefox', 'chrome') else 'firefox'
     script = generate_playwright_script(steps, test_name=name, base_artefacts_dir=BASE_ARTEFACTS_DIR,
                                       browser=browser)
-    test_id = db.create_test(name, description, steps, script, team['id'], browser=browser)
+    auto_heal = bool(data.get('auto_heal', False))
+    test_id = db.create_test(name, description, steps, script, team['id'], browser=browser,
+                              auto_heal=auto_heal)
     return jsonify({'success': True, 'test_id': test_id,
                     'message': f'Test "{name}" created successfully'})
 
@@ -875,6 +896,7 @@ def execute_test(test_id):
               team['id'] if team else None,
               test.get('retry_count', 0),
               test.get('sla_seconds')),
+        kwargs={'auto_heal': bool(test.get('auto_heal'))},
         daemon=True
     )
     thread.start()
@@ -989,8 +1011,10 @@ def update_test(test_id):
     except (ValueError, TypeError):
         sla_seconds = None
 
+    auto_heal = bool(data.get('auto_heal', False))
     db.update_test(test_id, name, description, steps, script, team['id'],
-                   retry_count=retry_count, sla_seconds=sla_seconds, browser=browser)
+                   retry_count=retry_count, sla_seconds=sla_seconds, browser=browser,
+                   auto_heal=auto_heal)
 
     sched = data.get('schedule', {})
     if sched:
@@ -1179,6 +1203,110 @@ def handle_exception(e):
     raise e
 
 
+# ── Self-healing routes ───────────────────────────────────────────────────────
+
+@app.route('/api/tests/<int:test_id>/steps/<int:step_index>/intent', methods=['PATCH'])
+@login_required
+def patch_step_intent(test_id, step_index):
+    team = get_current_team()
+    data = request.get_json(force=True)
+    intent = (data.get('intent') or '').strip()
+    ok = db.update_step_intent(test_id, step_index, intent, team['id'] if team else None)
+    if not ok:
+        return jsonify({'error': 'Step not found'}), 404
+    return jsonify({'ok': True})
+
+
+@app.route('/api/executions/<int:execution_id>/diagnose', methods=['POST'])
+@login_required
+def diagnose_execution(execution_id):
+    team = get_current_team()
+    execution = db.get_execution(execution_id)
+    if not execution:
+        return jsonify({'error': 'Execution not found'}), 404
+    test = db.get_test(execution['test_id'], team['id'] if team else None)
+    if not test:
+        return jsonify({'error': 'Test not found'}), 404
+
+    team_vars = db.get_team_variables(team['id']) if team else []
+    config = ai_client.get_ai_config(team_vars)
+    if not config.get('model'):
+        return jsonify({'error': 'AI not configured'}), 400
+
+    import healing
+    healing_data = healing.diagnose_execution(test, execution, config, BASE_ARTEFACTS_DIR)
+    db.update_execution_healing(execution_id, json.dumps(healing_data))
+    return jsonify(healing_data)
+
+
+@app.route('/api/executions/<int:execution_id>/apply-heal', methods=['POST'])
+@login_required
+def apply_heal(execution_id):
+    team = get_current_team()
+    execution = db.get_execution(execution_id)
+    if not execution:
+        return jsonify({'error': 'Execution not found'}), 404
+    test = db.get_test(execution['test_id'], team['id'] if team else None)
+    if not test:
+        return jsonify({'error': 'Test not found'}), 404
+
+    data = request.get_json(force=True)
+    step_index = data.get('step_index')
+    new_selector = data.get('new_selector', '').strip()
+    new_selector_type = data.get('new_selector_type', '').strip()
+    diagnosis = data.get('diagnosis', '')
+    confidence = data.get('confidence', '')
+    original_selector = data.get('original_selector', '')
+    original_selector_type = data.get('original_selector_type', '')
+
+    if step_index is None or not new_selector:
+        return jsonify({'error': 'step_index and new_selector required'}), 400
+
+    ok = db.apply_healing_selector(
+        test['id'], step_index, new_selector, new_selector_type,
+        team['id'] if team else None
+    )
+    if not ok:
+        return jsonify({'error': 'Could not apply selector'}), 500
+
+    # Regenerate the script with updated steps
+    updated_test = db.get_test(test['id'], team['id'] if team else None)
+    new_script = generate_playwright_script(
+        updated_test['steps'], test_name=updated_test['name'],
+        base_artefacts_dir=BASE_ARTEFACTS_DIR,
+        browser=updated_test.get('browser', 'firefox')
+    )
+    db.update_test(
+        test['id'], updated_test['name'], updated_test.get('description', ''),
+        updated_test['steps'], new_script,
+        team['id'] if team else None,
+        updated_test.get('retry_count', 0),
+        updated_test.get('sla_seconds'),
+        updated_test.get('browser', 'firefox'),
+    )
+
+    db.add_healing_log(
+        test_id=test['id'],
+        execution_id=execution_id,
+        step_index=step_index,
+        original_selector=original_selector,
+        original_selector_type=original_selector_type,
+        new_selector=new_selector,
+        new_selector_type=new_selector_type,
+        confidence=confidence,
+        diagnosis=diagnosis,
+        applied_by=current_user.username,
+    )
+    return jsonify({'ok': True})
+
+
+@app.route('/api/tests/<int:test_id>/healing-log', methods=['GET'])
+@login_required
+def get_healing_log(test_id):
+    entries = db.get_healing_log(test_id)
+    return jsonify(entries)
+
+
 def _scheduler_loop():
     db.log_event('info', 'Scheduler started')
     tick = 0
@@ -1200,6 +1328,7 @@ def _scheduler_loop():
                               test.get('team_id'),
                               test.get('retry_count', 0),
                               test.get('sla_seconds')),
+                        kwargs={'auto_heal': bool(test.get('auto_heal'))},
                         daemon=True
                     ).start()
             if tick % 10 == 0:

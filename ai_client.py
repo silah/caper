@@ -91,7 +91,11 @@ _GENERATE_SYSTEM = (
     "Given a plain-English description of a test scenario, generate a JSON array of Caper test steps. "
     "Return ONLY a valid JSON array — no markdown fences, no explanation, no other text. "
     "Every element of the array must be an object with an 'action' field using one of the exact "
-    "action names from the reference. Do not wrap the array in any outer object."
+    "action names from the reference. Do not wrap the array in any outer object. "
+    "Each step object MUST also include an 'intent' field: a single sentence describing what this "
+    "step achieves from the user's perspective (e.g. 'Navigate to the login page', "
+    "'Enter the user password', 'Verify the dashboard is shown'). The intent should survive "
+    "selector changes — describe the goal, not the selector."
 )
 
 _DESCRIBE_SYSTEM = (

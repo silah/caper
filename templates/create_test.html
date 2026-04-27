@@ -89,11 +89,19 @@
                         </div>
                     </div>
                     <div id="stepConfig"></div>
+                    <div class="form-group" style="margin-top:8px">
+                        <label for="stepIntent" style="font-size:.8rem;color:#aaa">Intent <span style="font-weight:normal;font-size:.75rem">(optional — what should this step achieve?)</span></label>
+                        <input type="text" id="stepIntent" placeholder="e.g. Click the Add to Cart button" style="font-size:.85rem">
+                    </div>
                     <button class="btn btn-primary" onclick="addStep()">Add Step</button>
                 </div>
             </div>
 
             <div class="actions">
+                <label class="auto-heal-toggle">
+                    <input type="checkbox" id="autoHeal">
+                    <span>Auto-heal on failure <span style="font-size:.77rem;color:#aaa;font-weight:normal">(AI diagnoses failed steps automatically after each run)</span></span>
+                </label>
                 <button class="btn btn-success btn-lg" onclick="saveTest()">Save Test</button>
                 <button class="btn btn-secondary" onclick="resetTest()">Reset</button>
             </div>

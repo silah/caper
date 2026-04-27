@@ -242,11 +242,36 @@ class Database:
             ('console_errors', 'TEXT'),
             ('network_anomalies', 'TEXT'),
             ('cwv_data', 'TEXT'),
+            ('healing_data', 'TEXT'),
         ]:
             try:
                 cursor.execute(f'SELECT {col} FROM executions LIMIT 1')
             except sqlite3.OperationalError:
                 cursor.execute(f'ALTER TABLE executions ADD COLUMN {col} {definition}')
+
+        try:
+            cursor.execute('SELECT auto_heal FROM tests LIMIT 1')
+        except sqlite3.OperationalError:
+            cursor.execute('ALTER TABLE tests ADD COLUMN auto_heal INTEGER DEFAULT 0')
+
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS healing_log (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                test_id INTEGER NOT NULL,
+                execution_id INTEGER,
+                step_index INTEGER NOT NULL,
+                original_selector TEXT,
+                original_selector_type TEXT,
+                new_selector TEXT,
+                new_selector_type TEXT,
+                confidence TEXT,
+                diagnosis TEXT,
+                applied_by TEXT,
+                applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (test_id) REFERENCES tests (id) ON DELETE CASCADE,
+                FOREIGN KEY (execution_id) REFERENCES executions (id)
+            )
+        ''')
 
         conn.commit()
         conn.close()
@@ -405,14 +430,14 @@ class Database:
         conn.close()
 
     def create_test(self, name, description, steps, script, team_id, retry_count=0,
-                    sla_seconds=None, browser='firefox'):
+                    sla_seconds=None, browser='firefox', auto_heal=0):
         conn = self.get_connection()
         cursor = conn.cursor()
         cursor.execute('''
-            INSERT INTO tests (name, description, steps, script, team_id, retry_count, sla_seconds, browser)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO tests (name, description, steps, script, team_id, retry_count, sla_seconds, browser, auto_heal)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         ''', (name, description, json.dumps(steps), script.encode('utf-8'), team_id,
-              retry_count or 0, sla_seconds, browser or 'firefox'))
+              retry_count or 0, sla_seconds, browser or 'firefox', 1 if auto_heal else 0))
         test_id = cursor.lastrowid
         conn.commit()
         conn.close()
@@ -469,7 +494,7 @@ class Database:
                        schedule_interval, schedule_enabled, schedule_next_run,
                        webhook_enabled, webhook_url, webhook_method,
                        webhook_payload_success, webhook_payload_failure,
-                       retry_count, sla_seconds, browser
+                       retry_count, sla_seconds, browser, auto_heal
                 FROM tests WHERE id = ? AND team_id = ?
             ''', (test_id, team_id))
         else:
@@ -478,7 +503,7 @@ class Database:
                        schedule_interval, schedule_enabled, schedule_next_run,
                        webhook_enabled, webhook_url, webhook_method,
                        webhook_payload_success, webhook_payload_failure,
-                       retry_count, sla_seconds, browser
+                       retry_count, sla_seconds, browser, auto_heal
                 FROM tests WHERE id = ?
             ''', (test_id,))
         row = cursor.fetchone()
@@ -742,7 +767,7 @@ class Database:
         conn = self.get_connection()
         cursor = conn.cursor()
         cursor.execute('''
-            SELECT id, name, script, team_id, schedule_interval, retry_count, sla_seconds
+            SELECT id, name, script, team_id, schedule_interval, retry_count, sla_seconds, auto_heal
             FROM tests
             WHERE schedule_enabled = 1
               AND schedule_interval IS NOT NULL
@@ -785,23 +810,42 @@ class Database:
         return tests
 
     def update_test(self, test_id, name, description, steps, script, team_id=None,
-                    retry_count=0, sla_seconds=None, browser='firefox'):
+                    retry_count=0, sla_seconds=None, browser='firefox', auto_heal=None):
         conn = self.get_connection()
         cursor = conn.cursor()
-        if team_id:
-            cursor.execute('''
-                UPDATE tests SET name = ?, description = ?, steps = ?, script = ?,
-                    retry_count = ?, sla_seconds = ?, browser = ?
-                WHERE id = ? AND team_id = ?
-            ''', (name, description, json.dumps(steps), script.encode('utf-8'),
-                  retry_count or 0, sla_seconds, browser or 'firefox', test_id, team_id))
+        if auto_heal is None:
+            # Don't change auto_heal when not provided (e.g. internal heal-apply call)
+            if team_id:
+                cursor.execute('''
+                    UPDATE tests SET name = ?, description = ?, steps = ?, script = ?,
+                        retry_count = ?, sla_seconds = ?, browser = ?
+                    WHERE id = ? AND team_id = ?
+                ''', (name, description, json.dumps(steps), script.encode('utf-8'),
+                      retry_count or 0, sla_seconds, browser or 'firefox', test_id, team_id))
+            else:
+                cursor.execute('''
+                    UPDATE tests SET name = ?, description = ?, steps = ?, script = ?,
+                        retry_count = ?, sla_seconds = ?, browser = ?
+                    WHERE id = ?
+                ''', (name, description, json.dumps(steps), script.encode('utf-8'),
+                      retry_count or 0, sla_seconds, browser or 'firefox', test_id))
         else:
-            cursor.execute('''
-                UPDATE tests SET name = ?, description = ?, steps = ?, script = ?,
-                    retry_count = ?, sla_seconds = ?, browser = ?
-                WHERE id = ?
-            ''', (name, description, json.dumps(steps), script.encode('utf-8'),
-                  retry_count or 0, sla_seconds, browser or 'firefox', test_id))
+            if team_id:
+                cursor.execute('''
+                    UPDATE tests SET name = ?, description = ?, steps = ?, script = ?,
+                        retry_count = ?, sla_seconds = ?, browser = ?, auto_heal = ?
+                    WHERE id = ? AND team_id = ?
+                ''', (name, description, json.dumps(steps), script.encode('utf-8'),
+                      retry_count or 0, sla_seconds, browser or 'firefox',
+                      1 if auto_heal else 0, test_id, team_id))
+            else:
+                cursor.execute('''
+                    UPDATE tests SET name = ?, description = ?, steps = ?, script = ?,
+                        retry_count = ?, sla_seconds = ?, browser = ?, auto_heal = ?
+                    WHERE id = ?
+                ''', (name, description, json.dumps(steps), script.encode('utf-8'),
+                      retry_count or 0, sla_seconds, browser or 'firefox',
+                      1 if auto_heal else 0, test_id))
         conn.commit()
         conn.close()
 
@@ -1125,3 +1169,101 @@ class Database:
         executions = [dict(row) for row in cursor.fetchall()]
         conn.close()
         return executions
+
+    # ── Self-healing ──────────────────────────────────────────────────────────
+
+    def update_execution_healing(self, execution_id, healing_data_json: str):
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        cursor.execute(
+            'UPDATE executions SET healing_data = ? WHERE id = ?',
+            (healing_data_json, execution_id)
+        )
+        conn.commit()
+        conn.close()
+
+    def update_step_intent(self, test_id, step_index: int, intent: str, team_id=None):
+        """Patch the intent field on a single step in the steps JSON column."""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        if team_id:
+            cursor.execute('SELECT steps FROM tests WHERE id = ? AND team_id = ?', (test_id, team_id))
+        else:
+            cursor.execute('SELECT steps FROM tests WHERE id = ?', (test_id,))
+        row = cursor.fetchone()
+        if not row:
+            conn.close()
+            return False
+        steps = json.loads(row[0])
+        if step_index < 0 or step_index >= len(steps):
+            conn.close()
+            return False
+        steps[step_index]['intent'] = intent
+        if team_id:
+            cursor.execute(
+                'UPDATE tests SET steps = ? WHERE id = ? AND team_id = ?',
+                (json.dumps(steps), test_id, team_id)
+            )
+        else:
+            cursor.execute('UPDATE tests SET steps = ? WHERE id = ?', (json.dumps(steps), test_id))
+        conn.commit()
+        conn.close()
+        return True
+
+    def add_healing_log(self, test_id, execution_id, step_index, original_selector,
+                        original_selector_type, new_selector, new_selector_type,
+                        confidence, diagnosis, applied_by):
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        cursor.execute('''
+            INSERT INTO healing_log
+                (test_id, execution_id, step_index, original_selector, original_selector_type,
+                 new_selector, new_selector_type, confidence, diagnosis, applied_by)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (test_id, execution_id, step_index, original_selector, original_selector_type,
+              new_selector, new_selector_type, confidence, diagnosis, applied_by))
+        log_id = cursor.lastrowid
+        conn.commit()
+        conn.close()
+        return log_id
+
+    def get_healing_log(self, test_id):
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        cursor.execute('''
+            SELECT * FROM healing_log WHERE test_id = ? ORDER BY applied_at DESC
+        ''', (test_id,))
+        rows = [dict(r) for r in cursor.fetchall()]
+        conn.close()
+        return rows
+
+    def apply_healing_selector(self, test_id, step_index: int, new_selector: str,
+                               new_selector_type: str, team_id=None):
+        """Write the healed selector back into the test's steps JSON."""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        if team_id:
+            cursor.execute('SELECT steps FROM tests WHERE id = ? AND team_id = ?', (test_id, team_id))
+        else:
+            cursor.execute('SELECT steps FROM tests WHERE id = ?', (test_id,))
+        row = cursor.fetchone()
+        if not row:
+            conn.close()
+            return False
+        steps = json.loads(row[0])
+        if step_index < 0 or step_index >= len(steps):
+            conn.close()
+            return False
+        steps[step_index]['selector'] = new_selector
+        if new_selector_type:
+            steps[step_index]['selectorType'] = new_selector_type
+        if team_id:
+            cursor.execute(
+                'UPDATE tests SET steps = ? WHERE id = ? AND team_id = ?',
+                (json.dumps(steps), test_id, team_id)
+            )
+        else:
+            cursor.execute('UPDATE tests SET steps = ? WHERE id = ?', (json.dumps(steps), test_id))
+        conn.commit()
+        conn.close()
+        return True

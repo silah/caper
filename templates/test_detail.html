@@ -56,6 +56,9 @@
             <div class="test-meta">
                 <div class="meta-item"><strong>Created:</strong> {{ test.created_at }}</div>
                 <div class="meta-item"><strong>Total Executions:</strong> {{ test.execution_count }}</div>
+                {% if test.auto_heal %}
+                <div class="meta-item"><span class="heal-conf heal-conf-high" style="font-size:.72rem">Auto-heal on</span></div>
+                {% endif %}
                 {% if test.last_executed %}
                 <div class="meta-item"><strong>Last Executed:</strong> {{ test.last_executed }}</div>
                 {% endif %}
@@ -164,6 +167,36 @@
                 {% endif %}
             </div>
         </div>
+
+        <!-- Healing History -->
+        <div class="td-section">
+            <div class="td-section-header">
+                <h2 class="td-section-title">Healing History</h2>
+            </div>
+            <div id="healingLog" style="font-size:.85rem;color:#aaa">Loading…</div>
+        </div>
+
+        <script>
+            function escH(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+            fetch('/api/tests/{{ test.id }}/healing-log')
+                .then(r => r.json())
+                .then(entries => {
+                    const el = document.getElementById('healingLog');
+                    if (!entries.length) { el.textContent = 'No healing events recorded yet.'; return; }
+                    el.innerHTML = `<table class="exd-obs-table">
+                        <thead><tr><th>Date</th><th>Step</th><th>Original</th><th>Healed to</th><th>Confidence</th><th>By</th></tr></thead>
+                        <tbody>${entries.map(e => `<tr>
+                            <td style="white-space:nowrap">${escH(e.applied_at||'')}</td>
+                            <td>#${e.step_index + 1}</td>
+                            <td><code>${escH(e.original_selector||'')}</code></td>
+                            <td><code>${escH(e.new_selector||'')}</code></td>
+                            <td><span class="heal-conf heal-conf-${e.confidence||'low'}">${escH(e.confidence||'')}</span></td>
+                            <td>${escH(e.applied_by||'')}</td>
+                        </tr>`).join('')}</tbody>
+                    </table>`;
+                })
+                .catch(() => { document.getElementById('healingLog').textContent = 'Could not load healing history.'; });
+        </script>
 
         <script>
             function saveSchedule() {

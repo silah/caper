@@ -130,6 +130,10 @@
                         <span>Chrome</span>
                     </label>
                 </div>
+                <div class="auto-heal-toggle" style="margin-top:10px">
+                    <input type="checkbox" id="autoHeal" {% if test.auto_heal %}checked{% endif %}>
+                    <span>Auto-heal on failure <span style="font-size:.75rem;color:#aaa;font-weight:normal">(AI diagnoses failed steps automatically)</span></span>
+                </div>
             </div>
 
             <!-- Tags -->
@@ -168,6 +172,10 @@
                             </div>
                         </div>
                         <div id="stepConfig" class="ed-step-config"></div>
+                        <div class="form-group" style="margin-top:6px">
+                            <label for="stepIntent" style="font-size:.78rem;color:#aaa">Intent <span style="font-weight:normal;font-size:.73rem">(optional — what should this step achieve?)</span></label>
+                            <input type="text" id="stepIntent" placeholder="e.g. Click the Add to Cart button" style="font-size:.82rem">
+                        </div>
                         <button class="btn btn-primary btn-sm" onclick="addStep()">Add step</button>
                     </div>
                 </div>
@@ -559,6 +567,7 @@
                     sla_seconds: slaSecondsVal,
                     tag_ids: _getSelectedTagIds(),
                     browser: document.querySelector('input[name="browserChoice"]:checked')?.value || 'firefox',
+                    auto_heal: document.getElementById('autoHeal')?.checked || false,
                 })
             })
             .then(r => r.json())

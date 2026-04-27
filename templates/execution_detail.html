@@ -201,22 +201,122 @@
 
     // Compact step list
     const stepsEl = document.getElementById('stepsCompact');
+    const executionId = {{ execution.id }};
+    const testId = {{ execution.test_id }};
+    let healingData = {};
+    {% if execution.healing_data %}
+    try { healingData = JSON.parse({{ execution.healing_data | tojson }}); } catch(e) {}
+    {% endif %}
+
+    function renderStepList(steps) {
+        if (!steps.length) {
+            stepsEl.innerHTML = '<p style="color:#aaa;font-size:.8rem">No step data.</p>';
+            return;
+        }
+        stepsEl.innerHTML = steps.map(s => {
+            const isError = s.status === 'error';
+            const diag = healingData.diagnoses && healingData.diagnoses[String(s.step)];
+            let healHtml = '';
+            if (isError) {
+                if (!diag) {
+                    healHtml = `<div class="heal-bar">
+                        <button class="btn btn-sm heal-btn" onclick="runDiagnosis(${s.step})">&#x1F50D; Diagnose with AI</button>
+                        <span class="heal-intent-wrap">
+                            <input type="text" class="heal-intent-input" id="intent-${s.step}" placeholder="What should this step do? (intent)">
+                            <button class="btn btn-sm btn-ghost" onclick="saveIntent(${s.step - 1}, ${s.step})">Save intent</button>
+                        </span>
+                    </div>`;
+                } else {
+                    const confClass = diag.confidence === 'high' ? 'heal-conf-high' : diag.confidence === 'medium' ? 'heal-conf-med' : 'heal-conf-low';
+                    let fixHtml = '';
+                    if (diag.suggested_selector && !diag.requires_human_review && !diag.auto_applied) {
+                        fixHtml = `<div class="heal-fix-row">
+                            <code class="heal-selector">${escH(diag.suggested_selector)}</code>
+                            <span class="heal-selector-type">${escH(diag.suggested_selector_type || '')}</span>
+                            <button class="btn btn-sm heal-apply-btn" onclick="applyHeal(${s.step - 1}, '${escH(diag.suggested_selector)}', '${escH(diag.suggested_selector_type || '')}', ${s.step})">Apply fix</button>
+                            <button class="btn btn-sm btn-ghost" onclick="dismissHeal(${s.step})">Dismiss</button>
+                        </div>`;
+                    } else if (diag.auto_applied) {
+                        fixHtml = `<div class="heal-applied-note">Fix applied.</div>`;
+                    } else if (diag.requires_human_review) {
+                        fixHtml = `<div class="heal-review-note">Requires human review — no auto-fix suggested.</div>`;
+                    }
+                    healHtml = `<div class="heal-card">
+                        <div class="heal-card-header">
+                            <span class="heal-label">AI Diagnosis</span>
+                            <span class="heal-conf ${confClass}">${diag.confidence || ''}</span>
+                        </div>
+                        <div class="heal-diagnosis">${escH(diag.diagnosis || '')}</div>
+                        ${fixHtml}
+                    </div>`;
+                }
+            }
+            return `<details class="cstep cstep-${s.status}">
+                <summary class="cstep-summary">
+                    <span class="cstep-icon ${s.status === 'success' ? 'cstep-ok' : 'cstep-fail'}">${s.status === 'success' ? '✓' : '✗'}</span>
+                    <span class="cstep-num">${s.step}</span>
+                    <span class="cstep-action">${escH((s.action||'').replace(/_/g,' ').toUpperCase())}</span>
+                </summary>
+                <div class="cstep-detail">${escH(s.message || '')}</div>
+                ${healHtml}
+            </details>`;
+        }).join('');
+    }
+
     if (stepsEl) {
         let steps = [];
         try { steps = JSON.parse(stepsEl.dataset.steps || '[]'); } catch(e) {}
-        if (!steps.length) {
-            stepsEl.innerHTML = '<p style="color:#aaa;font-size:.8rem">No step data.</p>';
-        } else {
-            stepsEl.innerHTML = steps.map(s => `
-                <details class="cstep cstep-${s.status}">
-                    <summary class="cstep-summary">
-                        <span class="cstep-icon ${s.status === 'success' ? 'cstep-ok' : 'cstep-fail'}">${s.status === 'success' ? '✓' : '✗'}</span>
-                        <span class="cstep-num">${s.step}</span>
-                        <span class="cstep-action">${escH((s.action||'').replace(/_/g,' ').toUpperCase())}</span>
-                    </summary>
-                    <div class="cstep-detail">${escH(s.message || '')}</div>
-                </details>`).join('');
-        }
+        renderStepList(steps);
+
+        window.runDiagnosis = function(stepNum) {
+            const btn = stepsEl.querySelector(`button[onclick="runDiagnosis(${stepNum})"]`);
+            if (btn) { btn.disabled = true; btn.textContent = 'Diagnosing…'; }
+            fetch(`/api/executions/${executionId}/diagnose`, {method:'POST'})
+                .then(r => r.json())
+                .then(data => { healingData = data; renderStepList(steps); })
+                .catch(() => { if (btn) { btn.disabled = false; btn.textContent = '🔍 Diagnose with AI'; } });
+        };
+
+        window.saveIntent = function(stepIndex, stepNum) {
+            const val = document.getElementById(`intent-${stepNum}`)?.value?.trim();
+            if (!val) return;
+            fetch(`/api/tests/${testId}/steps/${stepIndex}/intent`, {
+                method: 'PATCH',
+                headers: {'Content-Type':'application/json'},
+                body: JSON.stringify({intent: val})
+            }).then(() => {
+                const el = document.getElementById(`intent-${stepNum}`);
+                if (el) { el.style.borderColor = '#4caf50'; }
+            });
+        };
+
+        window.applyHeal = function(stepIndex, newSelector, newSelectorType, stepNum) {
+            const diag = healingData.diagnoses && healingData.diagnoses[String(stepNum)];
+            fetch(`/api/executions/${executionId}/apply-heal`, {
+                method: 'POST',
+                headers: {'Content-Type':'application/json'},
+                body: JSON.stringify({
+                    step_index: stepIndex,
+                    new_selector: newSelector,
+                    new_selector_type: newSelectorType,
+                    diagnosis: diag ? diag.diagnosis : '',
+                    confidence: diag ? diag.confidence : '',
+                    original_selector: diag ? diag.original_selector : '',
+                    original_selector_type: diag ? diag.original_selector_type : '',
+                })
+            }).then(r => r.json()).then(data => {
+                if (data.ok) {
+                    if (diag) diag.auto_applied = true;
+                    renderStepList(steps);
+                }
+            });
+        };
+
+        window.dismissHeal = function(stepNum) {
+            const diag = healingData.diagnoses && healingData.diagnoses[String(stepNum)];
+            if (diag) diag.requires_human_review = true;
+            renderStepList(steps);
+        };
     }
 </script>
 </body>

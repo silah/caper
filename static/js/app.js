@@ -276,29 +276,35 @@ function updateStepConfig() {
 function addStep() {
     const actionType = document.getElementById('actionType').value;
     const config = actionConfigs[actionType];
-    
+
     if (!config) {
         alert('Invalid action type');
         return;
     }
-    
+
     const step = { action: actionType };
-    
+
     // Collect field values
     for (const field of config.fields) {
         const element = document.getElementById(`step_${field.name}`);
         if (!element) continue;
-        
+
         const value = element.value.trim();
-        
+
         if (field.required && !value) {
             alert(`${field.label} is required`);
             return;
         }
-        
+
         step[field.name] = value;
     }
-    
+
+    // Collect intent (optional, shared across all step types)
+    const intentEl = document.getElementById('stepIntent');
+    if (intentEl && intentEl.value.trim()) {
+        step.intent = intentEl.value.trim();
+    }
+
     // Check if we should insert after a specific index
     if (typeof window.insertAfterIndex !== 'undefined') {
         testSteps.splice(window.insertAfterIndex + 1, 0, step);
@@ -306,14 +312,15 @@ function addStep() {
     } else {
         testSteps.push(step);
     }
-    
+
     renderSteps();
-    
+
     // Clear form
     for (const field of config.fields) {
         const element = document.getElementById(`step_${field.name}`);
         if (element) element.value = '';
     }
+    if (intentEl) intentEl.value = '';
 }
 
 // Render the steps list
@@ -393,6 +400,9 @@ function renderSteps() {
             html += ` - Pick random <code>${step.selector}</code>${excl} → <code>{{${step.storeAs}}}</code> [${capture}${click}]`;
         }
 
+        if (step.intent) {
+            html += `<div class="step-intent">${step.intent.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div>`;
+        }
         html += `</div>`;
         html += `<div class="step-actions">`;
         html += `<button class="btn btn-sm btn-primary" onclick="insertStepAfter(${index})">+ Insert</button>`;
@@ -500,11 +510,13 @@ function saveTest() {
     }
     
     const browserEl = document.querySelector('input[name="browserChoice"]:checked');
+    const autoHealEl = document.getElementById('autoHeal');
     const data = {
         name: name,
         description: description,
         steps: testSteps,
         browser: browserEl ? browserEl.value : 'firefox',
+        auto_heal: autoHealEl ? autoHealEl.checked : false,
     };
 
     fetch('/api/tests', {

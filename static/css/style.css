@@ -3092,3 +3092,71 @@ summary {
 .cie-modal-body { font-size: .75rem; color: #666; margin: 0; }
 .cie-modal-body code { background: #f0f0f0; padding: 1px 5px; border-radius: 3px; }
 .cie-btn-dismiss { background: none; border: none; font-size: .72rem; color: #aaa; cursor: pointer; text-decoration: underline; margin-top: 2px; }
+
+/* ── Self-healing UI ─────────────────────────────────────────── */
+.heal-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 4px 6px 38px;
+    flex-wrap: wrap;
+}
+.heal-btn {
+    background: #1565c0;
+    color: #fff;
+    border: none;
+    border-radius: 5px;
+    padding: 3px 10px;
+    font-size: .72rem;
+    cursor: pointer;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+.heal-btn:disabled { opacity: .55; cursor: default; }
+.heal-intent-wrap { display: flex; align-items: center; gap: 5px; flex: 1; min-width: 160px; }
+.heal-intent-input {
+    flex: 1;
+    font-size: .73rem;
+    padding: 3px 7px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    min-width: 0;
+}
+.heal-card {
+    margin: 4px 4px 6px 38px;
+    border: 1px solid #1565c0;
+    border-radius: 6px;
+    overflow: hidden;
+    font-size: .78rem;
+}
+.heal-card-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: #e3f2fd;
+    padding: 5px 10px;
+}
+.heal-label { font-weight: 600; color: #0d47a1; font-size: .72rem; text-transform: uppercase; letter-spacing: .05em; }
+.heal-diagnosis { padding: 7px 10px; color: #333; line-height: 1.45; }
+.heal-fix-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 5px 10px 8px;
+    background: #f9fbe7;
+    flex-wrap: wrap;
+}
+.heal-selector { background: #fff; border: 1px solid #c5cae9; padding: 2px 6px; border-radius: 4px; font-size: .75rem; color: #283593; }
+.heal-selector-type { color: #888; font-size: .72rem; }
+.heal-apply-btn { background: #2e7d32; color: #fff; border: none; border-radius: 5px; padding: 3px 9px; font-size: .72rem; cursor: pointer; }
+.heal-apply-btn:hover { background: #1b5e20; }
+.heal-applied-note { padding: 4px 10px 6px; color: #2e7d32; font-size: .75rem; font-style: italic; }
+.heal-review-note { padding: 4px 10px 6px; color: #e65100; font-size: .75rem; font-style: italic; }
+.heal-conf { font-size: .67rem; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; padding: 1px 7px; border-radius: 20px; }
+.heal-conf-high  { background: #c8e6c9; color: #1b5e20; }
+.heal-conf-med   { background: #fff9c4; color: #827717; }
+.heal-conf-low   { background: #ffccbc; color: #bf360c; }
+.step-intent { font-size: .75rem; color: #888; font-style: italic; margin-top: 2px; }
+
+/* auto-heal toggle in test forms */
+.auto-heal-toggle { display: flex; align-items: center; gap: 8px; margin-top: 6px; font-size: .83rem; color: #555; }
